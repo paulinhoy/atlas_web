@@ -120,6 +120,33 @@ Ao construir a **Tela 2 (Atlas)** na Etapa 3, respeitar fielmente o arranjo visu
 
 ## 7. Instruções para Inicialização de Novo Chat / Sessão
 
-Para iniciar um novo chat com o assistente na **Etapa 3**, basta enviar o comando/prompt inicial fazendo referência a este documento:
+Para iniciar um novo chat com o assistente para próximas etapas, basta enviar o comando/prompt inicial fazendo referência a este documento:
 
-> *"Estou iniciando a Etapa 3 do projeto atlas_web. Por favor, leia o arquivo `docs/regras_projeto.md` e `docs/plano_implementacao.md` para entender o contexto, padrões de código, bibliotecas (streamlit==1.36.0) e o modelo de dados. Vamos criar uma nova branch para desenvolver a Tela 2 (Atlas) com as tabelas e o layout fiel ao QGIS."*
+> *"Estou continuando o desenvolvimento do projeto atlas_web. Por favor, leia o arquivo `docs/regras_projeto.md` e `docs/plano_implementacao.md` para entender o contexto, padrões de código, bibliotecas (streamlit==1.36.0) e o modelo de dados."*
+
+---
+
+## 8. Diretrizes de Renderização HTML e Tabelas Estilizadas (Streamlit 1.36.0)
+
+Durante o desenvolvimento do Atlas Web, identificamos comportamentos críticos do parser de Markdown do Streamlit ao renderizar HTML customizado (`st.markdown(..., unsafe_allow_html=True)`):
+
+### ⚠️ Problemas Identificados:
+1. **Indentação interpretada como Bloco de Código (`<pre><code>`):** O parser do Markdown interpreta qualquer bloco de texto/HTML indentado com 4 ou mais espaços como código pré-formatado, exibindo as tags HTML cruas na tela (ex: `<tr>`, `<td>`).
+2. **Volumes Grandes de Dados em `st.markdown`:** Tabelas com muitas linhas ou estruturas HTML complexas concatenadas em f-strings multi-linha tendem a quebrar ou ter tags escapadas pelo parser.
+3. **Caracteres Especiais nos Dados:** Textos provenientes do banco com caracteres como `&`, `<`, `>`, `"`, `'` quebram o parsing HTML se inseridos diretamente.
+
+### ✅ Soluções Padrão Adotadas no Projeto:
+1. **Escape Defensivo Obrigatório:** Sempre utilizar `html.escape(str(valor))` em todo dado textual dinâmico inserido em templates HTML.
+2. **Construção de Strings sem Indentação:** Para pequenos blocos ou tabelas curtas (ex: Alocação, Priorização), concatenar o HTML sem espaços no início da linha:
+   ```python
+   # CORRETO:
+   rows_html += f"<tr><td>{dado1}</td><td>{dado2}</td></tr>"
+   # INCORRETO (gera <pre><code> no markdown):
+   rows_html += f"""
+       <tr>
+           <td>{dado1}</td>
+       </tr>
+   """
+   ```
+3. **Estilos Inline para Cards e Metadados:** Usar `style="..."` diretamente nas tags `<div>` para evitar dependência de CSS global não carregado ou sobrescrito.
+4. **Uso de `streamlit.components.v1.html` para Tabelas Grandes:** Para tabelas com grande volume de linhas (como o *Detalhamento das Obras* ou listagens completas), utilizar `components.html(table_html, height=..., scrolling=...)` com CSS autocontido (`<style>` dentro da string). Isso garante renderização em sandbox isolado sem interferência do parser Markdown.
