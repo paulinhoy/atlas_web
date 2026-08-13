@@ -121,6 +121,6 @@ A página de detalhe (`views/atlas.py`) será dividida nas seguintes seções:
 ## 5. Roteiro de Entregas e Próximos Passos
 
 - [x] **Etapa 1:** Configuração da estrutura modular de pastas e pipeline de dados (`scripts/process_data.py` -> Parquet).
-- [ ] **Etapa 2:** Montar a **Tela 1 (Home)** com a tabela de seleção rápida dos empreendimentos priorizados.
+- [x] **Etapa 2:** Montar a **Tela 1 (Home)** com a tabela de seleção rápida dos empreendimentos priorizados, busca, filtros e navegação.
 - [ ] **Etapa 3:** Montar a **Tela 2 (Atlas)** com a estrutura visual fiel à imagem do QGIS (cabeçalho, metadados, espaço do mapa e as 4 tabelas de dados).
 - [ ] **Etapa 4:** Refinamentos de formatação monetária (R$), design institucional, busca na Home e futura integração das geometrias.
