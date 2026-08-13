@@ -4,8 +4,9 @@ Réplica fiel do layout do Atlas gerado pelo QGIS (Atlasref.jpeg).
 """
 
 from pathlib import Path
-import html
+import html as html_mod
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from services import data_loader
 
@@ -273,9 +274,9 @@ def render_back_button():
 
 def render_header(empreendimento_id, nome_emp, setor, esfera):
     """Cabeçalho institucional com título e badges de setor/esfera."""
-    nome_safe = html.escape(str(nome_emp))
-    setor_safe = html.escape(str(setor))
-    esfera_safe = html.escape(str(esfera))
+    nome_safe = html_mod.escape(str(nome_emp))
+    setor_safe = html_mod.escape(str(setor))
+    esfera_safe = html_mod.escape(str(esfera))
     st.markdown(
         f"""
         <div class="atlas-header">
@@ -324,21 +325,19 @@ def render_metadados(row, df_obras):
         ("Duração", duracao_str),
     ]
 
-    rows_html = ""
-    for label, value in campos:
-        label_safe = html.escape(str(label))
-        value_safe = html.escape(str(value)) if value not in (None, "N/D") else str(value)
-        rows_html += (
-            '<div class="meta-row">'
-            f'<div class="meta-label">{label_safe}</div>'
-            f'<div class="meta-value">{value_safe}</div>'
+    meta_html = '<div style="background:#ffffff;border:1px solid #dde3ec;border-radius:10px;padding:1.3rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.04);">'
+    for i, (label, value) in enumerate(campos):
+        label_safe = html_mod.escape(str(label))
+        value_safe = html_mod.escape(str(value)) if value not in (None, "N/D") else str(value)
+        border = 'border-bottom:1px solid #eef1f6;' if i < len(campos) - 1 else ''
+        meta_html += (
+            f'<div style="padding:0.5rem 0;{border}">'
+            f'<div style="font-size:0.73rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#64748b;margin-bottom:0.1rem;">{label_safe}</div>'
+            f'<div style="font-size:0.92rem;color:#0f172a;font-weight:500;">{value_safe}</div>'
             '</div>'
         )
-
-    st.markdown(
-        f'<div class="meta-card">{rows_html}</div>',
-        unsafe_allow_html=True,
-    )
+    meta_html += '</div>'
+    st.markdown(meta_html, unsafe_allow_html=True)
 
 
 def render_map_placeholder():
@@ -399,7 +398,7 @@ def render_tabela_priorizacao(row):
     comercial = fmt_decimal_br(row.get("dimensao_comercial"))
     gerencial = fmt_decimal_br(row.get("dimensao_gerencial"))
     ic = fmt_decimal_br(row.get("ic_3_pond"), 5)
-    impacto = html.escape(str(row.get("impacto_avaliado_3_pond_cenario") or "N/D"))
+    impacto = html_mod.escape(str(row.get("impacto_avaliado_3_pond_cenario") or "N/D"))
 
     st.markdown('<div class="section-title">Resultados da Priorização</div>', unsafe_allow_html=True)
     st.markdown(
@@ -466,7 +465,7 @@ def render_tabela_financeiros(empreendimento_id):
         tirm_raw = e.get("tirm")
         if pd.notna(tirm_raw):
             tirm_val = float(tirm_raw) * 100
-        viabilidade = html.escape(str(e.get("viabilidade") or "N/D"))
+        viabilidade = html_mod.escape(str(e.get("viabilidade") or "N/D"))
 
     # Formatar mês base para exibição
     mes_display = "N/D"
@@ -586,27 +585,17 @@ def render_tabela_obras(empreendimento_id, df_obras):
     if not df_custo.empty:
         custos_emp = df_custo[df_custo["id_empreendimento"].astype(str) == str(empreendimento_id)]
         if not custos_emp.empty:
-            # Soma todos os tipos de custo (CAPEX+OPEX) por obra/cenário
-            soma_por_cenario = (
-                custos_emp.groupby(["id_obra", "id_cenario"])["valor_adotado"]
-                .sum()
-                .reset_index()
-            )
-            # Pega o maior valor entre os cenários para cada obra
-            valor_por_obra = (
-                soma_por_cenario.groupby("id_obra")["valor_adotado"]
-                .max()
-                .to_dict()
-            )
+            soma_por_cenario = custos_emp.groupby(["id_obra", "id_cenario"])["valor_adotado"].sum().reset_index()
+            valor_por_obra = soma_por_cenario.groupby("id_obra")["valor_adotado"].max().to_dict()
 
     st.markdown('<div class="section-title">Detalhamento das Obras</div>', unsafe_allow_html=True)
 
     rows_html = ""
     for _, obra in df_obras.iterrows():
         id_obra = obra.get("id_obra")
-        descricao = html.escape(str(obra.get("descricao_obra") or "N/D"))
-        intervencao = html.escape(str(obra.get("intervencao") or "N/D"))
-        tipo_infra = html.escape(str(obra.get("tipo_infraestrutura") or "N/D"))
+        descricao = html_mod.escape(str(obra.get("descricao_obra") or "N/D"))
+        intervencao = html_mod.escape(str(obra.get("intervencao") or "N/D"))
+        tipo_infra = html_mod.escape(str(obra.get("tipo_infraestrutura") or "N/D"))
         extensao = obra.get("extensao_km")
         valor_obra = valor_por_obra.get(id_obra)
 
@@ -615,18 +604,31 @@ def render_tabela_obras(empreendimento_id, df_obras):
 
         rows_html += (
             '<tr>'
-            f'<td class="text-left">{descricao}</td>'
+            f'<td class="tl">{descricao}</td>'
             f'<td>{intervencao}</td>'
             f'<td>{tipo_infra}</td>'
-            f'<td class="text-right">{extensao_fmt}</td>'
-            f'<td class="text-right">{valor_fmt}</td>'
+            f'<td class="tr">{extensao_fmt}</td>'
+            f'<td class="tr">{valor_fmt}</td>'
             '</tr>'
         )
 
+    obras_css = (
+        '<style>'
+        'body{margin:0;padding:0;font-family:"Source Sans Pro",sans-serif;background:transparent;}'
+        'table{width:100%;border-collapse:collapse;font-size:0.82rem;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04);}'
+        'thead th{background:#0b2545;color:#fff;padding:0.55rem 0.7rem;text-align:center;font-weight:600;font-size:0.78rem;letter-spacing:0.2px;white-space:nowrap;}'
+        'tbody td{padding:0.5rem 0.7rem;text-align:center;border-bottom:1px solid #e8ecf1;color:#334155;vertical-align:middle;}'
+        'tbody tr:nth-child(even){background:#f8fafc;}'
+        'tbody tr:hover{background:#eef2f7;}'
+        '.tl{text-align:left;} .tr{text-align:right;}'
+        '</style>'
+    )
+
     table_html = (
-        '<table class="atlas-table">'
+        obras_css
+        + '<table>'
         '<thead><tr>'
-        '<th style="text-align: left;">Descrição da Obra</th>'
+        '<th style="text-align:left;">Descrição da Obra</th>'
         '<th>Intervenção</th>'
         '<th>Tipo da Infraestrutura</th>'
         '<th>Extensão (Km)</th>'
@@ -635,7 +637,14 @@ def render_tabela_obras(empreendimento_id, df_obras):
         f'<tbody>{rows_html}</tbody>'
         '</table>'
     )
-    st.markdown(table_html, unsafe_allow_html=True)
+
+    num_rows = len(df_obras)
+    row_height = 38
+    header_height = 50
+    padding = 20
+    calc_height = header_height + (num_rows * row_height) + padding
+    max_height = min(calc_height, 800)
+    components.html(table_html, height=max_height, scrolling=(calc_height > 800))
 
 
 # ---------------------------------------------------------------------------
