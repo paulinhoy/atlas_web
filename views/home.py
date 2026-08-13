@@ -18,15 +18,15 @@ def apply_custom_styles():
         <style>
             /* Fonte e layout base */
             .main-header {
-                background: linear-gradient(135deg, #0d2847 0%, #153e6b 100%);
-                padding: 1.8rem 2rem;
+                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
+                padding: 1.5rem 2rem;
                 border-radius: 12px;
                 color: #ffffff;
                 margin-bottom: 1.5rem;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             }
             .header-title {
-                font-size: 1.9rem;
+                font-size: 1.8rem;
                 font-weight: 700;
                 letter-spacing: -0.5px;
                 margin: 0;
@@ -35,26 +35,26 @@ def apply_custom_styles():
             .header-subtitle {
                 font-size: 0.95rem;
                 color: #d1e3f8;
-                margin-top: 0.4rem;
+                margin-top: 0.3rem;
                 font-weight: 300;
             }
             .kpi-card {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
                 border-radius: 10px;
-                padding: 1.2rem;
+                padding: 1.1rem 1.2rem;
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
                 transition: transform 0.2s ease, box-shadow 0.2s ease;
             }
             .kpi-title {
-                font-size: 0.8rem;
+                font-size: 0.78rem;
                 font-weight: 600;
                 text-transform: uppercase;
                 color: #64748b;
                 letter-spacing: 0.5px;
             }
             .kpi-value {
-                font-size: 1.8rem;
+                font-size: 1.7rem;
                 font-weight: 700;
                 color: #0f172a;
                 margin-top: 0.2rem;
@@ -64,14 +64,7 @@ def apply_custom_styles():
                 color: #94a3b8;
                 margin-top: 0.2rem;
             }
-            .filter-container {
-                background: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 1rem 1.2rem;
-                margin-bottom: 1.2rem;
-            }
-            /* Destaque para o botão de ação */
+            /* Destaque para a tabela */
             div[data-testid="stDataFrame"] {
                 border-radius: 8px;
                 overflow: hidden;
@@ -82,20 +75,27 @@ def apply_custom_styles():
     )
 
 
+def format_br_int(val: int) -> str:
+    """Formata inteiros com separador de milhar brasileiro (.)"""
+    return f"{val:,}".replace(",", ".")
+
+
 def render_header():
-    """Renderiza o cabeçalho institucional com as logos."""
+    """Renderiza o cabeçalho institucional com as logos do PELTMG e CODEMGE."""
     logo_pelt_path = LOGOS_DIR / "logo_pelt_branco.png"
     logo_codemge_path = LOGOS_DIR / "logo codemge - branco.png"
+
+    col_logo1, col_center, col_logo2 = st.columns([1.2, 4.5, 1.2])
 
     with st.container():
         st.markdown(
             """
             <div class="main-header">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
                     <div>
                         <div class="header-title">PELTMG — Atlas de Empreendimentos</div>
                         <div class="header-subtitle">
-                            Plano Estadual de Logística e Transportes de Minas Gerais • Consulta à Carteira Priorizada
+                            Plano Estadual de Logística e Transportes de Minas Gerais • Carteira Priorizada
                         </div>
                     </div>
                 </div>
@@ -106,15 +106,12 @@ def render_header():
 
 
 def render_kpis(df: pd.DataFrame):
-    """Renderiza cartões com indicadores resumidos dos empreendimentos."""
+    """Renderiza cartões com indicadores resumidos dos empreendimentos no formato brasileiro."""
     total_emp = len(df)
     total_setores = df["setor"].nunique() if "setor" in df.columns else 0
 
-    # Contagem de alto impacto
     col_impacto = "impacto_avaliado_3_pond_cenario"
     alto_impacto = len(df[df[col_impacto] == "Alto impacto"]) if col_impacto in df.columns else 0
-
-    # Setores mais representativos
     top_setor = df["setor"].mode()[0] if "setor" in df.columns and not df.empty else "N/A"
 
     c1, c2, c3, c4 = st.columns(4)
@@ -124,7 +121,7 @@ def render_kpis(df: pd.DataFrame):
             f"""
             <div class="kpi-card">
                 <div class="kpi-title">Empreendimentos Priorizados</div>
-                <div class="kpi-value">{total_emp:,}</div>
+                <div class="kpi-value">{format_br_int(total_emp)}</div>
                 <div class="kpi-subtext">Carteira avaliada</div>
             </div>
             """,
@@ -144,27 +141,27 @@ def render_kpis(df: pd.DataFrame):
         )
 
     with c3:
+        pct_alto = (alto_impacto / total_emp) * 100 if total_emp > 0 else 0
         st.markdown(
             f"""
             <div class="kpi-card">
                 <div class="kpi-title">Alto Impacto</div>
-                <div class="kpi-value">{alto_impacto}</div>
-                <div class="kpi-subtext">{((alto_impacto / total_emp) * 100):.1f}% do total</div>
+                <div class="kpi-value">{format_br_int(alto_impacto)}</div>
+                <div class="kpi-subtext">{pct_alto:.1f}% da carteira</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
     with c4:
-        # TIRM média dos que possuem taxa declarada
         tirm_valid = df["tirm"].dropna() if "tirm" in df.columns else pd.Series()
-        tirm_media = f"{tirm_valid.mean() * 100:.1f}%" if not tirm_valid.empty else "N/D"
+        tirm_media = f"{tirm_valid.mean() * 100:.1f}%".replace(".", ",") if not tirm_valid.empty else "N/D"
         st.markdown(
             f"""
             <div class="kpi-card">
                 <div class="kpi-title">TIRM Média Declarada</div>
                 <div class="kpi-value">{tirm_media}</div>
-                <div class="kpi-subtext">{len(tirm_valid)} projetos com TIRM</div>
+                <div class="kpi-subtext">{format_br_int(len(tirm_valid))} projetos com TIRM</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -250,14 +247,14 @@ def render():
     cols_disponiveis = [c for c in display_cols_map.keys() if c in df_filtrado.columns]
     df_exibicao = df_filtrado[cols_disponiveis].rename(columns=display_cols_map)
 
-    # Formatação de casas decimais para o Índice
+    # Formatação de casas decimais para o Índice no formato brasileiro (com vírgula)
     if "Índice (IC)" in df_exibicao.columns:
         df_exibicao["Índice (IC)"] = df_exibicao["Índice (IC)"].apply(
-            lambda x: f"{x:.4f}" if pd.notnull(x) and isinstance(x, (int, float)) else ""
+            lambda x: f"{x:.4f}".replace(".", ",") if pd.notnull(x) and isinstance(x, (int, float)) else ""
         )
 
     # Seção com a tabela e contagem
-    st.markdown(f"**Resultados encontrados:** `{len(df_exibicao)}` de `{len(df_emp)}` empreendimentos")
+    st.markdown(f"**Resultados encontrados:** `{format_br_int(len(df_exibicao))}` de `{format_br_int(len(df_emp))}` empreendimentos")
 
     # Instrução visual
     st.info("💡 **Dica:** Clique em qualquer linha da tabela para visualizar o **Atlas completo** do empreendimento.")
@@ -270,7 +267,7 @@ def render():
         on_select="rerun",
         selection_mode="single-row",
         column_config={
-            "ID": st.column_config.NumberColumn("ID", width="small"),
+            "ID": st.column_config.NumberColumn("ID", width="small", format="%d"),
             "Nome do Empreendimento": st.column_config.TextColumn("Nome do Empreendimento", width="large"),
             "Setor": st.column_config.TextColumn("Setor", width="medium"),
             "Esfera": st.column_config.TextColumn("Esfera", width="small"),
