@@ -16,11 +16,12 @@ st.set_page_config(
 
 
 def main():
-    # Inicializa estado da sessão se não existir
-    if "selected_empreendimento_id" not in st.session_state:
-        # Verifica se veio parâmetro na URL (ex: ?id=113)
-        query_id = st.query_params.get("id", None)
+    # Sincroniza query params da URL com o estado da sessão
+    query_id = st.query_params.get("id", None)
+    if query_id:
         st.session_state["selected_empreendimento_id"] = query_id
+    elif "selected_empreendimento_id" not in st.session_state:
+        st.session_state["selected_empreendimento_id"] = None
 
     selected_id = st.session_state["selected_empreendimento_id"]
 

@@ -1,9 +1,13 @@
 """
 Tela Inicial (Home) - Painel Executivo e Busca de Empreendimentos Priorizados
+Apresenta KPIs, filtros dinâmicos e tabela de empreendimentos estilizada no mesmo padrão visual do Atlas.
 """
 
 from pathlib import Path
+import html as html_mod
+import math
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from services import data_loader
 
@@ -12,11 +16,11 @@ LOGOS_DIR = BASE_DIR / "logos"
 
 
 def apply_custom_styles():
-    """Aplica estilos CSS customizados para uma interface limpa, profissional e institucional."""
+    """Aplica estilos CSS customizados para a tela inicial."""
     st.markdown(
         """
         <style>
-            /* Fonte e layout base */
+            /* Cabeçalho institucional */
             .main-header {
                 background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
                 padding: 1.5rem 2rem;
@@ -38,6 +42,8 @@ def apply_custom_styles():
                 margin-top: 0.3rem;
                 font-weight: 300;
             }
+
+            /* Cartões de KPI */
             .kpi-card {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
@@ -64,10 +70,15 @@ def apply_custom_styles():
                 color: #94a3b8;
                 margin-top: 0.2rem;
             }
-            /* Destaque para a tabela */
-            div[data-testid="stDataFrame"] {
-                border-radius: 8px;
-                overflow: hidden;
+
+            /* Título de seção com sublinhado padrão Atlas */
+            .section-title {
+                font-size: 1.05rem;
+                font-weight: 700;
+                color: #1e293b;
+                margin: 1.5rem 0 0.8rem 0;
+                padding-bottom: 0.35rem;
+                border-bottom: 2px solid #0b2545;
             }
         </style>
         """,
@@ -77,32 +88,32 @@ def apply_custom_styles():
 
 def format_br_int(val: int) -> str:
     """Formata inteiros com separador de milhar brasileiro (.)"""
+    if pd.isna(val) or val is None:
+        return "N/D"
+    try:
+        val = int(float(val))
+    except (ValueError, TypeError):
+        return "N/D"
     return f"{val:,}".replace(",", ".")
 
 
 def render_header():
-    """Renderiza o cabeçalho institucional com as logos do PELTMG e CODEMGE."""
-    logo_pelt_path = LOGOS_DIR / "logo_pelt_branco.png"
-    logo_codemge_path = LOGOS_DIR / "logo codemge - branco.png"
-
-    col_logo1, col_center, col_logo2 = st.columns([1.2, 4.5, 1.2])
-
-    with st.container():
-        st.markdown(
-            """
-            <div class="main-header">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-                    <div>
-                        <div class="header-title">PELTMG — Atlas de Empreendimentos</div>
-                        <div class="header-subtitle">
-                            Plano Estadual de Logística e Transportes de Minas Gerais • Carteira Priorizada
-                        </div>
+    """Renderiza o cabeçalho institucional."""
+    st.markdown(
+        """
+        <div class="main-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                <div>
+                    <div class="header-title">PELTMG — Atlas de Empreendimentos</div>
+                    <div class="header-subtitle">
+                        Plano Estadual de Logística e Transportes de Minas Gerais • Carteira Priorizada
                     </div>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_kpis(df: pd.DataFrame):
@@ -170,6 +181,113 @@ def render_kpis(df: pd.DataFrame):
     st.write("")
 
 
+def render_table_html(df_page: pd.DataFrame):
+    """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas."""
+    rows_html = ""
+    for _, r in df_page.iterrows():
+        id_emp = int(r["id_empreendimento"])
+        nome = html_mod.escape(str(r.get("nome_empreendimento") or "N/D"))
+        setor = html_mod.escape(str(r.get("setor") or "N/D"))
+        esfera = html_mod.escape(str(r.get("esfera_acao") or "N/D"))
+        status = html_mod.escape(str(r.get("descr_status_empreendimento") or "N/D"))
+        
+        ic_val = r.get("ic_3_pond")
+        ic_str = f"{ic_val:.4f}".replace(".", ",") if pd.notnull(ic_val) and isinstance(ic_val, (int, float)) else "N/D"
+        
+        impacto_raw = str(r.get("impacto_avaliado_3_pond_cenario") or "N/D")
+        impacto_safe = html_mod.escape(impacto_raw)
+
+        # Badges contextuais de impacto
+        if "alto" in impacto_raw.lower():
+            impacto_badge = f'<span class="badge badge-high">{impacto_safe}</span>'
+        elif "médio" in impacto_raw.lower() or "medio" in impacto_raw.lower():
+            impacto_badge = f'<span class="badge badge-med">{impacto_safe}</span>'
+        elif "baixo" in impacto_raw.lower():
+            impacto_badge = f'<span class="badge badge-low">{impacto_safe}</span>'
+        else:
+            impacto_badge = f'<span class="badge badge-neutral">{impacto_safe}</span>'
+
+        # Badges contextuais de esfera
+        esfera_lower = esfera.lower()
+        if "federal" in esfera_lower:
+            esfera_badge = f'<span class="badge badge-fed">{esfera}</span>'
+        elif "estadual" in esfera_lower:
+            esfera_badge = f'<span class="badge badge-est">{esfera}</span>'
+        elif "municipal" in esfera_lower:
+            esfera_badge = f'<span class="badge badge-mun">{esfera}</span>'
+        elif "privad" in esfera_lower:
+            esfera_badge = f'<span class="badge badge-priv">{esfera}</span>'
+        else:
+            esfera_badge = f'<span class="badge badge-neutral">{esfera}</span>'
+
+        rows_html += (
+            f'<tr onclick="window.top.location.href=\'?id={id_emp}\'">'
+            f'<td class="tc font-bold">{id_emp}</td>'
+            f'<td class="tl"><a href="?id={id_emp}" target="_top" class="emp-link">{nome}</a></td>'
+            f'<td class="tc">{setor}</td>'
+            f'<td class="tc">{esfera_badge}</td>'
+            f'<td class="tc">{status}</td>'
+            f'<td class="tr font-mono">{ic_str}</td>'
+            f'<td class="tc">{impacto_badge}</td>'
+            f'<td class="tc"><a href="?id={id_emp}" target="_top" class="btn-action">Ver Atlas ➔</a></td>'
+            '</tr>'
+        )
+
+    table_css = (
+        '<style>'
+        'body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:transparent;}'
+        'table{width:100%;border-collapse:collapse;font-size:0.83rem;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05);background:#ffffff;border:1px solid #e2e8f0;}'
+        'thead th{background:#0b2545;color:#ffffff;padding:0.65rem 0.75rem;text-align:center;font-weight:600;font-size:0.79rem;letter-spacing:0.25px;white-space:nowrap;border:none;}'
+        'tbody td{padding:0.55rem 0.75rem;text-align:center;border-bottom:1px solid #eef2f7;color:#334155;vertical-align:middle;}'
+        'tbody tr{cursor:pointer;transition:background-color 0.15s ease;}'
+        'tbody tr:nth-child(even){background:#f8fafc;}'
+        'tbody tr:hover{background:#edf4fb;}'
+        '.tl{text-align:left;}'
+        '.tc{text-align:center;}'
+        '.tr{text-align:right;}'
+        '.font-bold{font-weight:600;color:#0b2545;}'
+        '.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:0.82rem;}'
+        '.emp-link{color:#0b2545;text-decoration:none;font-weight:600;display:block;transition:color 0.15s ease;}'
+        '.emp-link:hover{color:#1d4ed8;text-decoration:underline;}'
+        '.btn-action{display:inline-block;background:#0b2545;color:#ffffff;padding:0.3rem 0.65rem;border-radius:5px;font-size:0.75rem;font-weight:600;text-decoration:none;transition:background-color 0.15s ease, transform 0.1s ease;white-space:nowrap;}'
+        '.btn-action:hover{background:#133b63;color:#ffffff;transform:translateX(2px);}'
+        '.badge{display:inline-block;padding:0.2rem 0.55rem;border-radius:12px;font-size:0.72rem;font-weight:600;white-space:nowrap;}'
+        '.badge-high{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}'
+        '.badge-med{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}'
+        '.badge-low{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;}'
+        '.badge-neutral{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}'
+        '.badge-fed{background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;}'
+        '.badge-est{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;}'
+        '.badge-mun{background:#fef9c3;color:#a16207;border:1px solid #fef08a;}'
+        '.badge-priv{background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;}'
+        '</style>'
+    )
+
+    table_html = (
+        table_css
+        + '<table>'
+        '<thead><tr>'
+        '<th style="width: 60px;">ID</th>'
+        '<th style="text-align: left; width: 35%;">Nome do Empreendimento</th>'
+        '<th>Setor</th>'
+        '<th>Esfera</th>'
+        '<th>Status</th>'
+        '<th style="text-align: right;">Índice (IC)</th>'
+        '<th>Impacto</th>'
+        '<th style="width: 110px;">Ação</th>'
+        '</tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        '</table>'
+    )
+
+    num_rows = len(df_page)
+    row_height = 42
+    header_height = 48
+    padding = 24
+    calc_height = header_height + (num_rows * row_height) + padding
+    components.html(table_html, height=calc_height, scrolling=False)
+
+
 def render():
     """Função principal da tela Home."""
     apply_custom_styles()
@@ -189,7 +307,7 @@ def render():
 
     # Painel de Filtros e Busca
     st.markdown("### 🔍 Pesquisa e Seleção de Empreendimento")
-    st.caption("Filtre a carteira ou pesquise pelo nome/código e selecione a linha na tabela para abrir o Atlas detalhado.")
+    st.caption("Filtre a carteira ou pesquise pelo nome/código e selecione qualquer empreendimento para abrir o Atlas detalhado.")
 
     f_col1, f_col2, f_col3, f_col4 = st.columns([2.5, 1.5, 1.5, 1.5])
 
@@ -231,60 +349,75 @@ def render():
     if filtro_impacto != "Todos" and col_impacto in df_filtrado.columns:
         df_filtrado = df_filtrado[df_filtrado[col_impacto] == filtro_impacto]
 
-    st.write("")
+    total_filtrado = len(df_filtrado)
 
-    # Colunas formatadas para exibição na tabela
-    display_cols_map = {
-        "id_empreendimento": "ID",
-        "nome_empreendimento": "Nome do Empreendimento",
-        "setor": "Setor",
-        "esfera_acao": "Esfera",
-        "descr_status_empreendimento": "Status",
-        "ic_3_pond": "Índice (IC)",
-        "impacto_avaliado_3_pond_cenario": "Impacto",
-    }
+    st.markdown('<div class="section-title">Carteira de Empreendimentos Priorizados</div>', unsafe_allow_html=True)
 
-    cols_disponiveis = [c for c in display_cols_map.keys() if c in df_filtrado.columns]
-    df_exibicao = df_filtrado[cols_disponiveis].rename(columns=display_cols_map)
+    if total_filtrado == 0:
+        st.warning("⚠️ Nenhum empreendimento encontrado para os filtros selecionados.")
+        return
 
-    # Formatação de casas decimais para o Índice no formato brasileiro (com vírgula)
-    if "Índice (IC)" in df_exibicao.columns:
-        df_exibicao["Índice (IC)"] = df_exibicao["Índice (IC)"].apply(
-            lambda x: f"{x:.4f}".replace(".", ",") if pd.notnull(x) and isinstance(x, (int, float)) else ""
+    # Barra de paginação e informações
+    c_info, c_page_size, c_page_nav = st.columns([3, 1.5, 2.5])
+
+    # Inicializa estado da página se necessário
+    if "home_page" not in st.session_state:
+        st.session_state["home_page"] = 1
+
+    with c_page_size:
+        page_size = st.selectbox(
+            "Itens por página:",
+            options=[15, 25, 50, 100],
+            index=1,
+            key="home_page_size",
         )
 
-    # Seção com a tabela e contagem
-    st.markdown(f"**Resultados encontrados:** `{format_br_int(len(df_exibicao))}` de `{format_br_int(len(df_emp))}` empreendimentos")
+    total_pages = max(1, math.ceil(total_filtrado / page_size))
+    
+    # Corrige se a página atual ultrapassar o total de páginas após filtro
+    if st.session_state["home_page"] > total_pages:
+        st.session_state["home_page"] = 1
 
-    # Instrução visual
-    st.info("💡 **Dica:** Clique em qualquer linha da tabela para visualizar o **Atlas completo** do empreendimento.")
+    current_page = st.session_state["home_page"]
+    start_idx = (current_page - 1) * page_size
+    end_idx = min(start_idx + page_size, total_filtrado)
 
-    event = st.dataframe(
-        df_exibicao,
-        use_container_width=True,
-        hide_index=True,
-        height=450,
-        on_select="rerun",
-        selection_mode="single-row",
-        column_config={
-            "ID": st.column_config.NumberColumn("ID", width="small", format="%d"),
-            "Nome do Empreendimento": st.column_config.TextColumn("Nome do Empreendimento", width="large"),
-            "Setor": st.column_config.TextColumn("Setor", width="medium"),
-            "Esfera": st.column_config.TextColumn("Esfera", width="small"),
-            "Status": st.column_config.TextColumn("Status", width="medium"),
-            "Índice (IC)": st.column_config.TextColumn("Índice (IC)", width="small"),
-            "Impacto": st.column_config.TextColumn("Impacto", width="small"),
-        },
-    )
+    with c_info:
+        st.markdown(
+            f"<div style='padding-top: 1.8rem; font-size: 0.9rem; color: #475569;'>"
+            f"Mostrando <b>{format_br_int(start_idx + 1)}–{format_br_int(end_idx)}</b> de <b>{format_br_int(total_filtrado)}</b> empreendimentos (Total carteira: {format_br_int(len(df_emp))})"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
-    # Captura a seleção da linha
-    selected_rows = event.selection.get("rows", [])
-    if selected_rows:
-        selected_index = selected_rows[0]
-        selected_row_data = df_filtrado.iloc[selected_index]
-        selected_id = int(selected_row_data["id_empreendimento"])
+    with c_page_nav:
+        st.write("")
+        col_prev, col_pg, col_next = st.columns([1, 2, 1])
+        with col_prev:
+            if st.button("◀ Ant.", disabled=(current_page <= 1), use_container_width=True, key="btn_prev"):
+                st.session_state["home_page"] -= 1
+                st.rerun()
+        with col_pg:
+            pg_sel = st.selectbox(
+                "Página",
+                options=list(range(1, total_pages + 1)),
+                index=current_page - 1,
+                key="select_page",
+                label_visibility="collapsed",
+            )
+            if pg_sel != current_page:
+                st.session_state["home_page"] = pg_sel
+                st.rerun()
+        with col_next:
+            if st.button("Próx. ▶", disabled=(current_page >= total_pages), use_container_width=True, key="btn_next"):
+                st.session_state["home_page"] += 1
+                st.rerun()
 
-        # Define o estado e redireciona para o Atlas
-        st.session_state["selected_empreendimento_id"] = selected_id
-        st.query_params["id"] = str(selected_id)
-        st.rerun()
+    # Dica de usabilidade
+    st.caption("💡 **Dica:** Clique em qualquer linha ou no botão **Ver Atlas ➔** para visualizar a ficha técnica completa do empreendimento.")
+
+    # Fatia a página atual
+    df_page = df_filtrado.iloc[start_idx:end_idx]
+
+    # Renderiza a tabela estilizada
+    render_table_html(df_page)
