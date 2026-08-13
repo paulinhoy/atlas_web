@@ -4,6 +4,7 @@ Réplica fiel do layout do Atlas gerado pelo QGIS (Atlasref.jpeg).
 """
 
 from pathlib import Path
+import html
 import streamlit as st
 import pandas as pd
 from services import data_loader
@@ -272,12 +273,15 @@ def render_back_button():
 
 def render_header(empreendimento_id, nome_emp, setor, esfera):
     """Cabeçalho institucional com título e badges de setor/esfera."""
+    nome_safe = html.escape(str(nome_emp))
+    setor_safe = html.escape(str(setor))
+    esfera_safe = html.escape(str(esfera))
     st.markdown(
         f"""
         <div class="atlas-header">
-            <h2>{empreendimento_id} - {nome_emp}</h2>
+            <h2>{empreendimento_id} - {nome_safe}</h2>
             <div class="sub">
-                <b>Setor:</b> {setor} &nbsp;|&nbsp; <b>Esfera:</b> {esfera}
+                <b>Setor:</b> {setor_safe} &nbsp;|&nbsp; <b>Esfera:</b> {esfera_safe}
             </div>
         </div>
         """,
@@ -322,10 +326,12 @@ def render_metadados(row, df_obras):
 
     rows_html = ""
     for label, value in campos:
+        label_safe = html.escape(str(label))
+        value_safe = html.escape(str(value)) if value not in (None, "N/D") else str(value)
         rows_html += f"""
             <div class="meta-row">
-                <div class="meta-label">{label}</div>
-                <div class="meta-value">{value}</div>
+                <div class="meta-label">{label_safe}</div>
+                <div class="meta-value">{value_safe}</div>
             </div>
         """
 
@@ -393,7 +399,7 @@ def render_tabela_priorizacao(row):
     comercial = fmt_decimal_br(row.get("dimensao_comercial"))
     gerencial = fmt_decimal_br(row.get("dimensao_gerencial"))
     ic = fmt_decimal_br(row.get("ic_3_pond"), 5)
-    impacto = row.get("impacto_avaliado_3_pond_cenario", "N/D")
+    impacto = html.escape(str(row.get("impacto_avaliado_3_pond_cenario") or "N/D"))
 
     st.markdown('<div class="section-title">Resultados da Priorização</div>', unsafe_allow_html=True)
     st.markdown(
@@ -460,7 +466,7 @@ def render_tabela_financeiros(empreendimento_id):
         tirm_raw = e.get("tirm")
         if pd.notna(tirm_raw):
             tirm_val = float(tirm_raw) * 100
-        viabilidade = e.get("viabilidade", "N/D")
+        viabilidade = html.escape(str(e.get("viabilidade") or "N/D"))
 
     # Formatar mês base para exibição
     mes_display = "N/D"
@@ -598,9 +604,9 @@ def render_tabela_obras(empreendimento_id, df_obras):
     rows_html = ""
     for _, obra in df_obras.iterrows():
         id_obra = obra.get("id_obra")
-        descricao = obra.get("descricao_obra", "N/D")
-        intervencao = obra.get("intervencao", "N/D")
-        tipo_infra = obra.get("tipo_infraestrutura", "N/D")
+        descricao = html.escape(str(obra.get("descricao_obra") or "N/D"))
+        intervencao = html.escape(str(obra.get("intervencao") or "N/D"))
+        tipo_infra = html.escape(str(obra.get("tipo_infraestrutura") or "N/D"))
         extensao = obra.get("extensao_km")
         valor_obra = valor_por_obra.get(id_obra)
 
