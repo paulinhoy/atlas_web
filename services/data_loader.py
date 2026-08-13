@@ -1,6 +1,6 @@
 """
 Serviço de carregamento de dados com cache do Streamlit.
-Lê os arquivos .parquet da pasta data/processed/.
+Lê os arquivos .parquet da pasta data/processed/ com garantia de decodificação correta.
 """
 
 from pathlib import Path
@@ -11,13 +11,32 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
 
+def fix_mojibake(text):
+    """Garante a correção de qualquer resíduo de double-encoding."""
+    if not isinstance(text, str):
+        return text
+    if any(m in text for m in ["Ã", "Â", "â", "©"]):
+        try:
+            return text.encode("latin1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    return text
+
+
 @st.cache_data(show_spinner=False)
 def load_parquet(filename: str) -> pd.DataFrame:
-    """Carrega um arquivo parquet da pasta processed com cache."""
+    """Carrega um arquivo parquet da pasta processed com cache e limpeza de caracteres."""
     file_path = PROCESSED_DIR / f"{filename}.parquet"
     if not file_path.exists():
         return pd.DataFrame()
-    return pd.read_parquet(file_path)
+    
+    df = pd.read_parquet(file_path)
+    
+    # Aplica limpeza defensiva nas colunas de texto
+    for col in df.select_dtypes(include="object").columns:
+        df[col] = df[col].apply(fix_mojibake)
+        
+    return df
 
 
 def get_empreendimentos() -> pd.DataFrame:
