@@ -26,7 +26,7 @@ FILE_MAPPING = {
 
 
 def convert_csv_to_parquet():
-    """Converte os CSVs brutos em Parquet otimizado."""
+    """Converte os CSVs brutos em Parquet otimizado com encoding correto."""
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
     print("--- Iniciando Conversao de CSV para Parquet ---")
@@ -43,10 +43,8 @@ def convert_csv_to_parquet():
     processed_count = 0
 
     for prefix, target_name in FILE_MAPPING.items():
-        # Busca arquivo que começa com o prefixo (evitando colisões específicas)
         matches = [f for f in csv_files if f.name.startswith(prefix)]
         
-        # Filtro especial para não confundir vw_custo_economico com vw_empreendimento_custo_economico
         if prefix == "vw_custo_economico":
             matches = [f for f in matches if not f.name.startswith("vw_empreendimento_custo_economico")]
 
@@ -54,20 +52,20 @@ def convert_csv_to_parquet():
             print(f"[NAO ENCONTRADO] Arquivo com prefixo '{prefix}' nao localizado.")
             continue
 
-        csv_file = sorted(matches)[-1]  # Pega o mais recente se houver múltiplos
+        csv_file = sorted(matches)[-1]
         parquet_file = PROCESSED_DIR / f"{target_name}.parquet"
 
         try:
-            # Leitura com separador ';' e encoding utf-8/latin1
+            # Os CSVs exportados do banco usam codificação latin1/cp1252 com delimitador ';'
             try:
-                df = pd.read_csv(csv_file, sep=";", encoding="utf-8", low_memory=False)
-            except UnicodeDecodeError:
                 df = pd.read_csv(csv_file, sep=";", encoding="latin1", low_memory=False)
+            except Exception:
+                df = pd.read_csv(csv_file, sep=";", encoding="utf-8", low_memory=False)
 
-            # Limpeza básica de nomes de colunas
+            # Limpeza dos nomes das colunas
             df.columns = [c.strip().strip('"') for c in df.columns]
 
-            # Salva em Parquet
+            # Salva em Parquet com pyarrow
             df.to_parquet(parquet_file, engine="pyarrow", compression="snappy", index=False)
             print(f"[OK] {csv_file.name} -> {target_name}.parquet ({len(df):,} linhas, {len(df.columns)} colunas)")
             processed_count += 1
