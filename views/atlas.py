@@ -328,12 +328,12 @@ def render_metadados(row, df_obras):
     for label, value in campos:
         label_safe = html.escape(str(label))
         value_safe = html.escape(str(value)) if value not in (None, "N/D") else str(value)
-        rows_html += f"""
-            <div class="meta-row">
-                <div class="meta-label">{label_safe}</div>
-                <div class="meta-value">{value_safe}</div>
-            </div>
-        """
+        rows_html += (
+            '<div class="meta-row">'
+            f'<div class="meta-label">{label_safe}</div>'
+            f'<div class="meta-value">{value_safe}</div>'
+            '</div>'
+        )
 
     st.markdown(
         f'<div class="meta-card">{rows_html}</div>',
@@ -613,35 +613,29 @@ def render_tabela_obras(empreendimento_id, df_obras):
         extensao_fmt = fmt_decimal_br_2(extensao) if pd.notna(extensao) else "N/D"
         valor_fmt = fmt_brl(valor_obra)
 
-        rows_html += f"""
-            <tr>
-                <td class="text-left">{descricao}</td>
-                <td>{intervencao}</td>
-                <td>{tipo_infra}</td>
-                <td class="text-right">{extensao_fmt}</td>
-                <td class="text-right">{valor_fmt}</td>
-            </tr>
-        """
+        rows_html += (
+            '<tr>'
+            f'<td class="text-left">{descricao}</td>'
+            f'<td>{intervencao}</td>'
+            f'<td>{tipo_infra}</td>'
+            f'<td class="text-right">{extensao_fmt}</td>'
+            f'<td class="text-right">{valor_fmt}</td>'
+            '</tr>'
+        )
 
-    st.markdown(
-        f"""
-        <table class="atlas-table">
-            <thead>
-                <tr>
-                    <th style="text-align: left;">Descrição da Obra</th>
-                    <th>Intervenção</th>
-                    <th>Tipo da Infraestrutura</th>
-                    <th>Extensão (Km)</th>
-                    <th>Valor Obra (R$)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows_html}
-            </tbody>
-        </table>
-        """,
-        unsafe_allow_html=True,
+    table_html = (
+        '<table class="atlas-table">'
+        '<thead><tr>'
+        '<th style="text-align: left;">Descrição da Obra</th>'
+        '<th>Intervenção</th>'
+        '<th>Tipo da Infraestrutura</th>'
+        '<th>Extensão (Km)</th>'
+        '<th>Valor Obra (R$)</th>'
+        '</tr></thead>'
+        f'<tbody>{rows_html}</tbody>'
+        '</table>'
     )
+    st.markdown(table_html, unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
