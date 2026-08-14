@@ -77,7 +77,9 @@ atlas_web/
 │   └── process_data.py         # Script de conversão CSV -> Parquet com tratamento de nomes
 │
 ├── docs/
-│   └── plano_implementacao.md  # Este documento de referência
+│   ├── plano_implementacao.md  # Este documento de referência
+│   ├── regras_projeto.md       # Guia de regras, convenções e fluxo Git
+│   └── erros_solucoes.md       # Base de conhecimento de erros e soluções
 └── requirements.txt            # Dependências Python
 ```
 

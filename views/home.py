@@ -209,10 +209,87 @@ def apply_custom_styles():
                 color: #a16207;
                 border: 1px solid #fef08a;
             }
-            .home-atlas-table .badge-priv {
-                background: #f5f3ff;
-                color: #6d28d9;
-                border: 1px solid #ddd6fe;
+            /* Painel de Filtros e Busca */
+            .filter-panel-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-top: 1.2rem;
+                margin-bottom: 0.6rem;
+                padding-bottom: 0.4rem;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            .filter-panel-title {
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: #0b2545;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .filter-panel-subtitle {
+                font-size: 0.80rem;
+                color: #64748b;
+            }
+
+            /* Customização profunda dos Inputs e Dropdowns Streamlit */
+            div[data-testid="stTextInput"] label,
+            div[data-testid="stSelectbox"] label {
+                font-size: 0.74rem !important;
+                font-weight: 700 !important;
+                color: #475569 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.4px !important;
+                margin-bottom: 0.25rem !important;
+            }
+            
+            div[data-testid="stTextInput"] input {
+                background-color: #f8fafc !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                color: #0f172a !important;
+                font-size: 0.86rem !important;
+                padding: 0.48rem 0.8rem !important;
+                box-shadow: none !important;
+                transition: all 0.2s ease !important;
+            }
+            div[data-testid="stTextInput"] input:hover {
+                background-color: #ffffff !important;
+                border-color: #94a3b8 !important;
+            }
+            div[data-testid="stTextInput"] input:focus {
+                background-color: #ffffff !important;
+                border-color: #0b2545 !important;
+                box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12) !important;
+            }
+
+            div[data-testid="stSelectbox"] > div > div {
+                background-color: #f8fafc !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                color: #0f172a !important;
+                font-size: 0.86rem !important;
+                box-shadow: none !important;
+                transition: all 0.2s ease !important;
+            }
+            div[data-testid="stSelectbox"] > div > div:hover {
+                background-color: #ffffff !important;
+                border-color: #94a3b8 !important;
+            }
+            div[data-testid="stSelectbox"] > div > div[aria-expanded="true"] {
+                background-color: #ffffff !important;
+                border-color: #0b2545 !important;
+                box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12) !important;
+            }
+
+            /* Controles de paginação modernos */
+            div[data-testid="stHorizontalBlock"] button {
+                border-radius: 6px !important;
+                font-size: 0.82rem !important;
+                font-weight: 500 !important;
+                padding: 0.32rem 0.6rem !important;
+                min-height: 2.2rem !important;
+                transition: all 0.15s ease !important;
             }
         </style>
         """,
@@ -403,8 +480,19 @@ def render():
     render_kpis(df_emp)
 
     # Painel de Filtros e Busca
-    st.markdown("### 🔍 Pesquisa e Seleção de Empreendimento")
-    st.caption("Filtre a carteira ou pesquise pelo nome/código e selecione qualquer empreendimento para abrir o Atlas detalhado.")
+    st.markdown(
+        """
+        <div class="filter-panel-header">
+            <div class="filter-panel-title">
+                <span>🔍</span> Pesquisa e Filtros da Carteira
+            </div>
+            <div class="filter-panel-subtitle">
+                Refine a listagem por código, nome, setor, esfera governamental ou classificação
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     f_col1, f_col2, f_col3, f_col4 = st.columns([2.5, 1.5, 1.5, 1.5])
 
@@ -454,21 +542,13 @@ def render():
         st.warning("⚠️ Nenhum empreendimento encontrado para os filtros selecionados.")
         return
 
-    # Barra de paginação e informações
-    c_info, c_page_size, c_page_nav = st.columns([3, 1.5, 2.5])
-
-    # Inicializa estado da página se necessário
+    # Inicializa estado da página e tamanho se necessário
     if "home_page" not in st.session_state:
         st.session_state["home_page"] = 1
+    if "home_page_size" not in st.session_state:
+        st.session_state["home_page_size"] = 25
 
-    with c_page_size:
-        page_size = st.selectbox(
-            "Itens por página:",
-            options=[15, 25, 50, 100],
-            index=1,
-            key="home_page_size",
-        )
-
+    page_size = st.session_state["home_page_size"]
     total_pages = max(1, math.ceil(total_filtrado / page_size))
     
     # Corrige se a página atual ultrapassar o total de páginas após filtro
@@ -479,42 +559,54 @@ def render():
     start_idx = (current_page - 1) * page_size
     end_idx = min(start_idx + page_size, total_filtrado)
 
+    # 1. Fatia e renderiza a tabela estilizada
+    df_page = df_filtrado.iloc[start_idx:end_idx]
+    render_table_html(df_page)
+
+    # 2. Barra de paginação moderna no rodapé (abaixo da tabela)
+    c_info, c_size, c_nav = st.columns([3.8, 2.2, 3.0])
+
     with c_info:
         st.markdown(
-            f"<div style='padding-top: 1.8rem; font-size: 0.9rem; color: #475569;'>"
-            f"Mostrando <b>{format_br_int(start_idx + 1)}–{format_br_int(end_idx)}</b> de <b>{format_br_int(total_filtrado)}</b> empreendimentos (Total carteira: {format_br_int(len(df_emp))})"
+            f"<div style='padding-top: 0.45rem; font-size: 0.85rem; color: #64748b;'>"
+            f"Mostrando <b>{format_br_int(start_idx + 1)}–{format_br_int(end_idx)}</b> de <b>{format_br_int(total_filtrado)}</b> empreendimentos (Total: {format_br_int(len(df_emp))})"
             f"</div>",
             unsafe_allow_html=True,
         )
 
-    with c_page_nav:
-        st.write("")
-        col_prev, col_pg, col_next = st.columns([1, 2, 1])
-        with col_prev:
-            if st.button("◀ Ant.", disabled=(current_page <= 1), use_container_width=True, key="btn_prev"):
-                st.session_state["home_page"] -= 1
-                st.rerun()
-        with col_pg:
-            pg_sel = st.selectbox(
-                "Página",
-                options=list(range(1, total_pages + 1)),
-                index=current_page - 1,
-                key="select_page",
+    with c_size:
+        c_size_lbl, c_size_sel = st.columns([1.1, 1.2])
+        with c_size_lbl:
+            st.markdown("<div style='text-align: right; padding-top: 0.45rem; font-size: 0.83rem; color: #64748b;'>Itens por pág.:</div>", unsafe_allow_html=True)
+        with c_size_sel:
+            size_options = [15, 25, 50, 100]
+            cur_size_idx = size_options.index(page_size) if page_size in size_options else 1
+            novo_size = st.selectbox(
+                "Itens por página:",
+                options=size_options,
+                index=cur_size_idx,
+                key="select_page_size",
                 label_visibility="collapsed",
             )
-            if pg_sel != current_page:
-                st.session_state["home_page"] = pg_sel
+            if novo_size != page_size:
+                st.session_state["home_page_size"] = novo_size
+                st.session_state["home_page"] = 1
                 st.rerun()
+
+    with c_nav:
+        col_prev, col_txt, col_next = st.columns([1.1, 1.4, 1.1])
+        with col_prev:
+            if st.button("◀ Anterior", disabled=(current_page <= 1), use_container_width=True, key="btn_prev"):
+                st.session_state["home_page"] -= 1
+                st.rerun()
+        with col_txt:
+            st.markdown(
+                f"<div style='text-align: center; padding-top: 0.45rem; font-size: 0.85rem; font-weight: 600; color: #334155; white-space: nowrap;'>"
+                f"Pág. {current_page} de {total_pages}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
         with col_next:
-            if st.button("Próx. ▶", disabled=(current_page >= total_pages), use_container_width=True, key="btn_next"):
+            if st.button("Próxima ▶", disabled=(current_page >= total_pages), use_container_width=True, key="btn_next"):
                 st.session_state["home_page"] += 1
                 st.rerun()
-
-    # Dica de usabilidade
-    st.caption("💡 **Dica:** Clique em qualquer linha ou no botão **Ver Atlas ➔** para visualizar a ficha técnica completa do empreendimento.")
-
-    # Fatia a página atual
-    df_page = df_filtrado.iloc[start_idx:end_idx]
-
-    # Renderiza a tabela estilizada
-    render_table_html(df_page)
