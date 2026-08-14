@@ -7,7 +7,6 @@ from pathlib import Path
 import html as html_mod
 import math
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 from services import data_loader
 
@@ -79,6 +78,141 @@ def apply_custom_styles():
                 margin: 1.5rem 0 0.8rem 0;
                 padding-bottom: 0.35rem;
                 border-bottom: 2px solid #0b2545;
+            }
+
+            /* Tabela de Empreendimentos no padrão visual do Atlas */
+            .home-atlas-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.84rem;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                margin-top: 0.6rem;
+                margin-bottom: 1.2rem;
+            }
+            .home-atlas-table thead th {
+                background: #0b2545;
+                color: #ffffff;
+                padding: 0.70rem 0.80rem;
+                text-align: center;
+                font-weight: 600;
+                font-size: 0.80rem;
+                letter-spacing: 0.25px;
+                white-space: nowrap;
+                border: none;
+            }
+            .home-atlas-table tbody td {
+                padding: 0.60rem 0.80rem;
+                text-align: center;
+                border-bottom: 1px solid #eef2f7;
+                color: #334155;
+                vertical-align: middle;
+            }
+            .home-atlas-table tbody tr {
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+            }
+            .home-atlas-table tbody tr:nth-child(even) {
+                background: #f8fafc;
+            }
+            .home-atlas-table tbody tr:hover {
+                background: #edf4fb;
+            }
+            .home-atlas-table .tl {
+                text-align: left;
+            }
+            .home-atlas-table .tc {
+                text-align: center;
+            }
+            .home-atlas-table .tr {
+                text-align: right;
+            }
+            .home-atlas-table .font-bold {
+                font-weight: 600;
+                color: #0b2545;
+            }
+            .home-atlas-table .font-mono {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 0.82rem;
+            }
+            .home-atlas-table .emp-link {
+                color: #0b2545;
+                text-decoration: none;
+                font-weight: 600;
+                display: block;
+                transition: color 0.15s ease;
+            }
+            .home-atlas-table .emp-link:hover {
+                color: #1d4ed8;
+                text-decoration: underline;
+            }
+            .home-atlas-table .btn-action {
+                display: inline-block;
+                background: #0b2545;
+                color: #ffffff !important;
+                padding: 0.32rem 0.70rem;
+                border-radius: 5px;
+                font-size: 0.76rem;
+                font-weight: 600;
+                text-decoration: none !important;
+                transition: background-color 0.15s ease, transform 0.1s ease;
+                white-space: nowrap;
+            }
+            .home-atlas-table .btn-action:hover {
+                background: #133b63;
+                color: #ffffff !important;
+                transform: translateX(2px);
+            }
+            .home-atlas-table .badge {
+                display: inline-block;
+                padding: 0.22rem 0.58rem;
+                border-radius: 12px;
+                font-size: 0.73rem;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+            .home-atlas-table .badge-high {
+                background: #dcfce7;
+                color: #166534;
+                border: 1px solid #bbf7d0;
+            }
+            .home-atlas-table .badge-med {
+                background: #fef3c7;
+                color: #92400e;
+                border: 1px solid #fde68a;
+            }
+            .home-atlas-table .badge-low {
+                background: #f1f5f9;
+                color: #475569;
+                border: 1px solid #cbd5e1;
+            }
+            .home-atlas-table .badge-neutral {
+                background: #f1f5f9;
+                color: #334155;
+                border: 1px solid #e2e8f0;
+            }
+            .home-atlas-table .badge-fed {
+                background: #e0f2fe;
+                color: #0369a1;
+                border: 1px solid #bae6fd;
+            }
+            .home-atlas-table .badge-est {
+                background: #f0fdf4;
+                color: #15803d;
+                border: 1px solid #bbf7d0;
+            }
+            .home-atlas-table .badge-mun {
+                background: #fef9c3;
+                color: #a16207;
+                border: 1px solid #fef08a;
+            }
+            .home-atlas-table .badge-priv {
+                background: #f5f3ff;
+                color: #6d28d9;
+                border: 1px solid #ddd6fe;
             }
         </style>
         """,
@@ -182,7 +316,7 @@ def render_kpis(df: pd.DataFrame):
 
 
 def render_table_html(df_page: pd.DataFrame):
-    """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas."""
+    """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas com links funcionais."""
     rows_html = ""
     for _, r in df_page.iterrows():
         id_emp = int(r["id_empreendimento"])
@@ -221,51 +355,20 @@ def render_table_html(df_page: pd.DataFrame):
             esfera_badge = f'<span class="badge badge-neutral">{esfera}</span>'
 
         rows_html += (
-            f'<tr onclick="window.top.location.href=\'?id={id_emp}\'">'
+            f'<tr onclick="window.location.href=\'?id={id_emp}\'">'
             f'<td class="tc font-bold">{id_emp}</td>'
-            f'<td class="tl"><a href="?id={id_emp}" target="_top" class="emp-link">{nome}</a></td>'
+            f'<td class="tl"><a href="?id={id_emp}" target="_self" class="emp-link">{nome}</a></td>'
             f'<td class="tc">{setor}</td>'
             f'<td class="tc">{esfera_badge}</td>'
             f'<td class="tc">{status}</td>'
             f'<td class="tr font-mono">{ic_str}</td>'
             f'<td class="tc">{impacto_badge}</td>'
-            f'<td class="tc"><a href="?id={id_emp}" target="_top" class="btn-action">Ver Atlas ➔</a></td>'
+            f'<td class="tc"><a href="?id={id_emp}" target="_self" class="btn-action">Ver Atlas ➔</a></td>'
             '</tr>'
         )
 
-    table_css = (
-        '<style>'
-        'body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:transparent;}'
-        'table{width:100%;border-collapse:collapse;font-size:0.83rem;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05);background:#ffffff;border:1px solid #e2e8f0;}'
-        'thead th{background:#0b2545;color:#ffffff;padding:0.65rem 0.75rem;text-align:center;font-weight:600;font-size:0.79rem;letter-spacing:0.25px;white-space:nowrap;border:none;}'
-        'tbody td{padding:0.55rem 0.75rem;text-align:center;border-bottom:1px solid #eef2f7;color:#334155;vertical-align:middle;}'
-        'tbody tr{cursor:pointer;transition:background-color 0.15s ease;}'
-        'tbody tr:nth-child(even){background:#f8fafc;}'
-        'tbody tr:hover{background:#edf4fb;}'
-        '.tl{text-align:left;}'
-        '.tc{text-align:center;}'
-        '.tr{text-align:right;}'
-        '.font-bold{font-weight:600;color:#0b2545;}'
-        '.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:0.82rem;}'
-        '.emp-link{color:#0b2545;text-decoration:none;font-weight:600;display:block;transition:color 0.15s ease;}'
-        '.emp-link:hover{color:#1d4ed8;text-decoration:underline;}'
-        '.btn-action{display:inline-block;background:#0b2545;color:#ffffff;padding:0.3rem 0.65rem;border-radius:5px;font-size:0.75rem;font-weight:600;text-decoration:none;transition:background-color 0.15s ease, transform 0.1s ease;white-space:nowrap;}'
-        '.btn-action:hover{background:#133b63;color:#ffffff;transform:translateX(2px);}'
-        '.badge{display:inline-block;padding:0.2rem 0.55rem;border-radius:12px;font-size:0.72rem;font-weight:600;white-space:nowrap;}'
-        '.badge-high{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}'
-        '.badge-med{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}'
-        '.badge-low{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;}'
-        '.badge-neutral{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}'
-        '.badge-fed{background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;}'
-        '.badge-est{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;}'
-        '.badge-mun{background:#fef9c3;color:#a16207;border:1px solid #fef08a;}'
-        '.badge-priv{background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;}'
-        '</style>'
-    )
-
     table_html = (
-        table_css
-        + '<table>'
+        '<table class="home-atlas-table">'
         '<thead><tr>'
         '<th style="width: 60px;">ID</th>'
         '<th style="text-align: left; width: 35%;">Nome do Empreendimento</th>'
@@ -279,13 +382,7 @@ def render_table_html(df_page: pd.DataFrame):
         f'<tbody>{rows_html}</tbody>'
         '</table>'
     )
-
-    num_rows = len(df_page)
-    row_height = 42
-    header_height = 48
-    padding = 24
-    calc_height = header_height + (num_rows * row_height) + padding
-    components.html(table_html, height=calc_height, scrolling=False)
+    st.markdown(table_html, unsafe_allow_html=True)
 
 
 def render():
