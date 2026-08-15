@@ -247,11 +247,40 @@ def apply_atlas_styles():
             .atlas-table tbody tr:hover {
                 background: #eef2f7;
             }
-            .atlas-table td.text-left {
-                text-align: left;
+            .atlas-table td.text-left, .atlas-table .tl {
+                text-align: left !important;
             }
-            .atlas-table td.text-right {
-                text-align: right;
+            .atlas-table td.text-right, .atlas-table .tr {
+                text-align: right !important;
+            }
+            .atlas-table .font-mono {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            }
+            .atlas-table .font-bold {
+                font-weight: 600;
+            }
+            /* ---- Botão Voltar ---- */
+            .atlas-back-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                color: #0b2545 !important;
+                padding: 0.45rem 1rem;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-decoration: none !important;
+                margin-bottom: 1.1rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+                transition: all 0.15s ease;
+            }
+            .atlas-back-btn:hover {
+                background-color: #f1f5f9;
+                border-color: #0b2545;
+                color: #0b2545 !important;
+                transform: translateX(-3px);
             }
         </style>
         """,
@@ -264,12 +293,15 @@ def apply_atlas_styles():
 # ---------------------------------------------------------------------------
 
 def render_back_button():
-    """Botão de retorno para a lista de empreendimentos."""
-    if st.button("⬅ Voltar para a Lista de Empreendimentos", use_container_width=False):
-        st.session_state["selected_empreendimento_id"] = None
-        if "id" in st.query_params:
-            del st.query_params["id"]
-        st.rerun()
+    """Botão de retorno nativo para a lista de empreendimentos."""
+    st.markdown(
+        """
+        <a href="?" target="_self" class="atlas-back-btn">
+            ⬅ Voltar para a Lista de Empreendimentos
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_header(empreendimento_id, nome_emp, setor, esfera):
@@ -573,7 +605,7 @@ def render_tabela_alocacao(empreendimento_id):
 
 def render_tabela_obras(empreendimento_id, df_obras):
     """Tabela 4 — Detalhamento de todas as obras vinculadas ao empreendimento.
-    O valor de cada obra é o MAIOR valor_adotado entre todos os cenários (CAPEX).
+    Ordenadas pelo valor da obra em ordem decrescente (do maior para o menor).
     """
     if df_obras.empty:
         st.info("Nenhuma obra vinculada a este empreendimento.")
@@ -588,19 +620,31 @@ def render_tabela_obras(empreendimento_id, df_obras):
             soma_por_cenario = custos_emp.groupby(["id_obra", "id_cenario"])["valor_adotado"].sum().reset_index()
             valor_por_obra = soma_por_cenario.groupby("id_obra")["valor_adotado"].max().to_dict()
 
+    # Cria cópia para ordenação defensiva
+    df_obras_sorted = df_obras.copy()
+
+    # Mapeia valor calculado por obra com fallback para valor_global
+    val_series = df_obras_sorted["id_obra"].map(valor_por_obra)
+    if "valor_global" in df_obras_sorted.columns:
+        val_series = val_series.combine_first(df_obras_sorted["valor_global"])
+    df_obras_sorted["valor_calculado"] = val_series.fillna(0.0)
+
+    # Ordena as obras pelo valor calculado em ordem decrescente
+    df_obras_sorted = df_obras_sorted.sort_values(by="valor_calculado", ascending=False)
+
     st.markdown('<div class="section-title">Detalhamento das Obras</div>', unsafe_allow_html=True)
 
     rows_html = ""
-    for _, obra in df_obras.iterrows():
+    for _, obra in df_obras_sorted.iterrows():
         id_obra = obra.get("id_obra")
         descricao = html_mod.escape(str(obra.get("descricao_obra") or "N/D"))
         intervencao = html_mod.escape(str(obra.get("intervencao") or "N/D"))
         tipo_infra = html_mod.escape(str(obra.get("tipo_infraestrutura") or "N/D"))
         extensao = obra.get("extensao_km")
-        valor_obra = valor_por_obra.get(id_obra)
+        valor_num = obra.get("valor_calculado")
 
         extensao_fmt = fmt_decimal_br_2(extensao) if pd.notna(extensao) else "N/D"
-        valor_fmt = fmt_brl(valor_obra)
+        valor_fmt = fmt_brl(valor_num)
 
         rows_html += (
             '<tr>'
@@ -608,43 +652,25 @@ def render_tabela_obras(empreendimento_id, df_obras):
             f'<td>{intervencao}</td>'
             f'<td>{tipo_infra}</td>'
             f'<td class="tr">{extensao_fmt}</td>'
-            f'<td class="tr">{valor_fmt}</td>'
+            f'<td class="tr font-mono font-bold">{valor_fmt}</td>'
             '</tr>'
         )
 
-    obras_css = (
-        '<style>'
-        'body{margin:0;padding:0;font-family:"Source Sans Pro",sans-serif;background:transparent;}'
-        'table{width:100%;border-collapse:collapse;font-size:0.82rem;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04);}'
-        'thead th{background:#0b2545;color:#fff;padding:0.55rem 0.7rem;text-align:center;font-weight:600;font-size:0.78rem;letter-spacing:0.2px;white-space:nowrap;}'
-        'tbody td{padding:0.5rem 0.7rem;text-align:center;border-bottom:1px solid #e8ecf1;color:#334155;vertical-align:middle;}'
-        'tbody tr:nth-child(even){background:#f8fafc;}'
-        'tbody tr:hover{background:#eef2f7;}'
-        '.tl{text-align:left;} .tr{text-align:right;}'
-        '</style>'
-    )
-
     table_html = (
-        obras_css
-        + '<table>'
+        '<div style="max-height: 520px; overflow-y: auto; border: 1px solid #e8ecf1; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); margin-bottom: 1.5rem;">'
+        '<table class="atlas-table" style="margin-bottom: 0;">'
         '<thead><tr>'
-        '<th style="text-align:left;">Descrição da Obra</th>'
-        '<th>Intervenção</th>'
-        '<th>Tipo da Infraestrutura</th>'
-        '<th>Extensão (Km)</th>'
-        '<th>Valor Obra (R$)</th>'
+        '<th style="text-align:left; position: sticky; top: 0; z-index: 2;">Descrição da Obra</th>'
+        '<th style="position: sticky; top: 0; z-index: 2;">Intervenção</th>'
+        '<th style="position: sticky; top: 0; z-index: 2;">Tipo da Infraestrutura</th>'
+        '<th style="position: sticky; top: 0; z-index: 2;">Extensão (Km)</th>'
+        '<th style="text-align:right; position: sticky; top: 0; z-index: 2;">Valor Obra (R$)</th>'
         '</tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         '</table>'
+        '</div>'
     )
-
-    num_rows = len(df_obras)
-    row_height = 38
-    header_height = 50
-    padding = 20
-    calc_height = header_height + (num_rows * row_height) + padding
-    max_height = min(calc_height, 800)
-    components.html(table_html, height=max_height, scrolling=(calc_height > 800))
+    st.markdown(table_html, unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------

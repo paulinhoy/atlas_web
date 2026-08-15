@@ -11,6 +11,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 1. [Parser Markdown do Streamlit Exibindo Tags HTML Cruas (`<pre><code>`)](#caso-1-parser-markdown-do-streamlit-exibindo-tags-html-cruas-precode)
 2. [Bloqueio de Navegação por Links Dentro de `components.html` (Sandbox de IFrame)](#caso-2-bloqueio-de-navegação-por-links-dentro-de-componentshtml-sandbox-de-iframe)
 3. [Codificação Dupla (Mojibake) em Exportações de Banco PostGIS](#caso-3-codificação-dupla-mojibake-em-exportações-de-banco-postgis)
+4. [Persistência de Query Params na URL ao Voltar do Atlas para a Home](#caso-4-persistência-de-query-params-na-url-ao-voltar-do-atlas-para-a-home)
 
 ---
 
@@ -107,6 +108,24 @@ Exportações legadas do banco PostGIS frequentemente exportam strings codificad
        return text
    ```
 2. Aplicar a limpeza tanto na esteira ETL (`scripts/process_data.py`) quanto na camada de leitura cached (`services/data_loader.py`).
+
+---
+
+## Caso 4: Persistência de Query Params na URL ao Voltar do Atlas para a Home
+
+* **Data:** 14/08/2026
+* **Componentes Afetados:** `app.py`, `views/atlas.py`, `views/home.py`
+* **Tecnologia:** `streamlit==1.36.0` (Roteamento via URL e Session State)
+
+### 🛑 Contexto e Sintoma
+Após navegar da Home para o Atlas de um empreendimento (`?id=113`), ao clicar no botão de voltar e posteriormente interagir com a paginação na Home, o sistema inesperadamente reabria a tela do empreendimento.
+
+### 🔍 Causa Raiz
+O botão de voltar utilizava `st.button` executando `del st.query_params['id']` e `st.rerun()`. No Streamlit 1.36.0, o `del st.query_params` altera o estado interno via WebSocket mas nem sempre sincroniza a barra de endereços do navegador imediatamente antes de novas interações. Ao clicar em qualquer botão de paginação, a URL ainda continha o parâmetro `?id=...`, fazendo o roteador `app.py` restaurar a visualização do empreendimento.
+
+### ✅ Solução Adotada
+1. No `app.py`, transformar a URL (`st.query_params.get("id")`) na **única fonte da verdade**: se o `id` for nulo ou vazio, garantir `st.session_state["selected_empreendimento_id"] = None` e limpar qualquer chave residual.
+2. No `views/atlas.py`, substituir o botão `st.button` por um link nativo estilizado `<a href="?" target="_self" class="atlas-back-btn">⬅ Voltar para a Lista de Empreendimentos</a>`. A navegação nativa do navegador para `?` limpa fisicamente os parâmetros de consulta da URL de forma síncrona e definitiva.
 
 ---
 

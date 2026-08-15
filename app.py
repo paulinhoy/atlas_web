@@ -16,19 +16,17 @@ st.set_page_config(
 
 
 def main():
-    # Sincroniza query params da URL com o estado da sessão
+    # A URL (query params) é a fonte única da verdade para o roteamento
     query_id = st.query_params.get("id", None)
-    if query_id:
-        st.session_state["selected_empreendimento_id"] = query_id
-    elif "selected_empreendimento_id" not in st.session_state:
-        st.session_state["selected_empreendimento_id"] = None
 
-    selected_id = st.session_state["selected_empreendimento_id"]
-
-    # Roteamento entre telas
-    if selected_id:
+    if query_id and str(query_id).strip():
+        selected_id = str(query_id).strip()
+        st.session_state["selected_empreendimento_id"] = selected_id
         atlas.render(selected_id)
     else:
+        st.session_state["selected_empreendimento_id"] = None
+        if "id" in st.query_params:
+            del st.query_params["id"]
         home.render()
 
 
