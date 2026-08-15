@@ -259,28 +259,32 @@ def apply_atlas_styles():
             .atlas-table .font-bold {
                 font-weight: 600;
             }
-            /* ---- Botão Voltar ---- */
-            .atlas-back-btn {
+            /* ---- Botão Voltar Flutuante (Floating Action Pill) ---- */
+            .atlas-floating-back-btn {
+                position: fixed;
+                bottom: 24px;
+                left: 24px;
+                z-index: 99999;
                 display: inline-flex;
                 align-items: center;
-                gap: 6px;
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                color: #0b2545 !important;
-                padding: 0.45rem 1rem;
-                border-radius: 6px;
+                gap: 8px;
+                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
+                color: #ffffff !important;
+                padding: 0.60rem 1.25rem;
+                border-radius: 30px;
                 font-size: 0.85rem;
                 font-weight: 600;
                 text-decoration: none !important;
-                margin-bottom: 1.1rem;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-                transition: all 0.15s ease;
+                box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                transition: all 0.2s ease;
+                backdrop-filter: blur(8px);
             }
-            .atlas-back-btn:hover {
-                background-color: #f1f5f9;
-                border-color: #0b2545;
-                color: #0b2545 !important;
-                transform: translateX(-3px);
+            .atlas-floating-back-btn:hover {
+                background: linear-gradient(135deg, #133b63 0%, #1d4ed8 100%);
+                color: #ffffff !important;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
             }
         </style>
         """,
@@ -293,11 +297,12 @@ def apply_atlas_styles():
 # ---------------------------------------------------------------------------
 
 def render_back_button():
-    """Botão de retorno nativo para a lista de empreendimentos."""
+    """Botão flutuante de retorno para a lista de empreendimentos."""
     st.markdown(
         """
-        <a href="?" target="_self" class="atlas-back-btn">
-            ⬅ Voltar para a Lista de Empreendimentos
+        <a href="?" target="_self" class="atlas-floating-back-btn">
+            <span style="font-size: 1.1rem; line-height: 1;">←</span>
+            <span>Voltar para a Lista</span>
         </a>
         """,
         unsafe_allow_html=True,
