@@ -282,14 +282,53 @@ def apply_custom_styles():
                 box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12) !important;
             }
 
-            /* Controles de paginação modernos */
-            div[data-testid="stHorizontalBlock"] button {
-                border-radius: 6px !important;
-                font-size: 0.82rem !important;
+            /* Controles de paginação numérica minimalista (estilo < 1 ... 5 [6] 7 ... 17 >) */
+            div[data-testid="stHorizontalBlock"] button[kind="primary"] {
+                background-color: #0b2545 !important;
+                color: #ffffff !important;
+                border: none !important;
+                border-radius: 4px !important;
+                min-width: 32px !important;
+                max-width: 32px !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                padding: 0 !important;
+                font-size: 0.90rem !important;
+                font-weight: 700 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin: 0 auto !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+            }
+
+            div[data-testid="stHorizontalBlock"] button[kind="secondary"] {
+                background-color: transparent !important;
+                color: #0f172a !important;
+                border: none !important;
+                border-radius: 4px !important;
+                min-width: 32px !important;
+                max-width: 32px !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                padding: 0 !important;
+                font-size: 0.90rem !important;
                 font-weight: 500 !important;
-                padding: 0.32rem 0.6rem !important;
-                min-height: 2.2rem !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
                 transition: all 0.15s ease !important;
+            }
+            div[data-testid="stHorizontalBlock"] button[kind="secondary"]:hover:not(:disabled) {
+                background-color: #f1f5f9 !important;
+                color: #0b2545 !important;
+            }
+            div[data-testid="stHorizontalBlock"] button[kind="secondary"]:disabled {
+                color: #cbd5e1 !important;
+                background-color: transparent !important;
+                cursor: not-allowed !important;
             }
         </style>
         """,
@@ -538,6 +577,173 @@ def render():
 
     st.markdown('<div class="section-title">Carteira de Empreendimentos Priorizados</div>', unsafe_allow_html=True)
 
+def render_pagination(
+    current_page: int,
+    total_pages: int,
+    total_filtrado: int,
+    start_idx: int,
+    end_idx: int,
+    total_emp: int,
+    page_size: int,
+):
+    """Renderiza a paginação numérica minimalista no padrão da imagem (< 1 ... 5 [6] 7 ... 17 >)."""
+    # 1. Informações de contagem e seletor de linhas por página
+    c_info, c_size = st.columns([3.5, 1.5])
+    with c_info:
+        st.markdown(
+            f"<div style='font-size: 0.85rem; color: #64748b; padding-top: 0.4rem;'>"
+            f"Mostrando <b>{format_br_int(start_idx + 1)}–{format_br_int(end_idx)}</b> de <b>{format_br_int(total_filtrado)}</b> empreendimentos (Total: {format_br_int(total_emp)})"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    with c_size:
+        c_lbl, c_sel = st.columns([1.1, 1.2])
+        with c_lbl:
+            st.markdown("<div style='text-align: right; font-size: 0.82rem; color: #64748b; padding-top: 0.4rem;'>Itens por pág.:</div>", unsafe_allow_html=True)
+        with c_sel:
+            size_options = [15, 25, 50, 100]
+            cur_size_idx = size_options.index(page_size) if page_size in size_options else 1
+            novo_size = st.selectbox(
+                "Itens por página:",
+                options=size_options,
+                index=cur_size_idx,
+                key="select_page_size",
+                label_visibility="collapsed",
+            )
+            if novo_size != page_size:
+                st.session_state["home_page_size"] = novo_size
+                st.session_state["home_page"] = 1
+                st.rerun()
+
+    if total_pages <= 1:
+        return
+
+    st.write("")
+
+    # 2. Monta os elementos numéricos da paginação
+    if total_pages <= 7:
+        items = list(range(1, total_pages + 1))
+    elif current_page <= 4:
+        items = [1, 2, 3, 4, 5, "...", total_pages]
+    elif current_page >= total_pages - 3:
+        items = [1, "...", total_pages - 4, total_pages - 3, total_pages - 2, total_pages - 1, total_pages]
+    else:
+        items = [1, "...", current_page - 1, current_page, current_page + 1, "...", total_pages]
+
+    num_items = len(items)
+    total_nav_cols = num_items + 2
+
+    # Espaçadores proporcionais nas pontas para centralização
+    spacer_width = max(1.0, (14 - total_nav_cols) / 2.0)
+    col_weights = [spacer_width] + [1.0] * total_nav_cols + [spacer_width]
+    cols = st.columns(col_weights)
+
+    # Botão Anterior (<)
+    with cols[1]:
+        if st.button("‹", disabled=(current_page <= 1), key="btn_pg_prev", help="Página anterior"):
+            st.session_state["home_page"] = current_page - 1
+            st.rerun()
+
+    # Itens de página e reticências
+    for i, item in enumerate(items):
+        with cols[2 + i]:
+            if item == "...":
+                st.markdown(
+                    "<div style='text-align: center; color: #64748b; font-size: 0.95rem; line-height: 32px; font-weight: bold;'>…</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                p_num = int(item)
+                is_active = (p_num == current_page)
+                btn_type = "primary" if is_active else "secondary"
+                if st.button(str(p_num), key=f"btn_pg_{p_num}", type=btn_type):
+                    if p_num != current_page:
+                        st.session_state["home_page"] = p_num
+                        st.rerun()
+
+    # Botão Próximo (>)
+    with cols[-2]:
+        if st.button("›", disabled=(current_page >= total_pages), key="btn_pg_next", help="Próxima página"):
+            st.session_state["home_page"] = current_page + 1
+            st.rerun()
+
+
+def render():
+    """Função principal da tela Home."""
+    apply_custom_styles()
+    render_header()
+
+    df_emp = data_loader.get_empreendimentos()
+
+    if df_emp.empty:
+        st.error(
+            "Nenhum dado encontrado em `data/processed/empreendimentos_priorizacao.parquet`.\n"
+            "Execute o script `scripts/process_data.py` para processar a base de dados."
+        )
+        return
+
+    # Renderiza KPIs
+    render_kpis(df_emp)
+
+    # Painel de Filtros e Busca
+    st.markdown(
+        """
+        <div class="filter-panel-header">
+            <div class="filter-panel-title">
+                <span>🔍</span> Pesquisa e Filtros da Carteira
+            </div>
+            <div class="filter-panel-subtitle">
+                Refine a listagem por código, nome, setor, esfera governamental ou classificação
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    f_col1, f_col2, f_col3, f_col4 = st.columns([2.5, 1.5, 1.5, 1.5])
+
+    with f_col1:
+        busca = st.text_input(
+            "Buscar por Nome ou Código ID:",
+            placeholder="Ex: Ferrovia Centro-Atlântica, BR-381, 113...",
+            key="busca_termo",
+        )
+
+    with f_col2:
+        setores = ["Todos"] + sorted(df_emp["setor"].dropna().unique().tolist()) if "setor" in df_emp.columns else ["Todos"]
+        filtro_setor = st.selectbox("Setor:", setores, key="filtro_setor")
+
+    with f_col3:
+        esferas = ["Todas"] + sorted(df_emp["esfera_acao"].dropna().unique().tolist()) if "esfera_acao" in df_emp.columns else ["Todas"]
+        filtro_esfera = st.selectbox("Esfera:", esferas, key="filtro_esfera")
+
+    col_impacto = "impacto_avaliado_3_pond_cenario"
+    with f_col4:
+        impactos = ["Todos"] + sorted(df_emp[col_impacto].dropna().unique().tolist()) if col_impacto in df_emp.columns else ["Todos"]
+        filtro_impacto = st.selectbox("Classificação:", impactos, key="filtro_impacto")
+
+    # Aplicação dos Filtros
+    df_filtrado = df_emp.copy()
+
+    if busca.strip():
+        termo = busca.strip().lower()
+        id_mask = df_filtrado["id_empreendimento"].astype(str).str.contains(termo, case=False, na=False)
+        nome_mask = df_filtrado["nome_empreendimento"].astype(str).str.lower().str.contains(termo, na=False)
+        df_filtrado = df_filtrado[id_mask | nome_mask]
+
+    if filtro_setor != "Todos" and "setor" in df_filtrado.columns:
+        df_filtrado = df_filtrado[df_filtrado["setor"] == filtro_setor]
+
+    if filtro_esfera != "Todas" and "esfera_acao" in df_filtrado.columns:
+        df_filtrado = df_filtrado[df_filtrado["esfera_acao"] == filtro_esfera]
+
+    if filtro_impacto != "Todos" and col_impacto in df_filtrado.columns:
+        df_filtrado = df_filtrado[df_filtrado[col_impacto] == filtro_impacto]
+
+    total_filtrado = len(df_filtrado)
+
+    st.markdown('<div class="section-title">Carteira de Empreendimentos Priorizados</div>', unsafe_allow_html=True)
+
     if total_filtrado == 0:
         st.warning("⚠️ Nenhum empreendimento encontrado para os filtros selecionados.")
         return
@@ -563,50 +769,13 @@ def render():
     df_page = df_filtrado.iloc[start_idx:end_idx]
     render_table_html(df_page)
 
-    # 2. Barra de paginação moderna no rodapé (abaixo da tabela)
-    c_info, c_size, c_nav = st.columns([3.8, 2.2, 3.0])
-
-    with c_info:
-        st.markdown(
-            f"<div style='padding-top: 0.45rem; font-size: 0.85rem; color: #64748b;'>"
-            f"Mostrando <b>{format_br_int(start_idx + 1)}–{format_br_int(end_idx)}</b> de <b>{format_br_int(total_filtrado)}</b> empreendimentos (Total: {format_br_int(len(df_emp))})"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-    with c_size:
-        c_size_lbl, c_size_sel = st.columns([1.1, 1.2])
-        with c_size_lbl:
-            st.markdown("<div style='text-align: right; padding-top: 0.45rem; font-size: 0.83rem; color: #64748b;'>Itens por pág.:</div>", unsafe_allow_html=True)
-        with c_size_sel:
-            size_options = [15, 25, 50, 100]
-            cur_size_idx = size_options.index(page_size) if page_size in size_options else 1
-            novo_size = st.selectbox(
-                "Itens por página:",
-                options=size_options,
-                index=cur_size_idx,
-                key="select_page_size",
-                label_visibility="collapsed",
-            )
-            if novo_size != page_size:
-                st.session_state["home_page_size"] = novo_size
-                st.session_state["home_page"] = 1
-                st.rerun()
-
-    with c_nav:
-        col_prev, col_txt, col_next = st.columns([1.1, 1.4, 1.1])
-        with col_prev:
-            if st.button("◀ Anterior", disabled=(current_page <= 1), use_container_width=True, key="btn_prev"):
-                st.session_state["home_page"] -= 1
-                st.rerun()
-        with col_txt:
-            st.markdown(
-                f"<div style='text-align: center; padding-top: 0.45rem; font-size: 0.85rem; font-weight: 600; color: #334155; white-space: nowrap;'>"
-                f"Pág. {current_page} de {total_pages}"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        with col_next:
-            if st.button("Próxima ▶", disabled=(current_page >= total_pages), use_container_width=True, key="btn_next"):
-                st.session_state["home_page"] += 1
-                st.rerun()
+    # 2. Barra de paginação numérica minimalista (< 1 ... 5 [6] 7 ... 17 >)
+    render_pagination(
+        current_page=current_page,
+        total_pages=total_pages,
+        total_filtrado=total_filtrado,
+        start_idx=start_idx,
+        end_idx=end_idx,
+        total_emp=len(df_emp),
+        page_size=page_size,
+    )
