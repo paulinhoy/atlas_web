@@ -32,9 +32,10 @@ def load_parquet(filename: str) -> pd.DataFrame:
     
     df = pd.read_parquet(file_path)
     
-    # Aplica limpeza defensiva nas colunas de texto
+    # Aplica limpeza defensiva nas colunas de texto (exceto geometrias WKT)
     for col in df.select_dtypes(include="object").columns:
-        df[col] = df[col].apply(fix_mojibake)
+        if col not in ("geom_ponto", "geom_linha"):
+            df[col] = df[col].apply(fix_mojibake)
         
     return df
 
@@ -57,3 +58,8 @@ def get_custo_obra() -> pd.DataFrame:
 
 def get_alocacao() -> pd.DataFrame:
     return load_parquet("alocacao_empreendimento")
+
+
+def get_empreendimento_geo() -> pd.DataFrame:
+    return load_parquet("empreendimento_geo")
+

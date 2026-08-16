@@ -8,7 +8,7 @@ import html as html_mod
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
-from services import data_loader
+from services import data_loader, map_service
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGOS_DIR = BASE_DIR / "logos"
@@ -377,18 +377,10 @@ def render_metadados(row, df_obras):
     st.markdown(meta_html, unsafe_allow_html=True)
 
 
-def render_map_placeholder():
-    """Espaço reservado para o mapa geoespacial e legenda de intervenções."""
-    # Placeholder do mapa
-    st.markdown(
-        """
-        <div class="map-placeholder">
-            🗺️ Visualização geoespacial será integrada em etapa futura<br>
-            <span style="font-size: 0.82rem; color: #90a4ae;">(GeoPandas / Folium)</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def render_map_section(empreendimento_id):
+    """Renderiza a visualização geoespacial interativa e a legenda de intervenções."""
+    # Renderiza o mapa interativo via serviço modular
+    map_service.render_map(empreendimento_id)
 
     # Legenda fiel ao QGIS
     st.markdown(
@@ -726,7 +718,7 @@ def render(empreendimento_id):
         render_metadados(row, df_obras)
 
     with col_map:
-        render_map_placeholder()
+        render_map_section(empreendimento_id)
 
     # ── Tabela 1: Resultados da Priorização ──
     render_tabela_priorizacao(row)

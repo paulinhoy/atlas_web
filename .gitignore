@@ -9,6 +9,7 @@ ENV/
 
 # Data
 data/raw/*.csv
+data/raw/*.json
 data/processed/*.parquet
 !data/raw/.gitkeep
 !data/processed/.gitkeep

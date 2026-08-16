@@ -34,15 +34,17 @@ atlas_web/
 │   ├── home.py                 # Tela 1: Painel Executivo, KPIs, busca e tabela de empreendimentos
 │   └── atlas.py                # Tela 2: Ficha Técnica do Atlas (layout réplica do QGIS)
 │
-├── services/                   # SERVIÇOS DE DADOS
-│   └── data_loader.py          # Leitor otimizado com @st.cache_data e limpeza defensiva de strings
+├── services/                   # SERVIÇOS DE DADOS E GEOESPACIAL
+│   ├── data_loader.py          # Leitor otimizado com @st.cache_data e limpeza defensiva de strings
+│   └── map_service.py          # Módulo exclusivo de renderização geoespacial (Folium / WKT)
 │
 ├── data/                       # ARMAZENAMENTO DE DADOS (ignorado pelo Git)
-│   ├── raw/                    # CSVs brutos extraídos do PostGIS (suporta subpastas por data)
-│   └── processed/              # Arquivos .parquet otimizados gerados pelo script ETL
+│   ├── raw/                    # CSVs e JSONs brutos extraídos do PostGIS (suporta subpastas por data)
+│   └── processed/              # Arquivos .parquet otimizados gerados pelo pipeline ETL
 │
 ├── scripts/                    # SCRIPTS AUXILIARES E PIPELINE ETL
 │   ├── process_data.py         # Mapeia CSVs brutos para Parquet com tratamento de Mojibake
+│   ├── process_geo.py          # Mapeia JSON bruto de geometrias WKT para Parquet otimizado
 │   └── fix_encoding.py         # Utilitário de correção de codificação dupla
 │
 ├── logos/                      # ATIVOS VISUAIS INSTITUCIONAIS
@@ -61,9 +63,9 @@ atlas_web/
 
 ---
 
-## 4. Pipeline de Dados e Dicionário de Mapeamentos (CSV ➔ Parquet)
+## 4. Pipeline de Dados e Dicionário de Mapeamentos (CSV / JSON ➔ Parquet)
 
-Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8859-1/Latin1) e convertidos para Parquet UTF-8 otimizado pelo script `scripts/process_data.py`:
+Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8859-1/Latin1) e convertidos para Parquet UTF-8 otimizado pelos scripts `scripts/process_data.py` e `scripts/process_geo.py`:
 
 | Visão/Tabela Original PostGIS | Parquet Otimizado em `data/processed/` | Chave(s) Principal(is) | Função no Sistema |
 | :--- | :--- | :--- | :--- |
@@ -72,6 +74,7 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 | `tbl_alocacaoempreendimento_*` | `alocacao_empreendimento.parquet` | `id_empreendimento`, `id_cenario` | Dados de alocação de tráfego/fluxo para 2055 por Cenário (1 a 4) |
 | `vw_obra_*` | `obras_priorizacao.parquet` | `id_obra`, `id_empreendimento` | Cadastro e detalhamento individual de cada obra |
 | `vw_custo_economico_*` | `custo_obra.parquet` | `id_obra`, `id_empreendimento`, `id_cenario` | Custos detalhados por obra e cenário |
+| `mvw_empreendimento_geo_*` | `empreendimento_geo.parquet` | `id_empreendimento` | Geometrias WKT de traçados (`geom_linha`) e intervenções (`geom_ponto`) |
 
 ### ⚠️ Regras Cruciais de Tratos com Dados:
 1. **Sem limite de obras na Web:** Diferente da versão física do QGIS que limitava em 4 obras, a versão web deve exibir **todas** as obras relacionadas na tabela de detalhamento.
