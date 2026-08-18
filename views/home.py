@@ -331,7 +331,48 @@ def apply_custom_styles():
                 background-color: transparent !important;
                 cursor: not-allowed !important;
             }
+
+            /* ---- Botão Flutuante do Chatbot (Floating Action Pill) ---- */
+            .atlas-floating-chat-btn {
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                z-index: 99999;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
+                color: #ffffff !important;
+                padding: 0.60rem 1.25rem;
+                border-radius: 30px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-decoration: none !important;
+                box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                transition: all 0.2s ease;
+                backdrop-filter: blur(8px);
+            }
+            .atlas-floating-chat-btn:hover {
+                background: linear-gradient(135deg, #133b63 0%, #1d4ed8 100%);
+                color: #ffffff !important;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
+            }
         </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_chatbot_button():
+    """Botão flutuante para acessar o assistente virtual."""
+    st.markdown(
+        """
+        <a href="?page=chatbot" target="_self" class="atlas-floating-chat-btn">
+            <span style="font-size: 1.1rem; line-height: 1;">💬</span>
+            <span>Assistente Virtual</span>
+        </a>
         """,
         unsafe_allow_html=True,
     )
@@ -585,6 +626,7 @@ def render_pagination(
 def render():
     """Função principal da tela Home."""
     apply_custom_styles()
+    render_chatbot_button()
     render_header()
 
     df_emp = data_loader.get_empreendimentos()

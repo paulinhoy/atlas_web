@@ -4,7 +4,7 @@ Gerencia o roteamento entre a Home (lista/busca) e o Atlas (ficha do empreendime
 """
 
 import streamlit as st
-from views import home, atlas
+from views import home, atlas, chatbot
 
 # Configurações gerais da página
 st.set_page_config(
@@ -17,9 +17,13 @@ st.set_page_config(
 
 def main():
     # A URL (query params) é a fonte única da verdade para o roteamento
+    page = st.query_params.get("page", None)
     query_id = st.query_params.get("id", None)
 
-    if query_id and str(query_id).strip():
+    if page == "chatbot":
+        st.session_state["selected_empreendimento_id"] = None
+        chatbot.render()
+    elif query_id and str(query_id).strip():
         selected_id = str(query_id).strip()
         st.session_state["selected_empreendimento_id"] = selected_id
         atlas.render(selected_id)
@@ -27,6 +31,8 @@ def main():
         st.session_state["selected_empreendimento_id"] = None
         if "id" in st.query_params:
             del st.query_params["id"]
+        if "page" in st.query_params:
+            del st.query_params["page"]
         home.render()
 
 
