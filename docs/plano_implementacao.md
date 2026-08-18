@@ -54,11 +54,12 @@ Documento base com o modelo conceitual, arquitetura de dados e planejamento das 
 
 ```
 atlas_web/
-├── app.py                      # Roteador Streamlit (alterna entre Home e Atlas)
+├── app.py                      # Roteador Streamlit (alterna entre Home, Atlas e Chatbot)
 │
 ├── views/                      # Telas modulares
 │   ├── home.py                 # Tela 1: Lista e busca dos empreendimentos priorizados
-│   └── atlas.py                # Tela 2: Ficha Técnica completa (cópia fiel do layout QGIS)
+│   ├── atlas.py                # Tela 2: Ficha Técnica completa (cópia fiel do layout QGIS)
+│   └── chatbot.py              # Tela 3: Assistente Virtual / Chatbot isolado do Atlas
 │
 ├── services/                   # Camada de serviços e dados
 │   ├── data_loader.py          # Leitor otimizado dos arquivos .parquet com cache
@@ -146,10 +147,28 @@ A integração do mapa foi projetada para ser **100% modular, desacoplada e de a
 
 ---
 
-## 6. Roteiro de Entregas e Próximos Passos
+## 6. Arquitetura da Tela do Assistente Virtual / Chatbot (`views/chatbot.py`)
+
+A interface do chatbot foi implementada de forma **100% isolada e modular**:
+
+1. **Roteamento por Query Param (`?page=chatbot`):**
+   * O arquivo `app.py` direciona a renderização para `views/chatbot.py` sem afetar as rotas da Home (`/`) e do Atlas (`/?id=X`).
+2. **Botões Flutuantes Sincronizados:**
+   * Na **Home**, um botão flutuante estilizado no padrão `.atlas-floating-chat-btn` direciona para o assistente.
+   * No **Chatbot**, o botão flutuante `.atlas-floating-back-btn` com texto *"Voltar para a Lista"* retorna de forma síncrona para a Home (`?`).
+3. **Design Moderno:**
+   * Alinhamento universal: mensagens do usuário à direita (em azul PELT) e respostas do assistente à esquerda (em fundo claro).
+   * Ocultação de avatares genéricos para foco exclusivo no conteúdo.
+   * Campo de digitação em formato de cápsula com botão de envio alinhado e sem caixas cinzas/bege residuais.
+
+---
+
+## 7. Roteiro de Entregas e Próximos Passos
 
 - [x] **Etapa 1:** Configuração da estrutura modular de pastas e pipeline de dados (`scripts/process_data.py` -> Parquet).
 - [x] **Etapa 2:** Montar a **Tela 1 (Home)** com a tabela de seleção rápida dos empreendimentos priorizados, busca, filtros e navegação.
 - [x] **Etapa 3:** Montar a **Tela 2 (Atlas)** com a estrutura visual fiel à imagem do QGIS (cabeçalho, metadados, espaço do mapa e as 4 tabelas de dados).
 - [x] **Etapa 4:** Refinamentos de formatação monetária (R$), design institucional, botão flutuante, ordenação decrescente de obras e integração do mapa geoespacial modular.
-- [ ] **Etapa 5:** Adequação dinâmica das legendas e camadas socioambientais adicionais.
+- [x] **Etapa 5:** Criação da interface modular e estilizada do **Assistente Virtual (Chatbot)** com navegação flutuante.
+- [ ] **Etapa 6:** Integração analítica do Chatbot com os dados locais (`data_loader`) e posteriormente LLM/Text-to-Data.
+- [ ] **Etapa 7:** Adequação dinâmica das legendas e camadas socioambientais adicionais no mapa.

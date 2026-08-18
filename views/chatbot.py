@@ -21,7 +21,7 @@ def apply_chatbot_styles():
                 padding: 1.5rem 2rem;
                 border-radius: 12px;
                 color: #ffffff;
-                margin-bottom: 1.5rem;
+                margin-bottom: 1.8rem;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             }
             .chatbot-header h2 {
@@ -40,7 +40,177 @@ def apply_chatbot_styles():
                 font-weight: 300;
             }
 
-            /* ---- Botão Voltar Flutuante (Floating Action Pill) ---- */
+            /* ---- 1. Ocultar avatares / ícones completamente ---- */
+            div[data-testid="stChatMessageAvatar"],
+            div[data-testid="chatAvatarIcon-user"],
+            div[data-testid="chatAvatarIcon-assistant"] {
+                display: none !important;
+            }
+
+            /* ---- 2. Balões de Mensagem com texto perfeitamente alinhado ---- */
+            div[data-testid="stChatMessage"] {
+                display: block !important;
+                padding: 0.80rem 1.20rem !important;
+                border-radius: 16px !important;
+                margin-top: 0.3rem !important;
+                margin-bottom: 0.8rem !important;
+                width: fit-content !important;
+                max-width: 78% !important;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+            }
+
+            /* Reset dos espaçamentos internos do Markdown do Streamlit */
+            div[data-testid="stChatMessageContent"],
+            div[data-testid="stChatMessageContent"] > div,
+            div[data-testid="stChatMessageContent"] .stMarkdown,
+            div[data-testid="stChatMessageContent"] div[data-testid="stMarkdownContainer"] {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+
+            div[data-testid="stChatMessageContent"] p {
+                margin: 0 !important;
+                padding: 0 !important;
+                font-size: 0.92rem !important;
+                line-height: 1.55 !important;
+            }
+
+            div[data-testid="stChatMessageContent"] p:not(:last-child) {
+                margin-bottom: 0.5rem !important;
+            }
+
+            /* Balão do USUÁRIO -> Direita */
+            div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) {
+                margin-left: auto !important;
+                margin-right: 0 !important;
+                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%) !important;
+                color: #ffffff !important;
+                border-bottom-right-radius: 4px !important;
+                border: none !important;
+                text-align: left !important;
+            }
+            div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) p,
+            div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) span,
+            div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) strong,
+            div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) em {
+                color: #ffffff !important;
+            }
+
+            /* Balão do ASSISTENTE -> Esquerda */
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) {
+                margin-right: auto !important;
+                margin-left: 0 !important;
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #0f172a !important;
+                border-bottom-left-radius: 4px !important;
+                text-align: left !important;
+            }
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) p,
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) span,
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) strong,
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) em {
+                color: #0f172a !important;
+            }
+
+            /* ---- 3. Campo de Digitação Limpo e Sem Caixas Claras Internas ---- */
+            div[data-testid="stBottomBlockContainer"] {
+                background-color: transparent !important;
+            }
+            div[data-testid="stBottomBlockContainer"] > div {
+                background-color: transparent !important;
+            }
+
+            div[data-testid="stChatInput"] {
+                background-color: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+            }
+
+            /* Zerar qualquer fundo ou contorno das caixas internas do BaseWeb */
+            div[data-testid="stChatInput"] div[data-baseweb="base-input"],
+            div[data-testid="stChatInput"] div[data-baseweb="textarea"],
+            div[data-testid="stChatInput"] textarea {
+                background-color: transparent !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                outline: none !important;
+            }
+            
+            /* Cápsula externa única e limpa */
+            div[data-testid="stChatInput"] > div {
+                background-color: #ffffff !important;
+                border: 1.5px solid #cbd5e1 !important;
+                border-radius: 28px !important;
+                box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05) !important;
+                transition: all 0.2s ease !important;
+                padding: 0.35rem 0.50rem 0.35rem 1.25rem !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            div[data-testid="stChatInput"] > div:focus-within {
+                border-color: #0b2545 !important;
+                box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+            }
+
+            div[data-testid="stChatInput"] textarea {
+                color: #0f172a !important;
+                font-size: 0.92rem !important;
+                line-height: 1.45 !important;
+                padding: 0.30rem 0 !important;
+                margin: 0 !important;
+            }
+            div[data-testid="stChatInput"] textarea::placeholder {
+                color: #94a3b8 !important;
+                font-weight: 400 !important;
+            }
+
+            /* Botão de Enviar Perfeitamente Centralizado e com Margem Correta */
+            div[data-testid="stChatInput"] button {
+                position: static !important;
+                background: #0b2545 !important;
+                color: #ffffff !important;
+                border-radius: 50% !important;
+                width: 32px !important;
+                min-width: 32px !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 4px 0 8px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer !important;
+                transition: all 0.2s ease !important;
+                align-self: center !important;
+                box-shadow: 0 2px 4px rgba(11, 37, 69, 0.2) !important;
+            }
+            div[data-testid="stChatInput"] button:hover:not(:disabled) {
+                background: #133b63 !important;
+                transform: scale(1.06) !important;
+            }
+            div[data-testid="stChatInput"] button:disabled {
+                background: #e2e8f0 !important;
+                cursor: not-allowed !important;
+                box-shadow: none !important;
+            }
+            div[data-testid="stChatInput"] button svg {
+                width: 16px !important;
+                height: 16px !important;
+                fill: #ffffff !important;
+                color: #ffffff !important;
+                margin: auto !important;
+                display: block !important;
+            }
+            div[data-testid="stChatInput"] button:disabled svg {
+                fill: #94a3b8 !important;
+                color: #94a3b8 !important;
+            }
+
+            /* ---- 4. Botão Voltar Flutuante (Floating Action Pill) ---- */
             .atlas-floating-back-btn {
                 position: fixed;
                 bottom: 24px;

@@ -27,14 +27,15 @@ Este documento registra o contexto histórico, escolhas arquiteturais, regras de
 
 ```
 atlas_web/
-├── app.py                      # Roteador principal do Streamlit (navegação entre Home e Atlas)
+├── app.py                      # Roteador principal do Streamlit (navegação entre Home, Atlas e Chatbot)
 ├── .streamlit/                 # CONFIGURAÇÕES DE SERVIDOR E PRODUÇÃO
 │   └── config.toml             # Configurações de porta, segurança (XSRF/CORS), telemetria e tema
 ├── .venv/                      # Ambiente virtual Python (ignorado pelo Git)
 │
 ├── views/                      # TELAS MODULARES DA APLICAÇÃO
-│   ├── home.py                 # Tela 1: Painel Executivo, KPIs, busca e tabela de empreendimentos
-│   └── atlas.py                # Tela 2: Ficha Técnica do Atlas (layout réplica do QGIS)
+│   ├── home.py                 # Tela 1: Painel Executivo, KPIs, busca, tabela e botão do assistente
+│   ├── atlas.py                # Tela 2: Ficha Técnica do Atlas (layout réplica do QGIS)
+│   └── chatbot.py              # Tela 3: Assistente Virtual isolado (interface moderna de chat)
 │
 ├── services/                   # SERVIÇOS DE DADOS E GEOESPACIAL
 │   ├── data_loader.py          # Leitor otimizado com @st.cache_data e limpeza defensiva de strings
