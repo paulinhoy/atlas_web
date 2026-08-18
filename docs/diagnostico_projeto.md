@@ -103,7 +103,7 @@ Utilizaremos a tabela abaixo para acompanhar cada item e registrar as decisões 
 | :---: | :--- | :--- | :---: | :--- |
 | **D01** | Limpeza | Remover bloco de código duplicado da função `render()` em `views/home.py` | 🛠️ Implementado | Bloco órfão removido (redução de 76 linhas redundantes). |
 | **D02** | Refatoração | Criar `services/formatters.py` e unificar formatação brasileira e `fix_mojibake` | 🛠️ Implementado | Centralizado em `services/formatters.py` e consumido por views e scripts ETL. |
-| **D03** | Arquitetura | Extrair lógica de cálculo e agregação de obras para camada de serviço | ⏳ Pendente | |
+| **D03** | Arquitetura | Otimização Inteligente no ETL: pré-cálculo de custo máximo de obras | 🛠️ Implementado | Pré-cálculo movido para `scripts/process_data.py`; `views/atlas.py` simplificada sem overhead de runtime. |
 | **D04** | Produção | Criar `.streamlit/config.toml` com travas de segurança e performance | ⏳ Pendente | |
 | **D05** | Segurança | Sanitizar entrada de `query_params` no `app.py` e revisar `html.escape` geral | ⏳ Pendente | |
 | **D06** | Performance | Otimizar projeção de colunas na leitura do `empreendimento_geo.parquet` | ⏳ Pendente | |

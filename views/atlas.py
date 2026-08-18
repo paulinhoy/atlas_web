@@ -528,31 +528,23 @@ def render_tabela_alocacao(empreendimento_id):
     )
 
 
-def render_tabela_obras(empreendimento_id, df_obras):
+def render_tabela_obras(df_obras):
     """Tabela 4 — Detalhamento de todas as obras vinculadas ao empreendimento.
     Ordenadas pelo valor da obra em ordem decrescente (do maior para o menor).
+    O valor da intervenção é pré-calculado no pipeline ETL pelo cenário mais caro.
     """
     if df_obras.empty:
         st.info("Nenhuma obra vinculada a este empreendimento.")
         return
 
-    # Buscar custos por obra — somar CAPEX+OPEX por cenário e pegar o maior entre cenários
-    df_custo = data_loader.get_custo_obra()
-    valor_por_obra = {}
-    if not df_custo.empty:
-        custos_emp = df_custo[df_custo["id_empreendimento"].astype(str) == str(empreendimento_id)]
-        if not custos_emp.empty:
-            soma_por_cenario = custos_emp.groupby(["id_obra", "id_cenario"])["valor_adotado"].sum().reset_index()
-            valor_por_obra = soma_por_cenario.groupby("id_obra")["valor_adotado"].max().to_dict()
-
     # Cria cópia para ordenação defensiva
     df_obras_sorted = df_obras.copy()
 
-    # Mapeia valor calculado por obra com fallback para valor_global
-    val_series = df_obras_sorted["id_obra"].map(valor_por_obra)
-    if "valor_global" in df_obras_sorted.columns:
-        val_series = val_series.combine_first(df_obras_sorted["valor_global"])
-    df_obras_sorted["valor_calculado"] = val_series.fillna(0.0)
+    # Utiliza valor pré-calculado no ETL com fallback defensivo para valor_global
+    if "valor_calculado" not in df_obras_sorted.columns:
+        df_obras_sorted["valor_calculado"] = pd.to_numeric(
+            df_obras_sorted.get("valor_global", 0), errors="coerce"
+        ).fillna(0.0)
 
     # Ordena as obras pelo valor calculado em ordem decrescente
     df_obras_sorted = df_obras_sorted.sort_values(by="valor_calculado", ascending=False)
@@ -658,4 +650,4 @@ def render(empreendimento_id):
     render_tabela_alocacao(empreendimento_id)
 
     # ── Tabela 4: Detalhamento das Obras ──
-    render_tabela_obras(empreendimento_id, df_obras)
+    render_tabela_obras(df_obras)

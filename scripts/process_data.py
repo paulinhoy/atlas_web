@@ -1,11 +1,11 @@
 """
 Script de processamento e conversão de dados: CSV -> Parquet.
 Mapeia os nomes brutos do banco de dados (PostGIS) para nomes padronizados em Parquet
-com correção automática de codificação dupla (Mojibake):
+com correção automática de codificação dupla (Mojibake) e pré-cálculo do custo máximo de obras:
 - mvw_8_calcula_impacto_* -> empreendimentos_priorizacao.parquet
 - vw_empreendimento_custo_economico_* -> dados_financeiro.parquet
 - tbl_alocacaoempreendimento_* -> alocacao_empreendimento.parquet
-- vw_obra_* -> obras_priorizacao.parquet
+- vw_obra_* -> obras_priorizacao.parquet (com coluna 'valor_calculado' pré-calculada)
 - vw_custo_economico_* -> custo_obra.parquet
 """
 
@@ -39,7 +39,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def convert_csv_to_parquet():
-    """Converte os CSVs brutos em Parquet otimizado com encoding 100% corrigido."""
+    """Converte os CSVs brutos em Parquet otimizado com encoding 100% corrigido e métricas pré-calculadas."""
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
     print("--- Iniciando Conversao de CSV para Parquet com correcao de texto ---")
@@ -52,6 +52,7 @@ def convert_csv_to_parquet():
         print("[AVISO] Nenhum arquivo .csv encontrado em data/raw/.")
         return
 
+    processed_dfs = {}
     processed_count = 0
 
     for prefix, target_name in FILE_MAPPING.items():
@@ -65,7 +66,6 @@ def convert_csv_to_parquet():
             continue
 
         csv_file = sorted(matches)[-1]
-        parquet_file = PROCESSED_DIR / f"{target_name}.parquet"
 
         try:
             # Leitura do CSV
@@ -80,14 +80,36 @@ def convert_csv_to_parquet():
             # Correção de caracteres e acentuação
             df = clean_dataframe(df)
 
-            # Salva em Parquet
-            df.to_parquet(parquet_file, engine="pyarrow", compression="snappy", index=False)
-            print(f"[OK] {csv_file.name} -> {target_name}.parquet ({len(df):,} linhas)")
+            processed_dfs[target_name] = df
             processed_count += 1
+            print(f"[LIDO] {csv_file.name} -> {target_name} ({len(df):,} linhas)")
+
         except Exception as e:
             print(f"[ERRO] Falha ao processar {csv_file.name}: {e}")
 
-    print(f"\n--- Concluido: {processed_count}/{len(FILE_MAPPING)} arquivos processados com sucesso! ---")
+    # Pré-cálculo inteligente de custos de obras (Opção 3 do Diagnóstico)
+    # Calcula a soma por cenário e seleciona o maior custo entre cenários uma única vez no ETL
+    if "obras_priorizacao" in processed_dfs and "custo_obra" in processed_dfs:
+        df_obra = processed_dfs["obras_priorizacao"]
+        df_custo = processed_dfs["custo_obra"]
+
+        if "valor_adotado" in df_custo.columns and "id_obra" in df_custo.columns and "id_cenario" in df_custo.columns:
+            soma_por_cenario = df_custo.groupby(["id_obra", "id_cenario"])["valor_adotado"].sum().reset_index()
+            max_por_obra = soma_por_cenario.groupby("id_obra")["valor_adotado"].max()
+
+            val_series = df_obra["id_obra"].map(max_por_obra)
+            if "valor_global" in df_obra.columns:
+                val_series = val_series.combine_first(pd.to_numeric(df_obra["valor_global"], errors="coerce"))
+            df_obra["valor_calculado"] = val_series.fillna(0.0)
+            print("[OTIMIZACAO ETL] Coluna 'valor_calculado' pre-calculada com sucesso em obras_priorizacao!")
+
+    # Salva todos os DataFrames em Parquet
+    for target_name, df in processed_dfs.items():
+        parquet_file = PROCESSED_DIR / f"{target_name}.parquet"
+        df.to_parquet(parquet_file, engine="pyarrow", compression="snappy", index=False)
+        print(f"[SALVO] {parquet_file.name} ({len(df):,} linhas)")
+
+    print(f"\n--- Concluido: {processed_count}/{len(FILE_MAPPING)} arquivos processados e salvos com sucesso! ---")
 
 
 if __name__ == "__main__":
