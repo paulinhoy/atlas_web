@@ -1,0 +1,36 @@
+# =============================================================================
+# Configurações de Produção e Segurança — Atlas Web (PELTMG / CODEMGE)
+# Streamlit 1.36.0
+# =============================================================================
+
+[server]
+# Modo Servidor: não tenta abrir janela de navegador no sistema operacional do servidor
+headless = true
+
+# Porta de escuta da aplicação no servidor
+port = 8501
+
+# Endereço de escuta para atender a rede interna/proxy reverso
+address = "0.0.0.0"
+
+# Desativa CORS permissivo para restringir origens de requisições
+enableCORS = false
+
+# Ativa proteção criptográfica contra ataques Cross-Site Request Forgery (XSRF)
+enableXsrfProtection = true
+
+# Limite máximo de upload em MB (proteção contra sobrecarga de memória)
+maxUploadSize = 50
+
+[browser]
+# Desativa coleta e envio de estatísticas de telemetria para servidores externos
+gatherUsageStats = false
+
+[theme]
+# Trava o tema institucional claro do PELTMG para consistência visual em todos os navegadores
+base = "light"
+primaryColor = "#0b2545"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8fafc"
+textColor = "#0f172a"
+font = "sans serif"

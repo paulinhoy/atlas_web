@@ -28,6 +28,8 @@ Este documento registra o contexto histórico, escolhas arquiteturais, regras de
 ```
 atlas_web/
 ├── app.py                      # Roteador principal do Streamlit (navegação entre Home e Atlas)
+├── .streamlit/                 # CONFIGURAÇÕES DE SERVIDOR E PRODUÇÃO
+│   └── config.toml             # Configurações de porta, segurança (XSRF/CORS), telemetria e tema
 ├── .venv/                      # Ambiente virtual Python (ignorado pelo Git)
 │
 ├── views/                      # TELAS MODULARES DA APLICAÇÃO
@@ -36,6 +38,7 @@ atlas_web/
 │
 ├── services/                   # SERVIÇOS DE DADOS E GEOESPACIAL
 │   ├── data_loader.py          # Leitor otimizado com @st.cache_data e limpeza defensiva de strings
+│   ├── formatters.py           # Formatadores padronizados (BRL, inteiros, datas) e fix_mojibake
 │   └── map_service.py          # Módulo exclusivo de renderização geoespacial (Folium / WKT)
 │
 ├── data/                       # ARMAZENAMENTO DE DADOS (ignorado pelo Git)
@@ -43,7 +46,7 @@ atlas_web/
 │   └── processed/              # Arquivos .parquet otimizados gerados pelo pipeline ETL
 │
 ├── scripts/                    # SCRIPTS AUXILIARES E PIPELINE ETL
-│   ├── process_data.py         # Mapeia CSVs brutos para Parquet com tratamento de Mojibake
+│   ├── process_data.py         # Mapeia CSVs brutos para Parquet com tratamento de Mojibake e pré-cálculos
 │   ├── process_geo.py          # Mapeia JSON bruto de geometrias WKT para Parquet otimizado
 │   └── fix_encoding.py         # Utilitário de correção de codificação dupla
 │
@@ -56,6 +59,7 @@ atlas_web/
 ├── docs/                       # DOCUMENTAÇÃO E REGRAS DO PROJETO
 │   ├── plano_implementacao.md  # Plano de etapas e modelo conceitual
 │   ├── regras_projeto.md       # Este documento de contexto e convenções
+│   ├── diagnostico_projeto.md  # Diagnóstico técnico, arquitetural e decisões de produção
 │   └── erros_solucoes.md       # Base de conhecimento de erros e soluções adotadas
 │
 └── requirements.txt            # Dependências com streamlit==1.36.0
