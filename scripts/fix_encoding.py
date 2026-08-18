@@ -2,10 +2,15 @@
 Diagnóstico e correção definitiva de Mojibake / Encodings
 """
 
+import sys
 import pandas as pd
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from services.formatters import fix_mojibake
+
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
@@ -16,17 +21,6 @@ FILE_MAPPING = {
     "vw_obra": "obras_priorizacao",
     "vw_custo_economico": "custo_obra",
 }
-
-
-def fix_mojibake(text):
-    """Corrige texto que foi duplamente codificado (UTF-8 lido como Latin1)."""
-    if not isinstance(text, str):
-        return text
-    try:
-        # Se tem padrão de Mojibake (ex: Ã§, Ã£, Ã¡, Âª, Ã©)
-        return text.encode("latin1").decode("utf-8")
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        return text
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:

@@ -6,81 +6,19 @@ Réplica fiel do layout do Atlas gerado pelo QGIS (Atlasref.jpeg).
 from pathlib import Path
 import html as html_mod
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 from services import data_loader, map_service
+from services.formatters import (
+    fmt_brl,
+    fmt_decimal_br,
+    fmt_decimal_br_2,
+    fmt_int_br,
+    fmt_pct_br,
+    fmt_mes_ano_br,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGOS_DIR = BASE_DIR / "logos"
-
-
-# ---------------------------------------------------------------------------
-# Formatação Brasileira
-# ---------------------------------------------------------------------------
-
-def fmt_brl(valor):
-    """Formata valor monetário no padrão brasileiro: R$ 1.234.567,89"""
-    if pd.isna(valor) or valor is None:
-        return "N/D"
-    try:
-        valor = float(valor)
-    except (ValueError, TypeError):
-        return "N/D"
-    negativo = valor < 0
-    valor = abs(valor)
-    inteiro = int(valor)
-    centavos = round((valor - inteiro) * 100)
-    parte_int = f"{inteiro:,}".replace(",", ".")
-    resultado = f"R$ {parte_int},{centavos:02d}"
-    return f"-{resultado}" if negativo else resultado
-
-
-def fmt_decimal_br(valor, casas=4):
-    """Formata número decimal no padrão brasileiro: 0,4031"""
-    if pd.isna(valor) or valor is None:
-        return "N/D"
-    try:
-        valor = float(valor)
-    except (ValueError, TypeError):
-        return "N/D"
-    return f"{valor:.{casas}f}".replace(".", ",")
-
-
-def fmt_decimal_br_2(valor):
-    """Formata decimal com 2 casas: 1.234,56"""
-    if pd.isna(valor) or valor is None:
-        return "N/D"
-    try:
-        valor = float(valor)
-    except (ValueError, TypeError):
-        return "N/D"
-    inteiro = int(abs(valor))
-    frac = round((abs(valor) - inteiro) * 100)
-    parte_int = f"{inteiro:,}".replace(",", ".")
-    sinal = "-" if valor < 0 else ""
-    return f"{sinal}{parte_int},{frac:02d}"
-
-
-def fmt_int_br(valor):
-    """Formata inteiro com separador de milhar brasileiro: 1.682"""
-    if pd.isna(valor) or valor is None:
-        return "N/D"
-    try:
-        valor = int(float(valor))
-    except (ValueError, TypeError):
-        return "N/D"
-    return f"{valor:,}".replace(",", ".")
-
-
-def fmt_pct_br(valor):
-    """Formata porcentagem no padrão brasileiro: 19,9%"""
-    if pd.isna(valor) or valor is None:
-        return "N/D"
-    try:
-        valor = float(valor)
-    except (ValueError, TypeError):
-        return "N/D"
-    return f"{valor:.1f}".replace(".", ",") + "%"
 
 
 # ---------------------------------------------------------------------------
@@ -497,17 +435,7 @@ def render_tabela_financeiros(empreendimento_id):
         viabilidade = html_mod.escape(str(e.get("viabilidade") or "N/D"))
 
     # Formatar mês base para exibição
-    mes_display = "N/D"
-    if pd.notna(mes_base) and mes_base != "N/D":
-        try:
-            dt = pd.to_datetime(mes_base)
-            meses_pt = {
-                1: "jan", 2: "fev", 3: "mar", 4: "abr", 5: "mai", 6: "jun",
-                7: "jul", 8: "ago", 9: "set", 10: "out", 11: "nov", 12: "dez",
-            }
-            mes_display = f"{meses_pt.get(dt.month, '')}/{str(dt.year)[2:]}"
-        except Exception:
-            mes_display = str(mes_base)
+    mes_display = fmt_mes_ano_br(mes_base)
 
     st.markdown(
         f'<div class="section-title">Dados Financeiros — Mês Base: {mes_display}</div>',

@@ -11,16 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
 
-def fix_mojibake(text):
-    """Garante a correção de qualquer resíduo de double-encoding."""
-    if not isinstance(text, str):
-        return text
-    if any(m in text for m in ["Ã", "Â", "â", "©"]):
-        try:
-            return text.encode("latin1").decode("utf-8")
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            pass
-    return text
+from services.formatters import fix_mojibake
 
 
 @st.cache_data(show_spinner=False)

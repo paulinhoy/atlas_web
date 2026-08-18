@@ -4,25 +4,18 @@ Converte o arquivo mvw_empreendimento_geo_*.json da pasta data/raw/ para
 data/processed/empreendimento_geo.parquet com correção de codificação (Mojibake).
 """
 
+import sys
 from pathlib import Path
 import json
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from services.formatters import fix_mojibake
+
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
-
-
-def fix_mojibake(text):
-    """Corrige strings que sofreram double-encoding."""
-    if not isinstance(text, str):
-        return text
-    if any(m in text for m in ["Ã", "Â", "â", "©"]):
-        try:
-            return text.encode("latin1").decode("utf-8")
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            pass
-    return text
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:

@@ -9,10 +9,15 @@ com correção automática de codificação dupla (Mojibake):
 - vw_custo_economico_* -> custo_obra.parquet
 """
 
+import sys
 from pathlib import Path
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from services.formatters import fix_mojibake
+
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
@@ -24,22 +29,6 @@ FILE_MAPPING = {
     "vw_obra": "obras_priorizacao",
     "vw_custo_economico": "custo_obra",
 }
-
-
-def fix_mojibake(text):
-    """
-    Corrige strings que sofreram double-encoding (ex: UTF-8 lido como Latin1 gerando 'Ã§Ã£o').
-    Converte 'ConservaÃ§Ã£o' -> 'Conservação'.
-    """
-    if not isinstance(text, str):
-        return text
-    # Se contém sequências típicas de double encoding UTF-8 em Latin1
-    if any(m in text for m in ["Ã", "Â", "â", "©"]):
-        try:
-            return text.encode("latin1").decode("utf-8")
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            pass
-    return text
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:

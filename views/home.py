@@ -9,6 +9,7 @@ import math
 import streamlit as st
 import pandas as pd
 from services import data_loader
+from services.formatters import fmt_int_br
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGOS_DIR = BASE_DIR / "logos"
@@ -336,17 +337,6 @@ def apply_custom_styles():
     )
 
 
-def format_br_int(val: int) -> str:
-    """Formata inteiros com separador de milhar brasileiro (.)"""
-    if pd.isna(val) or val is None:
-        return "N/D"
-    try:
-        val = int(float(val))
-    except (ValueError, TypeError):
-        return "N/D"
-    return f"{val:,}".replace(",", ".")
-
-
 def render_header():
     """Renderiza o cabeçalho institucional."""
     st.markdown(
@@ -382,7 +372,7 @@ def render_kpis(df: pd.DataFrame):
             f"""
             <div class="kpi-card">
                 <div class="kpi-title">Empreendimentos Priorizados</div>
-                <div class="kpi-value">{format_br_int(total_emp)}</div>
+                <div class="kpi-value">{fmt_int_br(total_emp)}</div>
                 <div class="kpi-subtext">Carteira avaliada</div>
             </div>
             """,
@@ -407,7 +397,7 @@ def render_kpis(df: pd.DataFrame):
             f"""
             <div class="kpi-card">
                 <div class="kpi-title">Alto Impacto</div>
-                <div class="kpi-value">{format_br_int(alto_impacto)}</div>
+                <div class="kpi-value">{fmt_int_br(alto_impacto)}</div>
                 <div class="kpi-subtext">{pct_alto:.1f}% da carteira</div>
             </div>
             """,
@@ -422,7 +412,7 @@ def render_kpis(df: pd.DataFrame):
             <div class="kpi-card">
                 <div class="kpi-title">TIRM Média Declarada</div>
                 <div class="kpi-value">{tirm_media}</div>
-                <div class="kpi-subtext">{format_br_int(len(tirm_valid))} projetos com TIRM</div>
+                <div class="kpi-subtext">{fmt_int_br(len(tirm_valid))} projetos com TIRM</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -501,82 +491,6 @@ def render_table_html(df_page: pd.DataFrame):
     st.markdown(table_html, unsafe_allow_html=True)
 
 
-def render():
-    """Função principal da tela Home."""
-    apply_custom_styles()
-    render_header()
-
-    df_emp = data_loader.get_empreendimentos()
-
-    if df_emp.empty:
-        st.error(
-            "Nenhum dado encontrado em `data/processed/empreendimentos_priorizacao.parquet`.\n"
-            "Execute o script `scripts/process_data.py` para processar a base de dados."
-        )
-        return
-
-    # Renderiza KPIs
-    render_kpis(df_emp)
-
-    # Painel de Filtros e Busca
-    st.markdown(
-        """
-        <div class="filter-panel-header">
-            <div class="filter-panel-title">
-                <span>🔍</span> Pesquisa e Filtros da Carteira
-            </div>
-            <div class="filter-panel-subtitle">
-                Refine a listagem por código, nome, setor, esfera governamental ou classificação
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    f_col1, f_col2, f_col3, f_col4 = st.columns([2.5, 1.5, 1.5, 1.5])
-
-    with f_col1:
-        busca = st.text_input(
-            "Buscar por Nome ou Código ID:",
-            placeholder="Ex: Ferrovia Centro-Atlântica, BR-381, 113...",
-            key="busca_termo",
-        )
-
-    with f_col2:
-        setores = ["Todos"] + sorted(df_emp["setor"].dropna().unique().tolist()) if "setor" in df_emp.columns else ["Todos"]
-        filtro_setor = st.selectbox("Setor:", setores, key="filtro_setor")
-
-    with f_col3:
-        esferas = ["Todas"] + sorted(df_emp["esfera_acao"].dropna().unique().tolist()) if "esfera_acao" in df_emp.columns else ["Todas"]
-        filtro_esfera = st.selectbox("Esfera:", esferas, key="filtro_esfera")
-
-    col_impacto = "impacto_avaliado_3_pond_cenario"
-    with f_col4:
-        impactos = ["Todos"] + sorted(df_emp[col_impacto].dropna().unique().tolist()) if col_impacto in df_emp.columns else ["Todos"]
-        filtro_impacto = st.selectbox("Classificação:", impactos, key="filtro_impacto")
-
-    # Aplicação dos Filtros
-    df_filtrado = df_emp.copy()
-
-    if busca.strip():
-        termo = busca.strip().lower()
-        id_mask = df_filtrado["id_empreendimento"].astype(str).str.contains(termo, case=False, na=False)
-        nome_mask = df_filtrado["nome_empreendimento"].astype(str).str.lower().str.contains(termo, na=False)
-        df_filtrado = df_filtrado[id_mask | nome_mask]
-
-    if filtro_setor != "Todos" and "setor" in df_filtrado.columns:
-        df_filtrado = df_filtrado[df_filtrado["setor"] == filtro_setor]
-
-    if filtro_esfera != "Todas" and "esfera_acao" in df_filtrado.columns:
-        df_filtrado = df_filtrado[df_filtrado["esfera_acao"] == filtro_esfera]
-
-    if filtro_impacto != "Todos" and col_impacto in df_filtrado.columns:
-        df_filtrado = df_filtrado[df_filtrado[col_impacto] == filtro_impacto]
-
-    total_filtrado = len(df_filtrado)
-
-    st.markdown('<div class="section-title">Carteira de Empreendimentos Priorizados</div>', unsafe_allow_html=True)
-
 def render_pagination(
     current_page: int,
     total_pages: int,
@@ -592,7 +506,7 @@ def render_pagination(
     with c_info:
         st.markdown(
             f"<div style='font-size: 0.85rem; color: #64748b; padding-top: 0.4rem;'>"
-            f"Mostrando <b>{format_br_int(start_idx + 1)}–{format_br_int(end_idx)}</b> de <b>{format_br_int(total_filtrado)}</b> empreendimentos (Total: {format_br_int(total_emp)})"
+            f"Mostrando <b>{fmt_int_br(start_idx + 1)}–{fmt_int_br(end_idx)}</b> de <b>{fmt_int_br(total_filtrado)}</b> empreendimentos (Total: {fmt_int_br(total_emp)})"
             f"</div>",
             unsafe_allow_html=True,
         )
