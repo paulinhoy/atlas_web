@@ -106,7 +106,7 @@ Utilizaremos a tabela abaixo para acompanhar cada item e registrar as decisões 
 | **D03** | Arquitetura | Otimização Inteligente no ETL: pré-cálculo de custo máximo de obras | 🛠️ Implementado | Pré-cálculo movido para `scripts/process_data.py`; `views/atlas.py` simplificada sem overhead de runtime. |
 | **D04** | Produção | Criar `.streamlit/config.toml` com travas de segurança e performance | 🛠️ Implementado | Arquivo `.streamlit/config.toml` criado com travas de telemetria, XSRF, CORS e tema institucional. |
 | **D05** | Segurança | Sanitizar entrada de `query_params` no `app.py` e revisar `html.escape` geral | ⏳ Pendente | |
-| **D06** | Performance | Otimizar projeção de colunas na leitura do `empreendimento_geo.parquet` | ⏳ Pendente | |
+| **D06** | Performance | Otimizar carregamento do `empreendimento_geo.parquet` (~108 MB disco / ~255 MB RAM) | 🛠️ Implementado | Projeção de colunas descartada (ganho de apenas 0,1% — as geometrias WKT dominam a RAM). Adotado `@st.cache_resource` em `data_loader._load_geo_shared()`, mantendo objeto único compartilhado entre todas as sessões (economia de ~255 MB por sessão concorrente). Auditoria confirmou uso read-only no `map_service.py`. |
 | **D07** | Infra | Definir modelo de deploy no servidor (Nginx + Systemd vs Docker vs Windows Service) | ⏳ Pendente | |
 | **D08** | Acesso | Definir se haverá necessidade de autenticação corporativa (login/senha ou SSO) | ⏳ Pendente | |
 

@@ -38,7 +38,7 @@ atlas_web/
 │   └── chatbot.py              # Tela 3: Assistente Virtual isolado (interface moderna de chat)
 │
 ├── services/                   # SERVIÇOS DE DADOS E GEOESPACIAL
-│   ├── data_loader.py          # Leitor otimizado com @st.cache_data e limpeza defensiva de strings
+│   ├── data_loader.py          # Leitor otimizado com @st.cache_data (leves) e @st.cache_resource (geo pesado)
 │   ├── formatters.py           # Formatadores padronizados (BRL, inteiros, datas) e fix_mojibake
 │   └── map_service.py          # Módulo exclusivo de renderização geoespacial (Folium / WKT)
 │
@@ -86,6 +86,11 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 2. **Custo Máximo de Obras por Cenário:** Na tabela de obras, o valor adotado de cada intervenção deve considerar a soma de custos e adotar o valor do **cenário em que a obra for mais cara**.
 3. **Formatação Brasileira:** Exibir números inteiros com ponto de milhar (`1.682`), números decimais e índices com vírgula (`0,4031`) e valores financeiros formatados em Reais (`R$ 289.892.422,00`).
 4. **Tratamento de Mojibake:** Sempre utilizar a função `fix_mojibake` para tratar codificações duplas provenientes da exportação do banco.
+
+### ⚙️ Estratégia de Cache em Memória (Decisão Arquitetural):
+1. **Datasets pequenos (< 2 MB):** Utilizam `@st.cache_data` em `services/data_loader.py`. Este decorator entrega uma **cópia isolada** por sessão — seguro contra mutações acidentais entre usuários.
+2. **Dataset geoespacial (`empreendimento_geo.parquet`, ~108 MB em disco / ~255 MB em RAM):** Utiliza `@st.cache_resource` via função `_load_geo_shared()`. Este decorator mantém um **objeto ÚNICO compartilhado** entre todas as sessões do servidor — economia de ~255 MB por usuário concorrente.
+3. **Regra de Imutabilidade Obrigatória:** Todo DataFrame retornado por `get_empreendimento_geo()` é **READ-ONLY**. Nunca utilizar `inplace=True`, atribuição direta de colunas (`df["x"] = ...`) ou `.drop()` sem antes criar uma cópia com `df_local = df.copy()`. Violações corrompem os dados de todos os usuários conectados ao servidor.
 
 ---
 

@@ -1,6 +1,16 @@
 """
 Serviço de carregamento de dados com cache do Streamlit.
 Lê os arquivos .parquet da pasta data/processed/ com garantia de decodificação correta.
+
+Estratégia de Cache:
+    - Datasets PEQUENOS (< 2 MB): usam @st.cache_data (cópia por sessão, seguro contra mutação).
+    - Datasets GRANDES (empreendimento_geo ~108 MB em disco / ~255 MB em RAM): usam
+      @st.cache_resource (objeto ÚNICO compartilhado entre todas as sessões, sem cópias).
+
+    ⚠️ REGRA DE OURO para dados carregados com @st.cache_resource:
+       O DataFrame retornado é COMPARTILHADO entre todos os usuários do servidor.
+       NUNCA faça mutações in-place (drop, atribuição de colunas, inplace=True).
+       Se precisar modificar, use .copy() antes: df_local = df.copy()
 """
 
 from pathlib import Path
@@ -16,7 +26,8 @@ from services.formatters import fix_mojibake
 
 @st.cache_data(show_spinner=False)
 def load_parquet(filename: str) -> pd.DataFrame:
-    """Carrega um arquivo parquet da pasta processed com cache e limpeza de caracteres."""
+    """Carrega um arquivo parquet da pasta processed com cache e limpeza de caracteres.
+    Utiliza @st.cache_data (cópia por sessão) — adequado para datasets pequenos."""
     file_path = PROCESSED_DIR / f"{filename}.parquet"
     if not file_path.exists():
         return pd.DataFrame()
@@ -28,6 +39,30 @@ def load_parquet(filename: str) -> pd.DataFrame:
         if col not in ("geom_ponto", "geom_linha"):
             df[col] = df[col].apply(fix_mojibake)
         
+    return df
+
+
+@st.cache_resource(show_spinner=False)
+def _load_geo_shared() -> pd.DataFrame:
+    """Carrega o parquet geoespacial (~108 MB) com @st.cache_resource.
+    
+    Retorna um objeto ÚNICO compartilhado entre todas as sessões — economiza ~255 MB
+    de RAM por sessão simultânea comparado com @st.cache_data.
+
+    ⚠️ O DataFrame retornado é READ-ONLY. Não faça mutações in-place.
+       Consumidores: services/map_service.py (somente leitura confirmada).
+    """
+    file_path = PROCESSED_DIR / "empreendimento_geo.parquet"
+    if not file_path.exists():
+        return pd.DataFrame()
+    
+    df = pd.read_parquet(file_path)
+    
+    # Aplica limpeza de Mojibake apenas nas colunas de texto (não nas geometrias WKT)
+    for col in df.select_dtypes(include="object").columns:
+        if col not in ("geom_ponto", "geom_linha"):
+            df[col] = df[col].apply(fix_mojibake)
+    
     return df
 
 
@@ -52,5 +87,7 @@ def get_alocacao() -> pd.DataFrame:
 
 
 def get_empreendimento_geo() -> pd.DataFrame:
-    return load_parquet("empreendimento_geo")
+    """Retorna o DataFrame geoespacial compartilhado (READ-ONLY via @st.cache_resource).
+    Não mute o DataFrame retornado — use .copy() se precisar modificar."""
+    return _load_geo_shared()
 
