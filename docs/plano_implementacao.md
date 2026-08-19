@@ -170,5 +170,5 @@ A interface do chatbot foi implementada de forma **100% isolada e modular**:
 - [x] **Etapa 3:** Montar a **Tela 2 (Atlas)** com a estrutura visual fiel à imagem do QGIS (cabeçalho, metadados, espaço do mapa e as 4 tabelas de dados).
 - [x] **Etapa 4:** Refinamentos de formatação monetária (R$), design institucional, botão flutuante, ordenação decrescente de obras e integração do mapa geoespacial modular.
 - [x] **Etapa 5:** Criação da interface modular e estilizada do **Assistente Virtual (Chatbot)** com navegação flutuante.
-- [ ] **Etapa 6:** Integração analítica do Chatbot com os dados locais (`data_loader`) e posteriormente LLM/Text-to-Data.
+- [x] **Etapa 6:** Integração analítica do Chatbot com os dados locais (`data_loader`), LangChain com Function Calling (5 tools), multi-provider (Gemini e OpenAI) e logging de conformidade.
 - [ ] **Etapa 7:** Adequação dinâmica das legendas e camadas socioambientais adicionais no mapa.
