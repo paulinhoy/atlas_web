@@ -11,8 +11,14 @@ ENV/
 data/raw/*.csv
 data/raw/*.json
 data/processed/*.parquet
+data/chat_logs/
+data/budget.json
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/chat_logs/.gitkeep
+
+# Environment Variables (API Keys)
+.env
 
 # IDE & OS
 .vscode/

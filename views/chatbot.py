@@ -3,8 +3,10 @@ views/chatbot.py - Tela do Assistente Virtual / Chatbot do Atlas
 Interface isolada construída com componentes nativos do Streamlit para posterior evolução.
 """
 
+import uuid
 from pathlib import Path
 import streamlit as st
+from services import chatbot_service, chat_logger
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGOS_DIR = BASE_DIR / "logos"
@@ -18,14 +20,14 @@ def apply_chatbot_styles():
             /* Cabeçalho institucional */
             .chatbot-header {
                 background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
-                padding: 1.5rem 2rem;
+                padding: 1.4rem 2rem;
                 border-radius: 12px;
                 color: #ffffff;
-                margin-bottom: 1.8rem;
+                margin-bottom: 1.2rem;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             }
             .chatbot-header h2 {
-                font-size: 1.6rem;
+                font-size: 1.55rem;
                 font-weight: 700;
                 color: #ffffff;
                 margin: 0;
@@ -34,10 +36,24 @@ def apply_chatbot_styles():
                 gap: 10px;
             }
             .chatbot-header .sub {
-                font-size: 0.90rem;
+                font-size: 0.88rem;
                 color: #d1e3f8;
                 margin-top: 0.3rem;
                 font-weight: 300;
+            }
+
+            /* Barra de Conformidade e Ações */
+            .chatbot-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 0.5rem 1rem;
+                margin-bottom: 1.2rem;
+                font-size: 0.80rem;
+                color: #64748b;
             }
 
             /* ---- 1. Ocultar avatares / ícones completamente ---- */
@@ -47,15 +63,13 @@ def apply_chatbot_styles():
                 display: none !important;
             }
 
-            /* ---- 2. Balões de Mensagem com texto perfeitamente alinhado ---- */
+            /* ---- 2. Balões de Mensagem ---- */
             div[data-testid="stChatMessage"] {
                 display: block !important;
-                padding: 0.80rem 1.20rem !important;
-                border-radius: 16px !important;
-                margin-top: 0.3rem !important;
-                margin-bottom: 0.8rem !important;
-                width: fit-content !important;
-                max-width: 78% !important;
+                padding: 1.0rem 1.4rem !important;
+                border-radius: 12px !important;
+                margin-top: 0.4rem !important;
+                margin-bottom: 1.0rem !important;
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
             }
 
@@ -72,20 +86,23 @@ def apply_chatbot_styles():
             div[data-testid="stChatMessageContent"] p {
                 margin: 0 !important;
                 padding: 0 !important;
-                font-size: 0.92rem !important;
-                line-height: 1.55 !important;
+                font-size: 0.94rem !important;
+                line-height: 1.6 !important;
             }
 
             div[data-testid="stChatMessageContent"] p:not(:last-child) {
-                margin-bottom: 0.5rem !important;
+                margin-bottom: 0.6rem !important;
             }
 
-            /* Balão do USUÁRIO -> Direita */
+            /* Balão do USUÁRIO -> Direita (compacto e estilizado) */
             div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) {
                 margin-left: auto !important;
                 margin-right: 0 !important;
+                width: fit-content !important;
+                max-width: 75% !important;
                 background: linear-gradient(135deg, #0b2545 0%, #133b63 100%) !important;
                 color: #ffffff !important;
+                border-radius: 16px !important;
                 border-bottom-right-radius: 4px !important;
                 border: none !important;
                 text-align: left !important;
@@ -97,14 +114,17 @@ def apply_chatbot_styles():
                 color: #ffffff !important;
             }
 
-            /* Balão do ASSISTENTE -> Esquerda */
+            /* Balão do ASSISTENTE -> Esquerda (Aproveitamento Total da Largura) */
             div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) {
-                margin-right: auto !important;
+                margin-right: 0 !important;
                 margin-left: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 background: #f8fafc !important;
                 border: 1px solid #e2e8f0 !important;
                 color: #0f172a !important;
-                border-bottom-left-radius: 4px !important;
+                border-radius: 12px !important;
+                border-left: 4px solid #0b2545 !important;
                 text-align: left !important;
             }
             div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) p,
@@ -167,7 +187,7 @@ def apply_chatbot_styles():
                 font-weight: 400 !important;
             }
 
-            /* Botão de Enviar Perfeitamente Centralizado e com Margem Correta */
+            /* Botão de Enviar */
             div[data-testid="stChatInput"] button {
                 position: static !important;
                 background: #0b2545 !important;
@@ -278,36 +298,55 @@ def render():
     # 1. Botão flutuante de retorno
     render_back_button()
 
-    # 2. Cabeçalho
+    # 2. Cabeçalho institucional
     render_header()
 
-    # 3. Inicialização do histórico na sessão
+    # 3. Inicialização de sessão única para logs
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = str(uuid.uuid4())[:8]
+
+    # 4. Inicialização do histórico de mensagens
     if "chat_messages" not in st.session_state:
         st.session_state["chat_messages"] = [
             {
                 "role": "assistant",
-                "content": "Olá! Sou o assistente virtual do **Atlas de Empreendimentos (PELTMG)**. Como posso te ajudar hoje?",
+                "content": (
+                    "Olá! Sou o assistente virtual do **Atlas de Empreendimentos (PELTMG)**. "
+                    "Posso consultar dados de priorização, valores financeiros, custos de obras e estatísticas da carteira. "
+                    "Como posso te ajudar hoje?"
+                ),
             }
         ]
 
-    # 4. Exibição das mensagens do histórico
+    # 5. Exibição das mensagens do histórico
     for msg in st.session_state["chat_messages"]:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # 5. Entrada do usuário com layout nativo simples
-    if prompt := st.chat_input("Digite sua pergunta ou mensagem aqui..."):
-        # Adiciona e renderiza mensagem do usuário
+    # 6. Entrada de mensagem do usuário
+    if prompt := st.chat_input("Digite sua pergunta sobre os empreendimentos do PELTMG..."):
+        # Adiciona e exibe mensagem do usuário
         st.session_state["chat_messages"].append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Resposta mock inicial para teste de visual/fluxo
-        bot_reply = (
-            f"Recebi sua mensagem: *\"{prompt}\"*\n\n"
-            "Esta é a versão inicial para validação de layout. Nas próximas etapas, conectaremos o assistente à base de dados de empreendimentos."
+        # Registra mensagem do usuário no log diário
+        chat_logger.log_message(
+            session_id=st.session_state["session_id"],
+            role="user",
+            content=prompt,
         )
-        with st.chat_message("assistant"):
-            st.markdown(bot_reply)
 
+        # Gera resposta via chatbot_service com spinner
+        with st.chat_message("assistant"):
+            with st.spinner("Consultando dados do Atlas..."):
+                bot_reply = chatbot_service.generate_response(
+                    user_prompt=prompt,
+                    session_id=st.session_state["session_id"],
+                    chat_history=st.session_state["chat_messages"][:-1],
+                )
+                st.markdown(bot_reply)
+
+        # Adiciona resposta no histórico da sessão
         st.session_state["chat_messages"].append({"role": "assistant", "content": bot_reply})
+
