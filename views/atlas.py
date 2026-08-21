@@ -59,29 +59,38 @@ def apply_atlas_styles():
                 background: #ffffff;
                 border: 1px solid #dde3ec;
                 border-radius: 10px;
-                padding: 1.3rem 1.5rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-                height: 100%;
+                padding: 1.1rem 1.4rem;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                height: 520px;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
             }
             .meta-card .meta-row {
-                padding: 0.5rem 0;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding: 0.30rem 0;
                 border-bottom: 1px solid #eef1f6;
             }
             .meta-card .meta-row:last-child {
                 border-bottom: none;
             }
             .meta-label {
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.6px;
                 color: #64748b;
-                margin-bottom: 0.1rem;
+                margin-bottom: 0.15rem;
             }
             .meta-value {
                 font-size: 15px;
                 color: #0f172a;
                 font-weight: 500;
+                line-height: 1.35;
             }
 
             /* ---- Espaço reservado para mapa ---- */
@@ -229,6 +238,22 @@ def apply_atlas_styles():
                 transform: translateY(-2px);
                 box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
             }
+
+            /* ---- Alinhamento Metadados ↔ Mapa (520px exatos em ambas as colunas) ---- */
+            div[data-testid="stColumn"] iframe[title="streamlit_folium.folium_static"],
+            div[data-testid="stColumn"] div[data-testid="stCustomComponentV1"] iframe,
+            div[data-testid="stColumn"] iframe {
+                border-radius: 10px !important;
+                border: 1px solid #dde3ec !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+                height: 520px !important;
+                min-height: 520px !important;
+                box-sizing: border-box !important;
+            }
+            div[data-testid="stColumn"] div[data-testid="stCustomComponentV1"] {
+                height: 520px !important;
+                min-height: 520px !important;
+            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -305,15 +330,14 @@ def render_metadados(row, df_obras):
         ("Duração", duracao_str),
     ]
 
-    meta_html = '<div style="background:#ffffff;border:1px solid #dde3ec;border-radius:10px;padding:1.3rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.04);">'
+    meta_html = '<div class="meta-card">'
     for i, (label, value) in enumerate(campos):
         label_safe = html_mod.escape(str(label))
         value_safe = html_mod.escape(str(value)) if value not in (None, "N/D") else str(value)
-        border = 'border-bottom:1px solid #eef1f6;' if i < len(campos) - 1 else ''
         meta_html += (
-            f'<div style="padding:0.5rem 0;{border}">'
-            f'<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#64748b;margin-bottom:0.1rem;">{label_safe}</div>'
-            f'<div style="font-size:15px;color:#0f172a;font-weight:500;">{value_safe}</div>'
+            '<div class="meta-row">'
+            f'<div class="meta-label">{label_safe}</div>'
+            f'<div class="meta-value">{value_safe}</div>'
             '</div>'
         )
     meta_html += '</div>'
@@ -321,11 +345,16 @@ def render_metadados(row, df_obras):
 
 
 def render_map_section(empreendimento_id):
-    """Renderiza a visualização geoespacial interativa e a legenda de intervenções."""
+    """Renderiza a visualização geoespacial interativa com altura alinhada ao painel de metadados."""
     # Renderiza o mapa interativo via serviço modular
     map_service.render_map(empreendimento_id)
 
-    # Legenda fiel ao QGIS
+
+def render_legenda_qgis():
+    """
+    [CÓDIGO PRESERVADO] Legenda do QGIS das camadas socioambientais e intervenções.
+    Pode ser reativada a qualquer momento chamando render_legenda_qgis() abaixo do mapa.
+    """
     st.markdown(
         """
         <div class="legenda-box">
@@ -636,7 +665,7 @@ def render(empreendimento_id):
     # ── Cabeçalho Institucional ──
     render_header(empreendimento_id, nome_emp, setor, esfera)
 
-    # ── Seção Superior: Metadados + Mapa ──
+    # ── Seção Superior: Metadados + Mapa (alturas equalizadas via CSS) ──
     col_meta, col_map = st.columns([2, 3])
 
     with col_meta:

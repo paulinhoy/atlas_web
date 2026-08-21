@@ -130,8 +130,8 @@ def render_map(empreendimento_id):
         else:
             m.fit_bounds([[min_lat, min_lon], [max_lat, max_lon]], padding=(25, 25))
 
-    # Renderiza o mapa no container do Streamlit
-    folium_static(m, height=330, width=None)
+    # Renderiza o mapa no container do Streamlit (510 + 10 = 520px, alinhamento exato com os metadados)
+    folium_static(m, height=510, width=None)
 
 
 def _render_no_geometry_placeholder(mensagem: str):
@@ -142,7 +142,9 @@ def _render_no_geometry_placeholder(mensagem: str):
             background: #f8fafc;
             border: 2px dashed #cbd5e1;
             border-radius: 10px;
-            height: 330px;
+            height: 520px;
+            min-height: 520px;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             align-items: center;

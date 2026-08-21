@@ -131,6 +131,8 @@ Todas as telas (**Home**, **Atlas** e **Chatbot**) compartilham a mesma identida
 * **Badges Contextuais:**
   * *Impacto:* Alto (verde `#dcfce7`/`#166534`), Médio (âmbar `#fef3c7`/`#92400e`), Baixo (cinza `#f1f5f9`/`#475569`).
   * *Esfera:* Federal (azul `#e0f2fe`/`#0369a1`), Estadual (verde `#f0fdf4`/`#15803d`), Municipal (amarelo `#fef9c3`/`#a16207`), Privado (roxo `#f5f3ff`/`#6d28d9`).
+* **Alinhamento e Altura do Mapa (Tela Atlas):** O container do mapa Folium (`services/map_service.py`) e o painel de metadados (`.meta-card`) estão equalizados com altura exata de **`520px`**, garantindo alinhamento pixel-a-pixel no topo e na base.
+* **Preservação da Legenda do QGIS:** A legenda de camadas socioambientais e intervenções foi temporariamente desacoplada da visualização para manter o mapa limpo e proporcional. O código HTML e as classes CSS (`.legenda-box`, `.legenda-title`, etc.) permanecem **integralmente preservados** na função `render_legenda_qgis()` em `views/atlas.py`, podendo ser reativada a qualquer momento invocando a função abaixo do mapa.
 * **Navegação:** Links nativos com `target="_self"` e sincronização de query params (`?id=...` e `?page=chatbot`) via `app.py`.
 
 ---
