@@ -67,7 +67,10 @@ def _load_geo_shared() -> pd.DataFrame:
 
 
 def get_empreendimentos() -> pd.DataFrame:
-    return load_parquet("empreendimentos_priorizacao")
+    df = load_parquet("empreendimentos_priorizacao")
+    if not df.empty and "ic_3_pond" in df.columns:
+        return df.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
+    return df
 
 
 def get_obras() -> pd.DataFrame:
