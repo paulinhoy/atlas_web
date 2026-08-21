@@ -130,6 +130,7 @@ Para fins de governança e melhoria contínua das respostas, todas as interaçõ
 ## 7. Design e Layout da Interface (`views/chatbot.py`)
 
 * **Aproveitamento Total da Tela:** As respostas da IA utilizam 100% da largura do container, ideal para tabelas, listas de obras e resumos extensos sem quebras de linha artificiais.
-* **Borda Lateral Institucional:** Balões do assistente com fundo neutro suave (`#f8fafc`) e faixa esquerda azul marinho (`#0b2545`).
-* **Mensagens do Usuário:** Compactas e alinhadas à direita em gradiente institucional.
-* **Botão Flutuante de Retorno:** Acesso síncrono para retornar à tela inicial (`?`).
+* **Paleta Diferenciada do Assistente Virtual:** Balões do assistente com fundo translúcido suave na paleta do PELT (`#BAD6D9`), borda externa em tom pastel e faixa esquerda em ardósia elegante (`#9BA0BF`), facilitando a distinção visual.
+* **Hierarquia Tipográfica:** Cabeçalho com 28px no título e 24px no subtítulo institucional; mensagens e tabelas dimensionadas em 15px e 12px.
+* **Mensagens do Usuário:** Compactas e alinhadas à direita em gradiente institucional (`#0b2545` ➔ `#133b63`).
+* **Botão Flutuante de Retorno:** Acesso síncrono para retornar à tela inicial (`?`) com contorno no padrão da paleta (`#BAD6D9`).

@@ -42,14 +42,16 @@ def apply_atlas_styles():
             .atlas-header h2 {
                 color: #ffffff;
                 margin: 0;
-                font-size: 1.45rem;
+                font-size: 28px;
                 font-weight: 700;
                 line-height: 1.3;
             }
             .atlas-header .sub {
                 margin-top: 0.35rem;
                 color: #c7d6ea;
-                font-size: 0.9rem;
+                font-size: 24px;
+                font-weight: 300;
+                line-height: 1.3;
             }
 
             /* ---- Card de metadados ---- */
@@ -69,7 +71,7 @@ def apply_atlas_styles():
                 border-bottom: none;
             }
             .meta-label {
-                font-size: 0.73rem;
+                font-size: 13px;
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.6px;
@@ -77,7 +79,7 @@ def apply_atlas_styles():
                 margin-bottom: 0.1rem;
             }
             .meta-value {
-                font-size: 0.92rem;
+                font-size: 15px;
                 color: #0f172a;
                 font-weight: 500;
             }
@@ -92,7 +94,7 @@ def apply_atlas_styles():
                 align-items: center;
                 justify-content: center;
                 color: #78909c;
-                font-size: 1rem;
+                font-size: 14px;
                 font-weight: 500;
                 text-align: center;
                 padding: 1.5rem;
@@ -108,7 +110,7 @@ def apply_atlas_styles():
                 box-shadow: 0 1px 4px rgba(0,0,0,0.03);
             }
             .legenda-title {
-                font-size: 0.78rem;
+                font-size: 14px;
                 font-weight: 700;
                 color: #334155;
                 margin-bottom: 0.5rem;
@@ -116,7 +118,7 @@ def apply_atlas_styles():
                 letter-spacing: 0.4px;
             }
             .legenda-item {
-                font-size: 0.78rem;
+                font-size: 13px;
                 color: #475569;
                 padding: 0.15rem 0;
                 display: flex;
@@ -144,9 +146,9 @@ def apply_atlas_styles():
 
             /* ---- Seção / Título de tabela ---- */
             .section-title {
-                font-size: 0.95rem;
+                font-size: 20px;
                 font-weight: 700;
-                color: #1e293b;
+                color: #0b2545;
                 margin: 1.5rem 0 0.5rem 0;
                 padding-bottom: 0.3rem;
                 border-bottom: 2px solid #0b2545;
@@ -156,7 +158,7 @@ def apply_atlas_styles():
             .atlas-table {
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 0.82rem;
+                font-size: 12px;
                 margin-bottom: 0.8rem;
                 box-shadow: 0 1px 4px rgba(0,0,0,0.04);
                 border-radius: 6px;
@@ -165,10 +167,10 @@ def apply_atlas_styles():
             .atlas-table thead th {
                 background: #0b2545;
                 color: #ffffff;
-                padding: 0.55rem 0.7rem;
+                padding: 0.65rem 0.75rem;
                 text-align: center;
                 font-weight: 600;
-                font-size: 0.78rem;
+                font-size: 16px;
                 letter-spacing: 0.2px;
                 white-space: nowrap;
             }
@@ -177,6 +179,7 @@ def apply_atlas_styles():
                 text-align: center;
                 border-bottom: 1px solid #e8ecf1;
                 color: #334155;
+                font-size: 12px;
                 vertical-align: middle;
             }
             .atlas-table tbody tr:nth-child(even) {
@@ -193,6 +196,7 @@ def apply_atlas_styles():
             }
             .atlas-table .font-mono {
                 font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 12px;
             }
             .atlas-table .font-bold {
                 font-weight: 600;
@@ -208,19 +212,20 @@ def apply_atlas_styles():
                 gap: 8px;
                 background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
                 color: #ffffff !important;
-                padding: 0.60rem 1.25rem;
+                padding: 0.65rem 1.30rem;
                 border-radius: 30px;
-                font-size: 0.85rem;
+                font-size: 14px;
                 font-weight: 600;
                 text-decoration: none !important;
                 box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
-                border: 1px solid rgba(255, 255, 255, 0.15);
+                border: 1.5px solid #BAD6D9;
                 transition: all 0.2s ease;
                 backdrop-filter: blur(8px);
             }
             .atlas-floating-back-btn:hover {
                 background: linear-gradient(135deg, #133b63 0%, #1d4ed8 100%);
                 color: #ffffff !important;
+                border-color: #ffffff;
                 transform: translateY(-2px);
                 box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
             }
@@ -307,8 +312,8 @@ def render_metadados(row, df_obras):
         border = 'border-bottom:1px solid #eef1f6;' if i < len(campos) - 1 else ''
         meta_html += (
             f'<div style="padding:0.5rem 0;{border}">'
-            f'<div style="font-size:0.73rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#64748b;margin-bottom:0.1rem;">{label_safe}</div>'
-            f'<div style="font-size:0.92rem;color:#0f172a;font-weight:500;">{value_safe}</div>'
+            f'<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#64748b;margin-bottom:0.1rem;">{label_safe}</div>'
+            f'<div style="font-size:15px;color:#0f172a;font-weight:500;">{value_safe}</div>'
             '</div>'
         )
     meta_html += '</div>'

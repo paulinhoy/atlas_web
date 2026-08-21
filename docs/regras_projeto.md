@@ -117,14 +117,21 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 
 ## 6. Layout e Design do Sistema (Padrão Visual Consolidado)
 
-Tanto a **Tela 1 (Home)** quanto a **Tela 2 (Atlas)** compartilham a mesma identidade visual institucional e de alto contraste:
+Todas as telas (**Home**, **Atlas** e **Chatbot**) compartilham a mesma identidade visual institucional e hierarquia de informação:
 
 * **Paleta de Cores Institucional:** Azul marinho profundo (`#0b2545` e `#133b63`), fundos claros (`#ffffff` e `#f8fafc`), cinzas de apoio (`#64748b`, `#e2e8f0`).
-* **Tipografia e Tabelas:** Cabeçalhos escuros em negrito, linhas zebradas com efeito hover (`#edf4fb`), títulos de seção com sublinhado sólido de 2px (`#0b2545`).
+* **Paleta Específica do Assistente Virtual:** Tom claro de fundo (`#BAD6D9` com leve transparência / gradiente) e borda de realce em ardósia suave (`#9BA0BF`), diferenciando com elegância as respostas da IA.
+* **Hierarquia Tipográfica Padronizada:**
+  * **Título Principal / PELT:** `28px` (negrito institucional)
+  * **Subtítulos de Cabeçalho:** `24px` a `26px` (peso leve/médio para equilíbrio estético)
+  * **Títulos de Seção, Caixas e Pesquisa:** `20px` (com sublinhado sólido de 2px `#0b2545` nas seções de dados)
+  * **Títulos das Colunas (Tabelas `th`):** `16px` (fundo `#0b2545`, texto branco, negrito)
+  * **Valores e Células de Dados (Tabelas `td`):** `12px` (tipografia compacta e densa para alta legibilidade de dados)
+  * **Badges e Tags:** `11px` a `12px`
 * **Badges Contextuais:**
   * *Impacto:* Alto (verde `#dcfce7`/`#166534`), Médio (âmbar `#fef3c7`/`#92400e`), Baixo (cinza `#f1f5f9`/`#475569`).
   * *Esfera:* Federal (azul `#e0f2fe`/`#0369a1`), Estadual (verde `#f0fdf4`/`#15803d`), Municipal (amarelo `#fef9c3`/`#a16207`), Privado (roxo `#f5f3ff`/`#6d28d9`).
-* **Navegação:** Links nativos com `target="_self"` e sincronização de query params (`?id=...`) via `app.py`.
+* **Navegação:** Links nativos com `target="_self"` e sincronização de query params (`?id=...` e `?page=chatbot`) via `app.py`.
 
 ---
 

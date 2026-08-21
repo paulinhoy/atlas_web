@@ -30,17 +30,18 @@ def apply_custom_styles():
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             }
             .header-title {
-                font-size: 1.8rem;
+                font-size: 28px;
                 font-weight: 700;
                 letter-spacing: -0.5px;
                 margin: 0;
                 color: #ffffff;
             }
             .header-subtitle {
-                font-size: 0.95rem;
+                font-size: 26px;
                 color: #d1e3f8;
                 margin-top: 0.3rem;
                 font-weight: 300;
+                line-height: 1.3;
             }
 
             /* Cartões de KPI */
@@ -53,29 +54,29 @@ def apply_custom_styles():
                 transition: transform 0.2s ease, box-shadow 0.2s ease;
             }
             .kpi-title {
-                font-size: 0.78rem;
+                font-size: 13px;
                 font-weight: 600;
                 text-transform: uppercase;
                 color: #64748b;
                 letter-spacing: 0.5px;
             }
             .kpi-value {
-                font-size: 1.7rem;
+                font-size: 28px;
                 font-weight: 700;
                 color: #0f172a;
                 margin-top: 0.2rem;
             }
             .kpi-subtext {
-                font-size: 0.75rem;
+                font-size: 12px;
                 color: #94a3b8;
                 margin-top: 0.2rem;
             }
 
             /* Título de seção com sublinhado padrão Atlas */
             .section-title {
-                font-size: 1.05rem;
+                font-size: 20px;
                 font-weight: 700;
-                color: #1e293b;
+                color: #0b2545;
                 margin: 1.5rem 0 0.8rem 0;
                 padding-bottom: 0.35rem;
                 border-bottom: 2px solid #0b2545;
@@ -85,7 +86,7 @@ def apply_custom_styles():
             .home-atlas-table {
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 0.84rem;
+                font-size: 12px;
                 border-radius: 8px;
                 overflow: hidden;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -97,19 +98,20 @@ def apply_custom_styles():
             .home-atlas-table thead th {
                 background: #0b2545;
                 color: #ffffff;
-                padding: 0.70rem 0.80rem;
+                padding: 0.75rem 0.85rem;
                 text-align: center;
                 font-weight: 600;
-                font-size: 0.80rem;
+                font-size: 16px;
                 letter-spacing: 0.25px;
                 white-space: nowrap;
                 border: none;
             }
             .home-atlas-table tbody td {
-                padding: 0.60rem 0.80rem;
+                padding: 0.55rem 0.75rem;
                 text-align: center;
                 border-bottom: 1px solid #eef2f7;
                 color: #334155;
+                font-size: 12px;
                 vertical-align: middle;
             }
             .home-atlas-table tbody tr {
@@ -137,12 +139,13 @@ def apply_custom_styles():
             }
             .home-atlas-table .font-mono {
                 font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size: 0.82rem;
+                font-size: 12px;
             }
             .home-atlas-table .emp-link {
                 color: #0b2545;
                 text-decoration: none;
                 font-weight: 600;
+                font-size: 12px;
                 display: block;
                 transition: color 0.15s ease;
             }
@@ -156,7 +159,7 @@ def apply_custom_styles():
                 color: #ffffff !important;
                 padding: 0.32rem 0.70rem;
                 border-radius: 5px;
-                font-size: 0.76rem;
+                font-size: 12px;
                 font-weight: 600;
                 text-decoration: none !important;
                 transition: background-color 0.15s ease, transform 0.1s ease;
@@ -169,9 +172,9 @@ def apply_custom_styles():
             }
             .home-atlas-table .badge {
                 display: inline-block;
-                padding: 0.22rem 0.58rem;
+                padding: 0.20rem 0.50rem;
                 border-radius: 12px;
-                font-size: 0.73rem;
+                font-size: 11px;
                 font-weight: 600;
                 white-space: nowrap;
             }
@@ -221,7 +224,7 @@ def apply_custom_styles():
                 border-bottom: 1px solid #e2e8f0;
             }
             .filter-panel-title {
-                font-size: 0.95rem;
+                font-size: 20px;
                 font-weight: 700;
                 color: #0b2545;
                 display: flex;
@@ -229,14 +232,14 @@ def apply_custom_styles():
                 gap: 8px;
             }
             .filter-panel-subtitle {
-                font-size: 0.80rem;
+                font-size: 14px;
                 color: #64748b;
             }
 
             /* Customização profunda dos Inputs e Dropdowns Streamlit */
             div[data-testid="stTextInput"] label,
             div[data-testid="stSelectbox"] label {
-                font-size: 0.74rem !important;
+                font-size: 13px !important;
                 font-weight: 700 !important;
                 color: #475569 !important;
                 text-transform: uppercase !important;
@@ -249,7 +252,7 @@ def apply_custom_styles():
                 border: 1px solid #cbd5e1 !important;
                 border-radius: 8px !important;
                 color: #0f172a !important;
-                font-size: 0.86rem !important;
+                font-size: 14px !important;
                 padding: 0.48rem 0.8rem !important;
                 box-shadow: none !important;
                 transition: all 0.2s ease !important;
@@ -269,7 +272,7 @@ def apply_custom_styles():
                 border: 1px solid #cbd5e1 !important;
                 border-radius: 8px !important;
                 color: #0f172a !important;
-                font-size: 0.86rem !important;
+                font-size: 14px !important;
                 box-shadow: none !important;
                 transition: all 0.2s ease !important;
             }
@@ -294,7 +297,7 @@ def apply_custom_styles():
                 height: 32px !important;
                 min-height: 32px !important;
                 padding: 0 !important;
-                font-size: 0.90rem !important;
+                font-size: 14px !important;
                 font-weight: 700 !important;
                 display: flex !important;
                 align-items: center !important;
@@ -313,7 +316,7 @@ def apply_custom_styles():
                 height: 32px !important;
                 min-height: 32px !important;
                 padding: 0 !important;
-                font-size: 0.90rem !important;
+                font-size: 14px !important;
                 font-weight: 500 !important;
                 display: flex !important;
                 align-items: center !important;
@@ -343,19 +346,20 @@ def apply_custom_styles():
                 gap: 8px;
                 background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
                 color: #ffffff !important;
-                padding: 0.60rem 1.25rem;
+                padding: 0.65rem 1.30rem;
                 border-radius: 30px;
-                font-size: 0.85rem;
+                font-size: 14px;
                 font-weight: 600;
                 text-decoration: none !important;
                 box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
-                border: 1px solid rgba(255, 255, 255, 0.15);
+                border: 1.5px solid #BAD6D9;
                 transition: all 0.2s ease;
                 backdrop-filter: blur(8px);
             }
             .atlas-floating-chat-btn:hover {
                 background: linear-gradient(135deg, #133b63 0%, #1d4ed8 100%);
                 color: #ffffff !important;
+                border-color: #ffffff;
                 transform: translateY(-2px);
                 box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
             }

@@ -27,19 +27,21 @@ def apply_chatbot_styles():
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             }
             .chatbot-header h2 {
-                font-size: 1.55rem;
+                font-size: 28px;
                 font-weight: 700;
                 color: #ffffff;
                 margin: 0;
                 display: flex;
                 align-items: center;
                 gap: 10px;
+                line-height: 1.3;
             }
             .chatbot-header .sub {
-                font-size: 0.88rem;
+                font-size: 24px;
                 color: #d1e3f8;
                 margin-top: 0.3rem;
                 font-weight: 300;
+                line-height: 1.3;
             }
 
             /* Barra de Conformidade e Ações */
@@ -52,7 +54,7 @@ def apply_chatbot_styles():
                 border-radius: 8px;
                 padding: 0.5rem 1rem;
                 margin-bottom: 1.2rem;
-                font-size: 0.80rem;
+                font-size: 13px;
                 color: #64748b;
             }
 
@@ -86,7 +88,7 @@ def apply_chatbot_styles():
             div[data-testid="stChatMessageContent"] p {
                 margin: 0 !important;
                 padding: 0 !important;
-                font-size: 0.94rem !important;
+                font-size: 15px !important;
                 line-height: 1.6 !important;
             }
 
@@ -114,24 +116,48 @@ def apply_chatbot_styles():
                 color: #ffffff !important;
             }
 
-            /* Balão do ASSISTENTE -> Esquerda (Aproveitamento Total da Largura) */
+            /* Balão do ASSISTENTE -> Esquerda (Tom Claro da Paleta PELT #BAD6D9 / #9BA0BF) */
             div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) {
                 margin-right: 0 !important;
                 margin-left: 0 !important;
                 width: 100% !important;
                 max-width: 100% !important;
-                background: #f8fafc !important;
-                border: 1px solid #e2e8f0 !important;
-                color: #0f172a !important;
+                background: linear-gradient(135deg, rgba(186, 214, 217, 0.28) 0%, rgba(155, 160, 191, 0.16) 100%) !important;
+                border: 1.5px solid #BAD6D9 !important;
+                border-left: 5px solid #9BA0BF !important;
+                color: #0b2545 !important;
                 border-radius: 12px !important;
-                border-left: 4px solid #0b2545 !important;
+                box-shadow: 0 2px 8px rgba(155, 160, 191, 0.12) !important;
                 text-align: left !important;
             }
             div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) p,
             div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) span,
             div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) strong,
             div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) em {
-                color: #0f172a !important;
+                color: #0b2545 !important;
+            }
+
+            /* Tabelas embutidas nas respostas do assistente */
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) table {
+                font-size: 12px !important;
+                border-collapse: collapse !important;
+                width: 100% !important;
+                margin: 0.8rem 0 !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                background: #ffffff !important;
+            }
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) th {
+                font-size: 14px !important;
+                font-weight: 600 !important;
+                background: #0b2545 !important;
+                color: #ffffff !important;
+                padding: 6px 10px !important;
+            }
+            div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) td {
+                font-size: 12px !important;
+                padding: 6px 10px !important;
+                border-bottom: 1px solid #e2e8f0 !important;
             }
 
             /* ---- 3. Campo de Digitação Limpo e Sem Caixas Claras Internas ---- */
@@ -172,12 +198,12 @@ def apply_chatbot_styles():
             }
             div[data-testid="stChatInput"] > div:focus-within {
                 border-color: #0b2545 !important;
-                box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+                box-shadow: 0 0 0 3px rgba(186, 214, 217, 0.40), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
             }
 
             div[data-testid="stChatInput"] textarea {
                 color: #0f172a !important;
-                font-size: 0.92rem !important;
+                font-size: 14px !important;
                 line-height: 1.45 !important;
                 padding: 0.30rem 0 !important;
                 margin: 0 !important;
@@ -241,19 +267,20 @@ def apply_chatbot_styles():
                 gap: 8px;
                 background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
                 color: #ffffff !important;
-                padding: 0.60rem 1.25rem;
+                padding: 0.65rem 1.30rem;
                 border-radius: 30px;
-                font-size: 0.85rem;
+                font-size: 14px;
                 font-weight: 600;
                 text-decoration: none !important;
                 box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
-                border: 1px solid rgba(255, 255, 255, 0.15);
+                border: 1.5px solid #BAD6D9;
                 transition: all 0.2s ease;
                 backdrop-filter: blur(8px);
             }
             .atlas-floating-back-btn:hover {
                 background: linear-gradient(135deg, #133b63 0%, #1d4ed8 100%);
                 color: #ffffff !important;
+                border-color: #ffffff;
                 transform: translateY(-2px);
                 box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
             }
