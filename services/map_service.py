@@ -30,6 +30,7 @@ def render_map(empreendimento_id):
     """
     Renderiza o mapa interativo do empreendimento utilizando Folium.
     Exibe intervenções lineares (linhas) e intervenções pontuais (pontos).
+    Utiliza OpenStreetMap como mapa base (100% gratuito, aberto e sem necessidade de chave de API).
     """
     df_geo = data_loader.get_empreendimento_geo()
 
@@ -37,8 +38,12 @@ def render_map(empreendimento_id):
         _render_no_geometry_placeholder("Base de dados geoespaciais não disponível.")
         return
 
-    # Busca o registro geoespacial do empreendimento
-    rec = df_geo[df_geo["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    # Busca o registro geoespacial do empreendimento com conversão defensiva
+    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
+    if pd.notna(emp_id_num):
+        rec = df_geo[pd.to_numeric(df_geo["id_empreendimento"], errors="coerce") == emp_id_num]
+    else:
+        rec = df_geo[df_geo["id_empreendimento"].astype(str) == str(empreendimento_id)]
 
     if rec.empty:
         _render_no_geometry_placeholder("Geometria não cadastrada para este empreendimento.")
@@ -85,11 +90,11 @@ def render_map(empreendimento_id):
     center_lat = (min_lat + max_lat) / 2 if min_lat != float("inf") else -18.5
     center_lon = (min_lon + max_lon) / 2 if min_lon != float("inf") else -44.5
 
-    # Cria o mapa base com CartoDB Positron (visual limpo idêntico ao QGIS)
+    # Cria o mapa base com OpenStreetMap (100% gratuito, aberto e sem necessidade de chave de API)
     m = folium.Map(
         location=[center_lat, center_lon],
         zoom_start=7,
-        tiles="CartoDB positron",
+        tiles="OpenStreetMap",
         control_scale=True,
     )
 
