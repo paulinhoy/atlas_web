@@ -23,11 +23,16 @@ PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
 # Mapeamento de prefixo de arquivo bruto -> nome do arquivo parquet padronizado
 FILE_MAPPING = {
+    # Tabelas existentes
     "mvw_8_calcula_impacto": "empreendimentos_priorizacao",
     "vw_empreendimento_custo_economico_lp": "dados_financeiro",
     "tbl_alocacaoempreendimento": "alocacao_empreendimento",
     "vw_obra": "obras_priorizacao",
     "vw_custo_economico": "custo_obra",
+    # Novas tabelas de alocação/demanda
+    "capacidade_satur_aero_cenarios": "demanda_pax_aero_ano",
+    "demanda_duto": "demanda_duto_ano",
+    "demanda_ferro_passageiro": "demanda_pax_ferro_ano",
 }
 
 

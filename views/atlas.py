@@ -504,38 +504,174 @@ def render_tabela_financeiros(empreendimento_id):
     )
 
 
-def render_tabela_alocacao(empreendimento_id):
-    """Tabela 3 — Dados de Alocação 2055 por cenário."""
-    df_aloc = data_loader.get_alocacao()
-    if df_aloc.empty:
+def render_tabela_alocacao(empreendimento_id, row):
+    """
+    Tabela 3 - Dados de Alocação 2055 com roteamento dinâmico por setor, grupo e natureza.
+    """
+    # 1. Extração segura dos parâmetros de controle
+    try:
+        id_setor = int(row.get("id_setor")) if pd.notna(row.get("id_setor")) else None
+    except (ValueError, TypeError):
+        id_setor = None
+
+    try:
+        id_grupo = int(row.get("id_grupo_modelagem")) if pd.notna(row.get("id_grupo_modelagem")) else None
+    except (ValueError, TypeError):
+        id_grupo = None
+
+    natureza = str(row.get("natureza_empreendimento") or "").strip()
+    is_pax = natureza.lower() == "transporte de pessoas"
+
+    # 4. Se for id_setor = 4: Não exibimos dados de alocação
+    if id_setor == 4:
+        return
+
+    # 2. Definição da fonte de dados e do mapeamento de colunas
+    df_fonte = pd.DataFrame()
+    col_map = {}
+    tem_cenario = True
+
+    # -------------------------------------------------------------------------
+    # CONDIÇÃO 1: Rodoviário (id_setor = 1)
+    # -------------------------------------------------------------------------
+    if id_setor == 1:
+        df_fonte = data_loader.get_alocacao()
+        col_map = {
+            "Cenário": "id_cenario",
+            "Carga": "flt_vehcargafuturo",
+            "Ônibus": "flt_vehonibusfuturo",
+            "Automóvel": "flt_vehautofuturo",
+            "Total Veículos": "flt_vehtotalfuturo",
+            "TKU Total": "flt_tkutotalfuturo",
+        }
+
+    # -------------------------------------------------------------------------
+    # CONDIÇÃO 2.2: Ferroviário Passageiro (id_setor = 2 e Transporte de Pessoas)
+    # -------------------------------------------------------------------------
+    elif id_setor == 2 and is_pax:
+        df_fonte = data_loader.get_demanda_pax_ferro()
+        tem_cenario = "id_cenario" in df_fonte.columns if not df_fonte.empty else False
+        col_map = {}
+        if tem_cenario:
+            col_map["Cenário"] = "id_cenario"
+        col_map["Demanda Anual (Passageiros/Ano)"] = "demanda_ano"
+
+    # -------------------------------------------------------------------------
+    # CONDIÇÃO 2: Ferroviário TON (id_setor = 2, Cargas, id_grupo_modelagem = 2)
+    # -------------------------------------------------------------------------
+    elif id_setor == 2 and not is_pax and id_grupo == 2:
+        df_fonte = data_loader.get_alocacao()
+        col_map = {
+            "Cenário": "id_cenario",
+            "CGC": "flt_toncgcfuturo",
+            "CGNC": "flt_toncgncfuturo",
+            "GL": "flt_tonglfuturo",
+            "GSA": "flt_tongsafuturo",
+            "GSM": "flt_tongsmfuturo",
+            "OGSM": "flt_tonogsmfuturo",
+            "TON Total": "flt_tontotalfuturo",
+        }
+
+    # -------------------------------------------------------------------------
+    # CONDIÇÃO 2.1: Ferroviário TKU (id_setor = 2, Cargas, id_grupo_modelagem = 1)
+    # -------------------------------------------------------------------------
+    elif id_setor == 2 and not is_pax and id_grupo == 1:
+        df_fonte = data_loader.get_alocacao()
+        col_map = {
+            "Cenário": "id_cenario",
+            "CGC": "flt_tkucgcfuturo",
+            "CGNC": "flt_tkucgncfuturo",
+            "GL": "flt_tkuglfuturo",
+            "GSA": "flt_tkugsafuturo",
+            "GSM": "flt_tkugsmfuturo",
+            "OGSM": "flt_tkuogsmfuturo",
+            "TKU Total": "flt_tkutotalfuturo",
+        }
+
+    # -------------------------------------------------------------------------
+    # CONDIÇÃO 3: Hidroviário / Portuário (id_setor = 3)
+    # -------------------------------------------------------------------------
+    elif id_setor == 3:
+        df_fonte = data_loader.get_alocacao()
+        col_map = {
+            "Cenário": "id_cenario",
+            "CGC": "flt_toncgcfuturo",
+            "CGNC": "flt_toncgncfuturo",
+            "GL": "flt_tonglfuturo",
+            "GSA": "flt_tongsafuturo",
+            "GSM": "flt_tongsmfuturo",
+            "OGSM": "flt_tonogsmfuturo",
+            "TON Total": "flt_tontotalfuturo",
+        }
+
+    # -------------------------------------------------------------------------
+    # CONDIÇÃO 5: Aeroviário (id_setor = 5)
+    # -------------------------------------------------------------------------
+    elif id_setor == 5:
+        df_fonte = data_loader.get_demanda_pax_aero()
+        col_map = {
+            "Cenário": "id_cenario",
+            "Demanda (Passageiros/Ano)": "demanda_pax_ano",
+        }
+
+    # -------------------------------------------------------------------------
+    # CONDIÇÃO 6: Dutoviário (id_setor = 6)
+    # -------------------------------------------------------------------------
+    elif id_setor == 6:
+        df_fonte = data_loader.get_demanda_duto()
+        tem_cenario = "id_cenario" in df_fonte.columns if not df_fonte.empty else False
+        col_map = {}
+        if tem_cenario:
+            col_map["Cenário"] = "id_cenario"
+        col_map["Volume 2055 (TON)"] = "volume_2055"
+        col_map["TKU Total"] = "tku"
+
+    # Fallback padrão caso não caia em nenhuma regra explícita
+    else:
+        df_fonte = data_loader.get_alocacao()
+        col_map = {
+            "Cenário": "id_cenario",
+            "CGC": "flt_tkucgcfuturo",
+            "CGNC": "flt_tkucgncfuturo",
+            "GL": "flt_tkuglfuturo",
+            "GSA": "flt_tkugsafuturo",
+            "GSM": "flt_tkugsmfuturo",
+            "OGSM": "flt_tkuogsmfuturo",
+            "TKU Total": "flt_tkutotalfuturo",
+        }
+
+    # 3. Validação dos dados
+    if df_fonte.empty:
         st.warning("Dados de alocação não disponíveis.")
         return
 
-    df_emp_aloc = df_aloc[df_aloc["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    df_emp_aloc = df_fonte[df_fonte["id_empreendimento"].astype(str) == str(empreendimento_id)]
     if df_emp_aloc.empty:
         st.info("Sem dados de alocação para este empreendimento.")
         return
 
+    # 4. Renderização do Título e Tabela HTML
     st.markdown('<div class="section-title">Dados de Alocação 2055</div>', unsafe_allow_html=True)
 
-    # Mapear colunas do parquet para o layout da tabela
-    col_map = {
-        "CGC": "flt_tkucgcfuturo",
-        "CGNC": "flt_tkucgncfuturo",
-        "GL": "flt_tkuglfuturo",
-        "GSA": "flt_tkugsafuturo",
-        "GSM": "flt_tkugsmfuturo",
-        "OGSM": "flt_tkuogsmfuturo",
-        "TKU Total": "flt_tkutotalfuturo",
-    }
+    # Ordenação defensiva por cenário se existir
+    if "id_cenario" in df_emp_aloc.columns:
+        df_emp_aloc = df_emp_aloc.sort_values("id_cenario")
 
+    # Montagem do cabeçalho <th>
+    ths_html = "".join([f"<th>{header}</th>" for header in col_map.keys()])
+
+    # Montagem das linhas <tr>
     rows_html = ""
-    for _, r in df_emp_aloc.sort_values("id_cenario").iterrows():
-        cenario = int(r["id_cenario"])
-        cells = f"<td>{cenario}</td>"
-        for display_name, col_name in col_map.items():
+    for _, r in df_emp_aloc.iterrows():
+        cells = ""
+        for header, col_name in col_map.items():
             val = r.get(col_name)
-            cells += f'<td class="text-right">{fmt_int_br(val)}</td>'
+            if header == "Cenário":
+                val_fmt = int(val) if pd.notna(val) else "-"
+                cells += f"<td>{val_fmt}</td>"
+            else:
+                val_fmt = fmt_int_br(val) if pd.notna(val) else "-"
+                cells += f'<td class="text-right">{val_fmt}</td>'
         rows_html += f"<tr>{cells}</tr>"
 
     st.markdown(
@@ -543,14 +679,7 @@ def render_tabela_alocacao(empreendimento_id):
         <table class="atlas-table">
             <thead>
                 <tr>
-                    <th>Cenário</th>
-                    <th>CGC</th>
-                    <th>CGNC</th>
-                    <th>GL</th>
-                    <th>GSA</th>
-                    <th>GSM</th>
-                    <th>OGSM</th>
-                    <th>TKU Total</th>
+                    {ths_html}
                 </tr>
             </thead>
             <tbody>
@@ -681,7 +810,7 @@ def render(empreendimento_id):
     render_tabela_financeiros(empreendimento_id)
 
     # ── Tabela 3: Dados de Alocação 2055 ──
-    render_tabela_alocacao(empreendimento_id)
+    render_tabela_alocacao(empreendimento_id,row)
 
     # ── Tabela 4: Detalhamento das Obras ──
     render_tabela_obras(df_obras)

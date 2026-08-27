@@ -94,3 +94,13 @@ def get_empreendimento_geo() -> pd.DataFrame:
     Não mute o DataFrame retornado — use .copy() se precisar modificar."""
     return _load_geo_shared()
 
+# Adicionado agora, conferir depois 
+def get_demanda_pax_ferro() -> pd.DataFrame:
+    return load_parquet("demanda_pax_ferro_ano")
+
+def get_demanda_duto() -> pd.DataFrame:
+    return load_parquet("demanda_duto_ano")
+
+def get_demanda_pax_aero() -> pd.DataFrame:
+    return load_parquet("demanda_pax_aero_ano")
+
