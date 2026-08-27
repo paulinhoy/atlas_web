@@ -440,7 +440,12 @@ def render_tabela_financeiros(empreendimento_id):
         st.warning("Dados financeiros não disponíveis.")
         return
 
-    rec = df_fin[df_fin["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
+    if pd.notna(emp_id_num):
+        rec = df_fin[pd.to_numeric(df_fin["id_empreendimento"], errors="coerce") == emp_id_num]
+    else:
+        rec = df_fin[df_fin["id_empreendimento"].astype(str) == str(empreendimento_id)]
+
     if rec.empty:
         st.info("Sem dados financeiros para este empreendimento.")
         return
@@ -458,7 +463,10 @@ def render_tabela_financeiros(empreendimento_id):
 
     # TIRM e Viabilidade vêm da tabela principal de empreendimentos
     df_emp = data_loader.get_empreendimentos()
-    emp_rec = df_emp[df_emp["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    if pd.notna(emp_id_num):
+        emp_rec = df_emp[pd.to_numeric(df_emp["id_empreendimento"], errors="coerce") == emp_id_num]
+    else:
+        emp_rec = df_emp[df_emp["id_empreendimento"].astype(str) == str(empreendimento_id)]
     tirm_val = None
     viabilidade = "N/D"
     if not emp_rec.empty:
@@ -609,10 +617,11 @@ def render_tabela_alocacao(empreendimento_id, row):
     # -------------------------------------------------------------------------
     elif id_setor == 5:
         df_fonte = data_loader.get_demanda_pax_aero()
-        col_map = {
-            "Cenário": "id_cenario",
-            "Demanda (Passageiros/Ano)": "demanda_pax_ano",
-        }
+        tem_cenario = "id_cenario" in df_fonte.columns if not df_fonte.empty else False
+        col_map = {}
+        if tem_cenario:
+            col_map["Cenário"] = "id_cenario"
+        col_map["Demanda (Passageiros/Ano)"] = "demanda_pax_ano"
 
     # -------------------------------------------------------------------------
     # CONDIÇÃO 6: Dutoviário (id_setor = 6)
@@ -641,11 +650,16 @@ def render_tabela_alocacao(empreendimento_id, row):
         }
 
     # 3. Validação dos dados
-    if df_fonte.empty:
-        st.warning("Dados de alocação não disponíveis.")
+    if df_fonte.empty or "id_empreendimento" not in df_fonte.columns:
+        st.info("Sem dados de alocação para este empreendimento.")
         return
 
-    df_emp_aloc = df_fonte[df_fonte["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
+    if pd.notna(emp_id_num):
+        df_emp_aloc = df_fonte[pd.to_numeric(df_fonte["id_empreendimento"], errors="coerce") == emp_id_num]
+    else:
+        df_emp_aloc = df_fonte[df_fonte["id_empreendimento"].astype(str) == str(empreendimento_id)]
+
     if df_emp_aloc.empty:
         st.info("Sem dados de alocação para este empreendimento.")
         return
@@ -657,8 +671,8 @@ def render_tabela_alocacao(empreendimento_id, row):
     if "id_cenario" in df_emp_aloc.columns:
         df_emp_aloc = df_emp_aloc.sort_values("id_cenario")
 
-    # Montagem do cabeçalho <th>
-    ths_html = "".join([f"<th>{header}</th>" for header in col_map.keys()])
+    # Montagem do cabeçalho <th> com escape HTML defensivo
+    ths_html = "".join([f"<th>{html_mod.escape(header)}</th>" for header in col_map.keys()])
 
     # Montagem das linhas <tr>
     rows_html = ""
@@ -670,7 +684,7 @@ def render_tabela_alocacao(empreendimento_id, row):
                 val_fmt = int(val) if pd.notna(val) else "-"
                 cells += f"<td>{val_fmt}</td>"
             else:
-                val_fmt = fmt_int_br(val) if pd.notna(val) else "-"
+                val_fmt = html_mod.escape(fmt_int_br(val)) if pd.notna(val) else "-"
                 cells += f'<td class="text-right">{val_fmt}</td>'
         rows_html += f"<tr>{cells}</tr>"
 
@@ -768,7 +782,11 @@ def render(empreendimento_id):
         return
 
     # Busca o registro do empreendimento
-    record = df_emp[df_emp["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
+    if pd.notna(emp_id_num):
+        record = df_emp[pd.to_numeric(df_emp["id_empreendimento"], errors="coerce") == emp_id_num]
+    else:
+        record = df_emp[df_emp["id_empreendimento"].astype(str) == str(empreendimento_id)]
 
     if record.empty:
         st.error(f"Empreendimento com ID '{empreendimento_id}' não foi encontrado.")
@@ -784,9 +802,14 @@ def render(empreendimento_id):
     df_obras_all = data_loader.get_obras()
     df_obras = pd.DataFrame()
     if not df_obras_all.empty:
-        df_obras = df_obras_all[
-            df_obras_all["id_empreendimento"].astype(str) == str(empreendimento_id)
-        ].copy()
+        if pd.notna(emp_id_num):
+            df_obras = df_obras_all[
+                pd.to_numeric(df_obras_all["id_empreendimento"], errors="coerce") == emp_id_num
+            ].copy()
+        else:
+            df_obras = df_obras_all[
+                df_obras_all["id_empreendimento"].astype(str) == str(empreendimento_id)
+            ].copy()
 
     # ── Botão Voltar ──
     render_back_button()
@@ -810,7 +833,7 @@ def render(empreendimento_id):
     render_tabela_financeiros(empreendimento_id)
 
     # ── Tabela 3: Dados de Alocação 2055 ──
-    render_tabela_alocacao(empreendimento_id,row)
+    render_tabela_alocacao(empreendimento_id, row)
 
     # ── Tabela 4: Detalhamento das Obras ──
-    render_tabela_obras(df_obras)
+    render_tabela_obras(df_obras)

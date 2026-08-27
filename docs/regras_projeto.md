@@ -76,10 +76,13 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 | :--- | :--- | :--- | :--- |
 | `mvw_8_calcula_impacto_*` | `empreendimentos_priorizacao.parquet` | `id_empreendimento` | Tabela mestra dos ~1.682 projetos priorizados + Notas/Índice de Priorização |
 | `vw_empreendimento_custo_economico_lp_*` | `dados_financeiro.parquet` | `id_empreendimento` | Dados financeiros consolidados (CAPEX, OPEX, Receita, Mês Base) |
-| `tbl_alocacaoempreendimento_*` | `alocacao_empreendimento.parquet` | `id_empreendimento`, `id_cenario` | Dados de alocação de tráfego/fluxo para 2055 por Cenário (1 a 4) |
+| `tbl_alocacaoempreendimento_*` | `alocacao_empreendimento.parquet` | `id_empreendimento`, `id_cenario` | Dados de alocação de tráfego/fluxo para 2055 por Cenário (Rodoviário, Ferroviário Carga, Hidroviário) |
 | `vw_obra_*` | `obras_priorizacao.parquet` | `id_obra`, `id_empreendimento` | Cadastro e detalhamento individual de cada obra |
 | `vw_custo_economico_*` | `custo_obra.parquet` | `id_obra`, `id_empreendimento`, `id_cenario` | Custos detalhados por obra e cenário |
 | `mvw_empreendimento_geo_*` | `empreendimento_geo.parquet` | `id_empreendimento` | Geometrias WKT de traçados (`geom_linha`) e intervenções (`geom_ponto`) |
+| `demanda_ferro_passageiro_*` | `demanda_pax_ferro_ano.parquet` | `id_empreendimento` | Demanda anual de passageiros para o setor Ferroviário |
+| `demanda_duto_*` | `demanda_duto_ano.parquet` | `id_empreendimento` | Volume e demanda TKU para o setor Dutoviário |
+| `capacidade_satur_aero_cenarios_*` | `demanda_pax_aero_ano.parquet` | `id_empreendimento`, `id_cenario` | Demanda de passageiros por ano/cenário para o setor Aeroviário |
 
 ### ⚠️ Regras Cruciais de Tratos com Dados:
 1. **Sem limite de obras na Web:** Diferente da versão física do QGIS que limitava em 4 obras, a versão web deve exibir **todas** as obras relacionadas na tabela de detalhamento.
