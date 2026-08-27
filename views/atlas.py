@@ -660,16 +660,17 @@ def render_tabela_alocacao(empreendimento_id, row):
     else:
         df_emp_aloc = df_fonte[df_fonte["id_empreendimento"].astype(str) == str(empreendimento_id)]
 
+    # 4. Filtro defensivo: restringe exclusivamente aos cenários oficiais de 1 a 4
+    if "id_cenario" in df_emp_aloc.columns:
+        cenario_num = pd.to_numeric(df_emp_aloc["id_cenario"], errors="coerce")
+        df_emp_aloc = df_emp_aloc[cenario_num.isin([1, 2, 3, 4])].sort_values("id_cenario")
+
     if df_emp_aloc.empty:
         st.info("Sem dados de alocação para este empreendimento.")
         return
 
-    # 4. Renderização do Título e Tabela HTML
+    # 5. Renderização do Título e Tabela HTML
     st.markdown('<div class="section-title">Dados de Alocação 2055</div>', unsafe_allow_html=True)
-
-    # Ordenação defensiva por cenário se existir
-    if "id_cenario" in df_emp_aloc.columns:
-        df_emp_aloc = df_emp_aloc.sort_values("id_cenario")
 
     # Montagem do cabeçalho <th> com escape HTML defensivo
     ths_html = "".join([f"<th>{html_mod.escape(header)}</th>" for header in col_map.keys()])
