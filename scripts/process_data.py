@@ -21,18 +21,18 @@ from services.formatters import fix_mojibake
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
-# Mapeamento de prefixo de arquivo bruto -> nome do arquivo parquet padronizado
-FILE_MAPPING = {
-    # Tabelas existentes
-    "mvw_8_calcula_impacto": "empreendimentos_priorizacao",
-    "vw_empreendimento_custo_economico_lp": "dados_financeiro",
-    "tbl_alocacaoempreendimento": "alocacao_empreendimento",
-    "vw_obra": "obras_priorizacao",
-    "vw_custo_economico": "custo_obra",
+# Mapeamento de nome do arquivo parquet padronizado -> lista priorizada de prefixos brutos
+TARGET_FILES = {
+    # Tabelas de Priorização e Alocação (prioriza novos arquivos e mantém retrocompatibilidade)
+    "empreendimentos_priorizacao": ["priorizacao", "mvw_8_calcula_impacto"],
+    "alocacao_empreendimento": ["alocacao_total", "tbl_alocacaoempreendimento"],
+    "dados_financeiro": ["vw_empreendimento_custo_economico_lp"],
+    "obras_priorizacao": ["vw_obra"],
+    "custo_obra": ["vw_custo_economico"],
     # Novas tabelas de alocação/demanda
-    "capacidade_satur_aero_cenarios": "demanda_pax_aero_ano",
-    "demanda_duto": "demanda_duto_ano",
-    "demanda_ferro_passageiro": "demanda_pax_ferro_ano",
+    "demanda_pax_aero_ano": ["capacidade_satur_aero_cenarios"],
+    "demanda_duto_ano": ["demanda_duto"],
+    "demanda_pax_ferro_ano": ["demanda_ferro_passageiro"],
 }
 
 
@@ -51,7 +51,8 @@ def convert_csv_to_parquet():
     print(f"Origem dos dados brutos: {RAW_DIR}")
     print(f"Destino dos dados processados: {PROCESSED_DIR}\n")
 
-    csv_files = list(RAW_DIR.glob("*.csv"))
+    # Ignora arquivos temporários e de lock (ex: .~lock.*)
+    csv_files = [f for f in RAW_DIR.glob("*.csv") if not f.name.startswith(".~lock") and not f.name.startswith(".")]
 
     if not csv_files:
         print("[AVISO] Nenhum arquivo .csv encontrado em data/raw/.")
@@ -60,17 +61,19 @@ def convert_csv_to_parquet():
     processed_dfs = {}
     processed_count = 0
 
-    for prefix, target_name in FILE_MAPPING.items():
-        matches = [f for f in csv_files if f.name.startswith(prefix)]
-        
-        if prefix == "vw_custo_economico":
-            matches = [f for f in matches if not f.name.startswith("vw_empreendimento_custo_economico")]
+    for target_name, prefixes in TARGET_FILES.items():
+        csv_file = None
+        for prefix in prefixes:
+            matches = [f for f in csv_files if f.name.startswith(prefix)]
+            if prefix == "vw_custo_economico":
+                matches = [f for f in matches if not f.name.startswith("vw_empreendimento_custo_economico")]
+            if matches:
+                csv_file = sorted(matches)[-1]
+                break
 
-        if not matches:
-            print(f"[NAO ENCONTRADO] Arquivo com prefixo '{prefix}' nao localizado.")
+        if not csv_file:
+            print(f"[NAO ENCONTRADO] Arquivo para '{target_name}' (prefixos: {prefixes}) nao localizado.")
             continue
-
-        csv_file = sorted(matches)[-1]
 
         try:
             # Leitura do CSV
@@ -114,7 +117,7 @@ def convert_csv_to_parquet():
         df.to_parquet(parquet_file, engine="pyarrow", compression="snappy", index=False)
         print(f"[SALVO] {parquet_file.name} ({len(df):,} linhas)")
 
-    print(f"\n--- Concluido: {processed_count}/{len(FILE_MAPPING)} arquivos processados e salvos com sucesso! ---")
+    print(f"\n--- Concluido: {processed_count}/{len(TARGET_FILES)} arquivos processados e salvos com sucesso! ---")
 
 
 if __name__ == "__main__":

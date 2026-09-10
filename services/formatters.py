@@ -25,42 +25,42 @@ def fix_mojibake(text: Any) -> Any:
 def fmt_int_br(valor: Any) -> str:
     """
     Formata números inteiros com separador de milhar brasileiro: 1.682.
-    Retorna 'N/D' caso o valor seja nulo ou inválido.
+    Retorna '-' caso o valor seja nulo ou inválido.
     """
     if pd.isna(valor) or valor is None:
-        return "N/D"
+        return "-"
     try:
         val = int(float(valor))
     except (ValueError, TypeError):
-        return "N/D"
+        return "-"
     return f"{val:,}".replace(",", ".")
 
 
 def fmt_decimal_br(valor: Any, casas: int = 4) -> str:
     """
     Formata número decimal no padrão brasileiro com vírgula: 0,4031.
-    Retorna 'N/D' caso o valor seja nulo ou inválido.
+    Retorna '-' caso o valor seja nulo ou inválido.
     """
     if pd.isna(valor) or valor is None:
-        return "N/D"
+        return "-"
     try:
         val = float(valor)
     except (ValueError, TypeError):
-        return "N/D"
+        return "-"
     return f"{val:.{casas}f}".replace(".", ",")
 
 
 def fmt_decimal_br_2(valor: Any) -> str:
     """
     Formata número decimal com 2 casas decimais e separador de milhar: 1.234,56.
-    Retorna 'N/D' caso o valor seja nulo ou inválido.
+    Retorna '-' caso o valor seja nulo ou inválido.
     """
     if pd.isna(valor) or valor is None:
-        return "N/D"
+        return "-"
     try:
         val = float(valor)
     except (ValueError, TypeError):
-        return "N/D"
+        return "-"
     inteiro = int(abs(val))
     frac = round((abs(val) - inteiro) * 100)
     parte_int = f"{inteiro:,}".replace(",", ".")
@@ -71,14 +71,14 @@ def fmt_decimal_br_2(valor: Any) -> str:
 def fmt_brl(valor: Any) -> str:
     """
     Formata valor monetário no padrão brasileiro: R$ 1.234.567,89.
-    Retorna 'N/D' caso o valor seja nulo ou inválido.
+    Retorna '-' caso o valor seja nulo ou inválido.
     """
     if pd.isna(valor) or valor is None:
-        return "N/D"
+        return "-"
     try:
         val = float(valor)
     except (ValueError, TypeError):
-        return "N/D"
+        return "-"
     negativo = val < 0
     val_abs = abs(val)
     inteiro = int(val_abs)
@@ -91,24 +91,24 @@ def fmt_brl(valor: Any) -> str:
 def fmt_pct_br(valor: Any, casas: int = 1) -> str:
     """
     Formata percentual no padrão brasileiro: 19,9%.
-    Retorna 'N/D' caso o valor seja nulo ou inválido.
+    Retorna '-' caso o valor seja nulo ou inválido.
     """
     if pd.isna(valor) or valor is None:
-        return "N/D"
+        return "-"
     try:
         val = float(valor)
     except (ValueError, TypeError):
-        return "N/D"
+        return "-"
     return f"{val:.{casas}f}".replace(".", ",") + "%"
 
 
 def fmt_mes_ano_br(mes_base: Any) -> str:
     """
     Formata data/mês de atualização para exibição textual brasileira: jan/24.
-    Retorna 'N/D' caso o valor seja nulo ou inválido.
+    Retorna '-' caso o valor seja nulo ou inválido.
     """
-    if pd.isna(mes_base) or mes_base is None or str(mes_base).strip() in ("", "N/D"):
-        return "N/D"
+    if pd.isna(mes_base) or mes_base is None or str(mes_base).strip() in ("", "-", "N/D"):
+        return "-"
     try:
         dt = pd.to_datetime(mes_base)
         meses_pt = {

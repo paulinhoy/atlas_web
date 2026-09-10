@@ -210,6 +210,17 @@ def apply_atlas_styles():
             .atlas-table .font-bold {
                 font-weight: 600;
             }
+            .fonte-badge {
+                display: inline-block;
+                padding: 0.22rem 0.65rem;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: 600;
+                background: #e0f2fe;
+                color: #0369a1;
+                border: 1px solid #bae6fd;
+                letter-spacing: 0.2px;
+            }
             /* ---- Botão Voltar Flutuante (Floating Action Pill) ---- */
             .atlas-floating-back-btn {
                 position: fixed;
@@ -297,18 +308,18 @@ def render_header(empreendimento_id, nome_emp, setor, esfera):
 
 def render_metadados(row, df_obras):
     """Painel esquerdo com ficha técnica de metadados do empreendimento."""
-    origem = row.get("origem_ajustada", "N/D")
-    status = row.get("descr_status_empreendimento", "N/D")
-    natureza = row.get("natureza_empreendimento", "N/D")
-    grupo_mod = row.get("grupo_modelagem", "N/D")
-    responsavel = row.get("responsavel_gestao_infraestrutura", "N/D")
+    origem = row.get("origem_ajustada", "-")
+    status = row.get("descr_status_empreendimento", "-")
+    natureza = row.get("natureza_empreendimento", "-")
+    grupo_mod = row.get("grupo_modelagem", "-")
+    responsavel = row.get("responsavel_gestao_infraestrutura", "-")
 
     # Extensão total: soma das extensões das obras vinculadas
     extensao_total = df_obras["extensao_km"].sum() if not df_obras.empty and "extensao_km" in df_obras.columns else 0
-    extensao_str = fmt_decimal_br_2(extensao_total) if extensao_total > 0 else "N/D"
+    extensao_str = fmt_decimal_br_2(extensao_total) if extensao_total > 0 else "-"
 
     # Duração: mín data_inicio_obra — máx data_conclusao_obra
-    duracao_str = "N/D"
+    duracao_str = "-"
     if not df_obras.empty:
         col_ini = "data_inicio_obra"
         col_fim = "data_conclusao_obra"
@@ -333,7 +344,7 @@ def render_metadados(row, df_obras):
     meta_html = '<div class="meta-card">'
     for i, (label, value) in enumerate(campos):
         label_safe = html_mod.escape(str(label))
-        value_safe = html_mod.escape(str(value)) if value not in (None, "N/D") else str(value)
+        value_safe = html_mod.escape(str(value)) if value not in (None, "-", "N/D") else str(value)
         meta_html += (
             '<div class="meta-row">'
             f'<div class="meta-label">{label_safe}</div>'
@@ -392,16 +403,32 @@ def render_legenda_qgis():
 # ---------------------------------------------------------------------------
 
 def render_tabela_priorizacao(row):
-    """Tabela 1 — Resultados da Priorização."""
+    """Tabela 1 — Resultados da Priorização (com resolução hierárquica e badge da fonte)."""
+    # Garante que as notas venham da resolução hierárquica: Recomendado -> Otimizado -> Geral
+    emp_id = row.get("id_empreendimento")
+    if "fonte_dimensoes" not in row and emp_id is not None:
+        resolved = data_loader.get_empreendimento_resolvido(emp_id)
+        if resolved is not None:
+            row = resolved
+
     estrategica = fmt_decimal_br(row.get("dimensao_estrategica"), 1)
     financeira = fmt_decimal_br(row.get("dimensao_financeira"), 5)
     socioeconomica = fmt_decimal_br(row.get("dimensao_socioeconomica_pond"), 5)
     comercial = fmt_decimal_br(row.get("dimensao_comercial"))
     gerencial = fmt_decimal_br(row.get("dimensao_gerencial"))
     ic = fmt_decimal_br(row.get("ic_3_pond"), 5)
-    impacto = html_mod.escape(str(row.get("impacto_avaliado_3_pond_cenario") or "N/D"))
+    impacto = html_mod.escape(str(row.get("impacto_avaliado_3_pond_cenario") or "-"))
 
-    st.markdown('<div class="section-title">Resultados da Priorização</div>', unsafe_allow_html=True)
+    fonte = html_mod.escape(str(row.get("fonte_dimensoes") or "Priorização Geral"))
+    badge_html = f'<span class="fonte-badge">Fonte da Nota: {fonte}</span>'
+
+    st.markdown(
+        f'<div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">'
+        f'<span>Resultados da Priorização</span>'
+        f'{badge_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
     st.markdown(
         f"""
         <table class="atlas-table">
@@ -454,7 +481,7 @@ def render_tabela_financeiros(empreendimento_id):
     capex = r.get("capex_empreendimento_atualizado")
     opex = r.get("opex_empreendimento_atualizado")
     receita = r.get("receita")
-    mes_base = r.get("mes_atualizacao", "N/D")
+    mes_base = r.get("mes_atualizacao", "-")
 
     # Valor total = CAPEX + OPEX
     valor_total = None
@@ -468,13 +495,13 @@ def render_tabela_financeiros(empreendimento_id):
     else:
         emp_rec = df_emp[df_emp["id_empreendimento"].astype(str) == str(empreendimento_id)]
     tirm_val = None
-    viabilidade = "N/D"
+    viabilidade = "-"
     if not emp_rec.empty:
         e = emp_rec.iloc[0]
         tirm_raw = e.get("tirm")
         if pd.notna(tirm_raw):
             tirm_val = float(tirm_raw) * 100
-        viabilidade = html_mod.escape(str(e.get("viabilidade") or "N/D"))
+        viabilidade = html_mod.escape(str(e.get("viabilidade") or "-"))
 
     # Formatar mês base para exibição
     mes_display = fmt_mes_ano_br(mes_base)
@@ -502,7 +529,7 @@ def render_tabela_financeiros(empreendimento_id):
                     <td class="text-right">{fmt_brl(opex)}</td>
                     <td class="text-right">{fmt_brl(valor_total)}</td>
                     <td class="text-right">{fmt_brl(receita)}</td>
-                    <td>{fmt_pct_br(tirm_val) if tirm_val is not None else "N/D"}</td>
+                    <td>{fmt_pct_br(tirm_val) if tirm_val is not None else "-"}</td>
                     <td>{viabilidade}</td>
                 </tr>
             </tbody>
@@ -632,7 +659,7 @@ def render_tabela_alocacao(empreendimento_id, row):
         col_map = {}
         if tem_cenario:
             col_map["Cenário"] = "id_cenario"
-        col_map["Volume 2055 (TON)"] = "volume_2055"
+        col_map["Tonelada Total"] = "volume_2055"
         col_map["TKU Total"] = "tku"
 
     # Fallback padrão caso não caia em nenhuma regra explícita
@@ -660,10 +687,10 @@ def render_tabela_alocacao(empreendimento_id, row):
     else:
         df_emp_aloc = df_fonte[df_fonte["id_empreendimento"].astype(str) == str(empreendimento_id)]
 
-    # 4. Filtro defensivo: restringe exclusivamente aos cenários oficiais de 1 a 4
+    # 4. Filtro defensivo: inclui cenários 1 a 4, 7 (Otimizado) e 10 (Recomendado)
     if "id_cenario" in df_emp_aloc.columns:
         cenario_num = pd.to_numeric(df_emp_aloc["id_cenario"], errors="coerce")
-        df_emp_aloc = df_emp_aloc[cenario_num.isin([1, 2, 3, 4])].sort_values("id_cenario")
+        df_emp_aloc = df_emp_aloc[cenario_num.isin([1, 2, 3, 4, 7, 10])].sort_values("id_cenario")
 
     if df_emp_aloc.empty:
         st.info("Sem dados de alocação para este empreendimento.")
@@ -682,8 +709,17 @@ def render_tabela_alocacao(empreendimento_id, row):
         for header, col_name in col_map.items():
             val = r.get(col_name)
             if header == "Cenário":
-                val_fmt = int(val) if pd.notna(val) else "-"
-                cells += f"<td>{val_fmt}</td>"
+                if pd.notna(val):
+                    v_int = int(val)
+                    if v_int == 7:
+                        val_fmt = "7 (Otimizado)"
+                    elif v_int == 10:
+                        val_fmt = "10 (Recomendado)"
+                    else:
+                        val_fmt = str(v_int)
+                else:
+                    val_fmt = "-"
+                cells += f"<td>{html_mod.escape(val_fmt)}</td>"
             else:
                 val_fmt = html_mod.escape(fmt_int_br(val)) if pd.notna(val) else "-"
                 cells += f'<td class="text-right">{val_fmt}</td>'
@@ -732,13 +768,13 @@ def render_tabela_obras(df_obras):
     rows_html = ""
     for _, obra in df_obras_sorted.iterrows():
         id_obra = obra.get("id_obra")
-        descricao = html_mod.escape(str(obra.get("descricao_obra") or "N/D"))
-        intervencao = html_mod.escape(str(obra.get("intervencao") or "N/D"))
-        tipo_infra = html_mod.escape(str(obra.get("tipo_infraestrutura") or "N/D"))
+        descricao = html_mod.escape(str(obra.get("descricao_obra") or "-"))
+        intervencao = html_mod.escape(str(obra.get("intervencao") or "-"))
+        tipo_infra = html_mod.escape(str(obra.get("tipo_infraestrutura") or "-"))
         extensao = obra.get("extensao_km")
         valor_num = obra.get("valor_calculado")
 
-        extensao_fmt = fmt_decimal_br_2(extensao) if pd.notna(extensao) else "N/D"
+        extensao_fmt = fmt_decimal_br_2(extensao) if pd.notna(extensao) else "-"
         valor_fmt = fmt_brl(valor_num)
 
         rows_html += (
@@ -782,19 +818,16 @@ def render(empreendimento_id):
         st.error("Base de empreendimentos não encontrada.")
         return
 
-    # Busca o registro do empreendimento
     emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
-    if pd.notna(emp_id_num):
-        record = df_emp[pd.to_numeric(df_emp["id_empreendimento"], errors="coerce") == emp_id_num]
-    else:
-        record = df_emp[df_emp["id_empreendimento"].astype(str) == str(empreendimento_id)]
 
-    if record.empty:
+    # Busca o registro do empreendimento com notas resolvidas (Recomendado -> Otimizado -> Geral)
+    row = data_loader.get_empreendimento_resolvido(empreendimento_id)
+
+    if row is None or (isinstance(row, pd.Series) and row.empty):
         st.error(f"Empreendimento com ID '{empreendimento_id}' não foi encontrado.")
         render_back_button()
         return
 
-    row = record.iloc[0]
     nome_emp = row.get("nome_empreendimento", "")
     setor = row.get("setor", "")
     esfera = row.get("esfera_acao", "")

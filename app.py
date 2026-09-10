@@ -9,7 +9,7 @@ from views import home, atlas, chatbot
 # Configurações gerais da página
 st.set_page_config(
     page_title="Atlas de Empreendimentos",
-    page_icon="🗺️",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="collapsed",
 )

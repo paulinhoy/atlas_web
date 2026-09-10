@@ -12,6 +12,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 2. [Bloqueio de Navegação por Links Dentro de `components.html` (Sandbox de IFrame)](#caso-2-bloqueio-de-navegação-por-links-dentro-de-componentshtml-sandbox-de-iframe)
 3. [Codificação Dupla (Mojibake) em Exportações de Banco PostGIS](#caso-3-codificação-dupla-mojibake-em-exportações-de-banco-postgis)
 4. [Persistência de Query Params na URL ao Voltar do Atlas para a Home](#caso-4-persistência-de-query-params-na-url-ao-voltar-do-atlas-para-a-home)
+5. [Desalinhamento Visual de Ordenação por IC devido a Limiares Setoriais de Impacto](#caso-5-desalinhamento-visual-de-ordenação-por-ic-devido-a-limiares-setoriais-de-impacto)
 
 ---
 
@@ -126,6 +127,25 @@ O botão de voltar utilizava `st.button` executando `del st.query_params['id']` 
 ### ✅ Solução Adotada
 1. No `app.py`, transformar a URL (`st.query_params.get("id")`) na **única fonte da verdade**: se o `id` for nulo ou vazio, garantir `st.session_state["selected_empreendimento_id"] = None` e limpar qualquer chave residual.
 2. No `views/atlas.py`, substituir o botão `st.button` por um link nativo estilizado `<a href="?" target="_self" class="atlas-back-btn">⬅ Voltar para a Lista de Empreendimentos</a>`. A navegação nativa do navegador para `?` limpa fisicamente os parâmetros de consulta da URL de forma síncrona e definitiva.
+
+---
+
+## Caso 5: Desalinhamento Visual de Ordenação por IC devido a Limiares Setoriais de Impacto
+
+* **Data:** 10/09/2026
+* **Componentes Afetados:** `views/home.py`, `services/data_loader.py`
+* **Tecnologia:** `pandas`, `streamlit`
+
+### 🛑 Contexto e Sintoma
+Ao alternar entre as carteiras metodológicas (Cenário Otimizado ou Priorização Geral), badges de "Médio impacto" apareciam acima de "Alto impacto" na tabela, dando a impressão visual de que a listagem não estava ordenada pelo índice (`ic_3_pond`).
+
+### 🔍 Causa Raiz
+1. No PELTMG, a classificação em *Alto impacto* ou *Médio impacto* decorre de percentis e cortes calculados **por setor de transporte** (e não uma régua global única). Por exemplo, no Cenário Otimizado, os IDs 1066 e 1067 possuem IC 0,3543 e classificação 'Médio impacto', enquanto o ID 798 possui IC 0,3435 e 'Alto impacto'. A ordenação numérica pelo IC estava correta (`0,3543 > 0,3435`), mas o padrão de cores dos badges causava estranheza.
+2. Na Carteira Recomendada, todos os projetos do topo eram coincidentemente de Alto impacto, gerando a percepção de que apenas ela estava ordenada.
+
+### ✅ Solução Adotada
+1. Forçar a conversão estrita de `ic_3_pond` para float com `pd.to_numeric(..., errors="coerce")` e reordenação decrescente `.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)` tanto na seleção da carteira quanto logo antes do fatiamento da paginação no `df_filtrado`.
+2. Registrar nos metadados que a ordenação prioritária é estritamente pelo valor contínuo do índice de priorização (IC), prevalecendo sobre as categorias qualitativas setoriais.
 
 ---
 

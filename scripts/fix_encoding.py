@@ -14,12 +14,12 @@ from services.formatters import fix_mojibake
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
-FILE_MAPPING = {
-    "mvw_8_calcula_impacto": "empreendimentos_priorizacao",
-    "vw_empreendimento_custo_economico_lp": "dados_financeiro",
-    "tbl_alocacaoempreendimento": "alocacao_empreendimento",
-    "vw_obra": "obras_priorizacao",
-    "vw_custo_economico": "custo_obra",
+TARGET_FILES = {
+    "empreendimentos_priorizacao": ["priorizacao", "mvw_8_calcula_impacto"],
+    "alocacao_empreendimento": ["alocacao_total", "tbl_alocacaoempreendimento"],
+    "dados_financeiro": ["vw_empreendimento_custo_economico_lp"],
+    "obras_priorizacao": ["vw_obra"],
+    "custo_obra": ["vw_custo_economico"],
 }
 
 
@@ -33,17 +33,21 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 def process_all():
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    csv_files = list(RAW_DIR.glob("*.csv"))
+    csv_files = [f for f in RAW_DIR.glob("*.csv") if not f.name.startswith(".~lock") and not f.name.startswith(".")]
 
-    for prefix, target_name in FILE_MAPPING.items():
-        matches = [f for f in csv_files if f.name.startswith(prefix)]
-        if prefix == "vw_custo_economico":
-            matches = [f for f in matches if not f.name.startswith("vw_empreendimento_custo_economico")]
+    for target_name, prefixes in TARGET_FILES.items():
+        csv_file = None
+        for prefix in prefixes:
+            matches = [f for f in csv_files if f.name.startswith(prefix)]
+            if prefix == "vw_custo_economico":
+                matches = [f for f in matches if not f.name.startswith("vw_empreendimento_custo_economico")]
+            if matches:
+                csv_file = sorted(matches)[-1]
+                break
 
-        if not matches:
+        if not csv_file:
             continue
 
-        csv_file = sorted(matches)[-1]
         parquet_file = PROCESSED_DIR / f"{target_name}.parquet"
 
         # Lê o CSV

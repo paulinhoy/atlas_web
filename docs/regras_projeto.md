@@ -72,11 +72,11 @@ atlas_web/
 
 Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8859-1/Latin1) e convertidos para Parquet UTF-8 otimizado pelos scripts `scripts/process_data.py` e `scripts/process_geo.py`:
 
-| Visão/Tabela Original PostGIS | Parquet Otimizado em `data/processed/` | Chave(s) Principal(is) | Função no Sistema |
+| Visão/Tabela Original PostGIS / Brutos | Parquet Otimizado em `data/processed/` | Chave(s) Principal(is) | Função no Sistema |
 | :--- | :--- | :--- | :--- |
-| `mvw_8_calcula_impacto_*` | `empreendimentos_priorizacao.parquet` | `id_empreendimento` | Tabela mestra dos ~1.682 projetos priorizados + Notas/Índice de Priorização |
+| `priorizacao*` / `mvw_8_calcula_impacto_*` | `empreendimentos_priorizacao.parquet` | `id_empreendimento`, `fonte_priorizacao` | Tabela mestra de priorização (3.785 linhas) com 3 fontes: `priorizacao geral` (1.682), `cenario otimizado` (1.059) e `cenario recomendado` (1.044) |
 | `vw_empreendimento_custo_economico_lp_*` | `dados_financeiro.parquet` | `id_empreendimento` | Dados financeiros consolidados (CAPEX, OPEX, Receita, Mês Base) |
-| `tbl_alocacaoempreendimento_*` | `alocacao_empreendimento.parquet` | `id_empreendimento`, `id_cenario` | Dados de alocação de tráfego/fluxo para 2055 por Cenário (Rodoviário, Ferroviário Carga, Hidroviário) |
+| `alocacao_total*` / `tbl_alocacaoempreendimento_*` | `alocacao_empreendimento.parquet` | `id_empreendimento`, `id_cenario` | Dados de alocação de tráfego/fluxo para 2055 por Cenário (1 a 4, 7 - Otimizado e 10 - Recomendado) |
 | `vw_obra_*` | `obras_priorizacao.parquet` | `id_obra`, `id_empreendimento` | Cadastro e detalhamento individual de cada obra |
 | `vw_custo_economico_*` | `custo_obra.parquet` | `id_obra`, `id_empreendimento`, `id_cenario` | Custos detalhados por obra e cenário |
 | `mvw_empreendimento_geo_*` | `empreendimento_geo.parquet` | `id_empreendimento` | Geometrias WKT de traçados (`geom_linha`) e intervenções (`geom_ponto`) |
@@ -87,8 +87,16 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 ### ⚠️ Regras Cruciais de Tratos com Dados:
 1. **Sem limite de obras na Web:** Diferente da versão física do QGIS que limitava em 4 obras, a versão web deve exibir **todas** as obras relacionadas na tabela de detalhamento.
 2. **Custo Máximo de Obras por Cenário:** Na tabela de obras, o valor adotado de cada intervenção deve considerar a soma de custos e adotar o valor do **cenário em que a obra for mais cara**.
-3. **Formatação Brasileira:** Exibir números inteiros com ponto de milhar (`1.682`), números decimais e índices com vírgula (`0,4031`) e valores financeiros formatados em Reais (`R$ 289.892.422,00`).
-4. **Tratamento de Mojibake:** Sempre utilizar a função `fix_mojibake` para tratar codificações duplas provenientes da exportação do banco.
+3. **Resolução Hierárquica de Notas de Dimensões:** No Atlas do empreendimento, as notas de cada dimensão seguem a ordem estrita de precedência:
+   - 1º: Nota no **Cenário Recomendado** (`cenario recomendado`);
+   - 2º: Se não houver, nota no **Cenário Otimizado** (`cenario otimizado`);
+   - 3º: Se não houver, nota na **Priorização Geral** (`priorizacao geral`).
+4. **Novos Cenários de Alocação (7 e 10):** A tabela de alocação suporta agora os cenários oficiais 1 a 4 e os cenários 7 (Otimizado) e 10 (Recomendado).
+5. **Seletor de Carteiras na Home:** A página inicial disponibiliza seletor entre as 3 visões metodológicas (Carteira Completa, Otimizada e Recomendada), adaptando KPIs, filtros, listagem e índices dinamicamente.
+6. **Formatação Brasileira:** Exibir números inteiros com ponto de milhar (`1.682`), números decimais e índices com vírgula (`0,4031`) e valores financeiros formatados em Reais (`R$ 289.892.422,00`).
+7. **Tratamento de Mojibake:** Sempre utilizar a função `fix_mojibake` para tratar codificações duplas provenientes da exportação do banco.
+8. **Regra de Dados Ausentes (`-`):** Todo dado nulo, não informado ou indisponível deve ser exibido universalmente com hífen simples `"-"` (evitando `"N/D"` ou `"N/A"`).
+9. **Nomenclaturas de Alocação por Setor:** No setor Dutoviário (`id_setor = 6`), a coluna de volume (`volume_2055`) deve ser rotulada como **"Tonelada Total"** na tabela de alocação.
 
 ### ⚙️ Estratégia de Cache em Memória (Decisão Arquitetural):
 1. **Datasets pequenos (< 2 MB):** Utilizam `@st.cache_data` em `services/data_loader.py`. Este decorator entrega uma **cópia isolada** por sessão — seguro contra mutações acidentais entre usuários.
@@ -135,6 +143,8 @@ Todas as telas (**Home**, **Atlas** e **Chatbot**) compartilham a mesma identida
   * *Impacto:* Alto (verde `#dcfce7`/`#166534`), Médio (âmbar `#fef3c7`/`#92400e`), Baixo (cinza `#f1f5f9`/`#475569`).
   * *Esfera:* Federal (azul `#e0f2fe`/`#0369a1`), Estadual (verde `#f0fdf4`/`#15803d`), Municipal (amarelo `#fef9c3`/`#a16207`), Privado (roxo `#f5f3ff`/`#6d28d9`).
 * **Alinhamento e Altura do Mapa (Tela Atlas):** O container do mapa Folium (`services/map_service.py`) e o painel de metadados (`.meta-card`) estão equalizados com altura exata de **`520px`**, garantindo alinhamento pixel-a-pixel no topo e na base.
+* **Tom Corporativo e Isenção de Emojis:** A interface adota tom institucional estrito, sem uso de emojis em cabeçalhos, botões, tabelas ou avisos. Ícones utilitários utilizam SVG vetorial inline minimalista.
+* **Barra de Filtros da Home:** Contém 5 colunas harmoniosas (`[ BUSCAR POR NOME OU ID ]`, `[ SETOR ]`, `[ ESFERA ]`, `[ CLASSIFICAÇÃO ]`, `[ CARTEIRA ]`), com o seletor de carteiras metodológicas ocupando a última posição e integrando-se perfeitamente aos inputs.
 * **Preservação da Legenda do QGIS:** A legenda de camadas socioambientais e intervenções foi temporariamente desacoplada da visualização para manter o mapa limpo e proporcional. O código HTML e as classes CSS (`.legenda-box`, `.legenda-title`, etc.) permanecem **integralmente preservados** na função `render_legenda_qgis()` em `views/atlas.py`, podendo ser reativada a qualquer momento invocando a função abaixo do mapa.
 * **Navegação:** Links nativos com `target="_self"` e sincronização de query params (`?id=...` e `?page=chatbot`) via `app.py`.
 

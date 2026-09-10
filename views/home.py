@@ -374,7 +374,7 @@ def render_chatbot_button():
     st.markdown(
         """
         <a href="?page=chatbot" target="_self" class="atlas-floating-chat-btn">
-            <span style="font-size: 1.1rem; line-height: 1;">💬</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             <span>Assistente Virtual</span>
         </a>
         """,
@@ -408,7 +408,7 @@ def render_kpis(df: pd.DataFrame):
 
     col_impacto = "impacto_avaliado_3_pond_cenario"
     alto_impacto = len(df[df[col_impacto] == "Alto impacto"]) if col_impacto in df.columns else 0
-    top_setor = df["setor"].mode()[0] if "setor" in df.columns and not df.empty else "N/A"
+    top_setor = df["setor"].mode()[0] if "setor" in df.columns and not df.empty else "-"
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -451,7 +451,7 @@ def render_kpis(df: pd.DataFrame):
 
     with c4:
         tirm_valid = df["tirm"].dropna() if "tirm" in df.columns else pd.Series()
-        tirm_media = f"{tirm_valid.mean() * 100:.1f}%".replace(".", ",") if not tirm_valid.empty else "N/D"
+        tirm_media = f"{tirm_valid.mean() * 100:.1f}%".replace(".", ",") if not tirm_valid.empty else "-"
         st.markdown(
             f"""
             <div class="kpi-card">
@@ -471,15 +471,15 @@ def render_table_html(df_page: pd.DataFrame):
     rows_html = ""
     for _, r in df_page.iterrows():
         id_emp = int(r["id_empreendimento"])
-        nome = html_mod.escape(str(r.get("nome_empreendimento") or "N/D"))
-        setor = html_mod.escape(str(r.get("setor") or "N/D"))
-        esfera = html_mod.escape(str(r.get("esfera_acao") or "N/D"))
-        status = html_mod.escape(str(r.get("descr_status_empreendimento") or "N/D"))
+        nome = html_mod.escape(str(r.get("nome_empreendimento") or "-"))
+        setor = html_mod.escape(str(r.get("setor") or "-"))
+        esfera = html_mod.escape(str(r.get("esfera_acao") or "-"))
+        status = html_mod.escape(str(r.get("descr_status_empreendimento") or "-"))
         
         ic_val = r.get("ic_3_pond")
-        ic_str = f"{ic_val:.4f}".replace(".", ",") if pd.notnull(ic_val) and isinstance(ic_val, (int, float)) else "N/D"
+        ic_str = f"{ic_val:.4f}".replace(".", ",") if pd.notnull(ic_val) and isinstance(ic_val, (int, float)) else "-"
         
-        impacto_raw = str(r.get("impacto_avaliado_3_pond_cenario") or "N/D")
+        impacto_raw = str(r.get("impacto_avaliado_3_pond_cenario") or "-")
         impacto_safe = html_mod.escape(impacto_raw)
 
         # Badges contextuais de impacto
@@ -514,7 +514,7 @@ def render_table_html(df_page: pd.DataFrame):
             f'<td class="tc">{status}</td>'
             f'<td class="tr font-mono">{ic_str}</td>'
             f'<td class="tc">{impacto_badge}</td>'
-            f'<td class="tc"><a href="?id={id_emp}" target="_self" class="btn-action">Ver Atlas ➔</a></td>'
+            f'<td class="tc"><a href="?id={id_emp}" target="_self" class="btn-action">Ver Atlas</a></td>'
             '</tr>'
         )
 
@@ -633,16 +633,49 @@ def render():
     render_chatbot_button()
     render_header()
 
-    df_emp = data_loader.get_empreendimentos()
+    df_base = data_loader.get_empreendimentos()
 
-    if df_emp.empty:
+    if df_base.empty:
         st.error(
             "Nenhum dado encontrado em `data/processed/empreendimentos_priorizacao.parquet`.\n"
             "Execute o script `scripts/process_data.py` para processar a base de dados."
         )
         return
 
-    # Renderiza KPIs
+    # ── Mapeamento das Carteiras Metodológicas ──
+    carteiras_map = {
+        "Carteira Recomendada (1.044)": {
+            "fonte": "cenario recomendado",
+            "titulo": "Carteira Recomendada",
+        },
+        "Carteira Otimizada (1.059)": {
+            "fonte": "cenario otimizado",
+            "titulo": "Carteira Otimizada",
+        },
+        "Carteira Completa (1.682)": {
+            "fonte": "priorizacao geral",
+            "titulo": "Carteira Completa",
+        },
+    }
+    lista_carteiras = list(carteiras_map.keys())
+
+    if "home_carteira_selecionada" not in st.session_state or st.session_state["home_carteira_selecionada"] not in carteiras_map:
+        st.session_state["home_carteira_selecionada"] = lista_carteiras[0]
+
+    carteira_ativa = st.session_state["home_carteira_selecionada"]
+    config_carteira = carteiras_map[carteira_ativa]
+
+    # Filtra e ordena a base pela carteira selecionada
+    if "fonte_priorizacao" in df_base.columns:
+        df_emp = df_base[df_base["fonte_priorizacao"] == config_carteira["fonte"]].copy()
+    else:
+        df_emp = df_base.copy()
+
+    if "ic_3_pond" in df_emp.columns:
+        df_emp["ic_3_pond"] = pd.to_numeric(df_emp["ic_3_pond"], errors="coerce")
+        df_emp = df_emp.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
+
+    # Renderiza KPIs específicos da carteira ativa
     render_kpis(df_emp)
 
     # Painel de Filtros e Busca
@@ -650,17 +683,17 @@ def render():
         """
         <div class="filter-panel-header">
             <div class="filter-panel-title">
-                <span>🔍</span> Pesquisa e Filtros da Carteira
+                Pesquisa e Filtros da Carteira
             </div>
             <div class="filter-panel-subtitle">
-                Refine a listagem por código, nome, setor, esfera governamental ou classificação
+                Refine a listagem por carteira metodológica, busca textual, setor, esfera governamental ou classificação
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    f_col1, f_col2, f_col3, f_col4 = st.columns([2.5, 1.5, 1.5, 1.5])
+    f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns([2.5, 1.4, 1.4, 1.5, 2.2])
 
     with f_col1:
         busca = st.text_input(
@@ -682,6 +715,19 @@ def render():
         impactos = ["Todos"] + sorted(df_emp[col_impacto].dropna().unique().tolist()) if col_impacto in df_emp.columns else ["Todos"]
         filtro_impacto = st.selectbox("Classificação:", impactos, key="filtro_impacto")
 
+    with f_col5:
+        cur_idx = lista_carteiras.index(carteira_ativa)
+        carteira_escolhida = st.selectbox(
+            "Carteira:",
+            options=lista_carteiras,
+            index=cur_idx,
+            key="filtro_carteira_select",
+        )
+        if carteira_escolhida != carteira_ativa:
+            st.session_state["home_carteira_selecionada"] = carteira_escolhida
+            st.session_state["home_page"] = 1
+            st.rerun()
+
     # Aplicação dos Filtros
     df_filtrado = df_emp.copy()
 
@@ -700,12 +746,17 @@ def render():
     if filtro_impacto != "Todos" and col_impacto in df_filtrado.columns:
         df_filtrado = df_filtrado[df_filtrado[col_impacto] == filtro_impacto]
 
+    # Ordenação defensiva estrita por ic_3_pond decrescente
+    if "ic_3_pond" in df_filtrado.columns:
+        df_filtrado["ic_3_pond"] = pd.to_numeric(df_filtrado["ic_3_pond"], errors="coerce")
+        df_filtrado = df_filtrado.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
+
     total_filtrado = len(df_filtrado)
 
-    st.markdown('<div class="section-title">Carteira de Empreendimentos Priorizados</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title">Carteira de Empreendimentos Priorizados — {config_carteira["titulo"]}</div>', unsafe_allow_html=True)
 
     if total_filtrado == 0:
-        st.warning("⚠️ Nenhum empreendimento encontrado para os filtros selecionados.")
+        st.warning("Nenhum empreendimento encontrado para os filtros selecionados.")
         return
 
     # Inicializa estado da página e tamanho se necessário

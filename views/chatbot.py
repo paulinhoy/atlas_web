@@ -308,7 +308,7 @@ def render_header():
     st.markdown(
         """
         <div class="chatbot-header">
-            <h2>💬 Assistente Virtual — Atlas de Empreendimentos</h2>
+            <h2>Assistente Virtual — Atlas de Empreendimentos</h2>
             <div class="sub">
                 Tire dúvidas sobre os empreendimentos priorizados, custos e cenários do PELTMG
             </div>

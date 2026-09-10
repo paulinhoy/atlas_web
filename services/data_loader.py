@@ -66,11 +66,96 @@ def _load_geo_shared() -> pd.DataFrame:
     return df
 
 
-def get_empreendimentos() -> pd.DataFrame:
+def get_empreendimentos(carteira: str = None) -> pd.DataFrame:
+    """Retorna os empreendimentos priorizados, opcionalmente filtrados por carteira.
+    
+    Opções de carteira:
+        - 'completa' ou 'priorizacao geral' -> Carteira Completa (todos os ~1.682 empreendimentos)
+        - 'otimizada' ou 'cenario otimizado' -> Carteira Otimizada (~1.059 empreendimentos)
+        - 'recomendada' ou 'cenario recomendado' -> Carteira Recomendada (~1.044 empreendimentos)
+        - None -> Retorna a base completa com todas as fontes
+    """
     df = load_parquet("empreendimentos_priorizacao")
-    if not df.empty and "ic_3_pond" in df.columns:
+    if df.empty:
+        return df
+
+    if carteira and "fonte_priorizacao" in df.columns:
+        c_norm = str(carteira).strip().lower()
+        if c_norm in ("completa", "priorizacao geral", "geral"):
+            df = df[df["fonte_priorizacao"] == "priorizacao geral"]
+        elif c_norm in ("otimizada", "cenario otimizado", "otimizado"):
+            df = df[df["fonte_priorizacao"] == "cenario otimizado"]
+        elif c_norm in ("recomendada", "cenario recomendado", "recomendado"):
+            df = df[df["fonte_priorizacao"] == "cenario recomendado"]
+        else:
+            df = df[df["fonte_priorizacao"].str.lower() == c_norm]
+
+    if "ic_3_pond" in df.columns:
         return df.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
     return df
+
+
+def get_empreendimento_resolvido(empreendimento_id) -> pd.Series | None:
+    """Retorna o registro do empreendimento com notas das dimensões resolvidas pela regra:
+    1. Nota no Cenário Recomendado (se existir)
+    2. Se não tiver, nota no Cenário Otimizado
+    3. Se não tiver, nota na Priorização Geral
+    
+    Retorna uma pd.Series com os dados e a chave 'fonte_dimensoes' identificando a origem das notas.
+    """
+    df_all = load_parquet("empreendimentos_priorizacao")
+    if df_all.empty:
+        return None
+
+    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
+    if pd.notna(emp_id_num):
+        matches = df_all[pd.to_numeric(df_all["id_empreendimento"], errors="coerce") == emp_id_num]
+    else:
+        matches = df_all[df_all["id_empreendimento"].astype(str) == str(empreendimento_id)]
+
+    if matches.empty:
+        return None
+
+    p_rec = matches[matches["fonte_priorizacao"] == "cenario recomendado"]
+    p_otim = matches[matches["fonte_priorizacao"] == "cenario otimizado"]
+    p_geral = matches[matches["fonte_priorizacao"] == "priorizacao geral"]
+
+    if not p_rec.empty:
+        base = p_rec.iloc[0].copy()
+        fonte_dimensoes = "Cenário Recomendado"
+    elif not p_otim.empty:
+        base = p_otim.iloc[0].copy()
+        fonte_dimensoes = "Cenário Otimizado"
+    elif not p_geral.empty:
+        base = p_geral.iloc[0].copy()
+        fonte_dimensoes = "Priorização Geral"
+    else:
+        base = matches.iloc[0].copy()
+        fonte_dimensoes = "Priorização Geral"
+
+    # Preenchimento defensivo dimensão por dimensão caso haja valores faltantes
+    dim_cols = [
+        "dimensao_estrategica",
+        "dimensao_financeira",
+        "dimensao_socioeconomica_pond",
+        "dimensao_comercial",
+        "dimensao_gerencial",
+        "ic_1_pond",
+        "ic_2_pond",
+        "ic_3_pond",
+        "impacto_avaliado_1_pond_cenario",
+        "impacto_avaliado_2_pond_cenario",
+        "impacto_avaliado_3_pond_cenario",
+    ]
+    for col in dim_cols:
+        if col in base and (pd.isna(base[col]) or base[col] == ""):
+            if not p_otim.empty and pd.notna(p_otim.iloc[0].get(col)):
+                base[col] = p_otim.iloc[0][col]
+            elif not p_geral.empty and pd.notna(p_geral.iloc[0].get(col)):
+                base[col] = p_geral.iloc[0][col]
+
+    base["fonte_dimensoes"] = fonte_dimensoes
+    return base
 
 
 def get_obras() -> pd.DataFrame:

@@ -199,15 +199,10 @@ def buscar_empreendimento(id_empreendimento: int) -> str:
     """Busca a ficha resumida de um empreendimento específico pelo seu ID numérico.
     Retorna nome, setor, esfera, status, natureza, vocação, indicadores de priorização e classificação de impacto.
     """
-    df = data_loader.get_empreendimentos()
-    if df.empty:
-        return "Base de empreendimentos não disponível."
-    
-    rec = df[df["id_empreendimento"] == id_empreendimento]
-    if rec.empty:
+    row = data_loader.get_empreendimento_resolvido(id_empreendimento)
+    if row is None or (isinstance(row, pd.Series) and row.empty):
         return f"Nenhum empreendimento encontrado com o ID {id_empreendimento}."
-    
-    row = rec.iloc[0]
+
     info = [
         f"ID: {row.get('id_empreendimento')}",
         f"Nome: {row.get('nome_empreendimento')}",
@@ -216,10 +211,11 @@ def buscar_empreendimento(id_empreendimento: int) -> str:
         f"Status: {row.get('descr_status_empreendimento')}",
         f"Natureza: {row.get('natureza_empreendimento')}",
         f"Origem: {row.get('origem_ajustada')}",
+        f"Fonte da Priorização: {row.get('fonte_dimensoes', '-')}",
         f"Impacto Avaliado: {row.get('impacto_avaliado_3_pond_cenario')}",
         f"Índice de Classificação (IC): {fmt_decimal_br(row.get('ic_3_pond'), 4)}",
         f"Viabilidade: {row.get('viabilidade')}",
-        f"TIRM: {fmt_pct_br(float(row.get('tirm')) * 100) if pd.notna(row.get('tirm')) else 'N/D'}",
+        f"TIRM: {fmt_pct_br(float(row.get('tirm')) * 100) if pd.notna(row.get('tirm')) else '-'}",
     ]
     return "\n".join(info)
 
@@ -236,7 +232,7 @@ def listar_empreendimentos(
     Exemplos de impactos: Alto impacto, Médio impacto, Baixo impacto.
     Limite máximo de resultados retornados: 20.
     """
-    df = data_loader.get_empreendimentos()
+    df = data_loader.get_empreendimentos(carteira="completa")
     if df.empty:
         return "Base de empreendimentos não disponível."
     
@@ -279,7 +275,7 @@ def consultar_financeiro(id_empreendimento: int) -> str:
     capex = row.get("capex_empreendimento_atualizado")
     opex = row.get("opex_empreendimento_atualizado")
     receita = row.get("receita")
-    mes_base = row.get("mes_atualizacao", "N/D")
+    mes_base = row.get("mes_atualizacao", "-")
     
     valor_total = None
     if pd.notna(capex) and pd.notna(opex):
@@ -300,7 +296,7 @@ def contar_empreendimentos(agrupar_por: str = "setor") -> str:
     """Retorna estatísticas e contagem agregada de empreendimentos na carteira priorizada.
     Parâmetro agrupar_por: 'setor', 'esfera' ou 'impacto'.
     """
-    df = data_loader.get_empreendimentos()
+    df = data_loader.get_empreendimentos(carteira="completa")
     if df.empty:
         return "Base de empreendimentos não disponível."
     
@@ -341,7 +337,7 @@ def listar_obras(id_empreendimento: int, limite: int = 10) -> str:
     for _, obra in amostra.iterrows():
         val = obra.get("valor_calculado") or obra.get("valor_global")
         ext = obra.get("extensao_km")
-        ext_str = f"{ext:.2f} km" if pd.notna(ext) and float(ext) > 0 else "N/D"
+        ext_str = f"{ext:.2f} km" if pd.notna(ext) and float(ext) > 0 else "-"
         linhas.append(
             f"- [{obra.get('id_obra')}] {obra.get('descricao_obra')} | Intervenção: {obra.get('intervencao')} | Tipo: {obra.get('tipo_infraestrutura')} | Extensão: {ext_str} | Valor: {fmt_brl(val)}"
         )
