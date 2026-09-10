@@ -30,6 +30,7 @@ TARGET_FILES = {
     "obras_priorizacao": ["vw_obra"],
     "custo_obra": ["vw_custo_economico"],
     # Novas tabelas de alocação/demanda
+    "resumo_financeiro": ["resumo_financeiro"],
     "demanda_pax_aero_ano": ["capacidade_satur_aero_cenarios"],
     "demanda_duto_ano": ["demanda_duto"],
     "demanda_pax_ferro_ano": ["demanda_ferro_passageiro"],
@@ -87,6 +88,9 @@ def convert_csv_to_parquet():
 
             # Correção de caracteres e acentuação
             df = clean_dataframe(df)
+
+            if target_name == "resumo_financeiro" and "id_empreendimento" in df.columns and "id_cenario" in df.columns:
+                df = df.drop_duplicates(subset=["id_empreendimento", "id_cenario"]).reset_index(drop=True)
 
             processed_dfs[target_name] = df
             processed_count += 1

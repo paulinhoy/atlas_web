@@ -9,7 +9,7 @@ import math
 import streamlit as st
 import pandas as pd
 from services import data_loader
-from services.formatters import fmt_int_br
+from services.formatters import fmt_int_br, fmt_bilhoes_br
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGOS_DIR = BASE_DIR / "logos"
@@ -450,14 +450,20 @@ def render_kpis(df: pd.DataFrame):
         )
 
     with c4:
-        tirm_valid = df["tirm"].dropna() if "tirm" in df.columns else pd.Series()
-        tirm_media = f"{tirm_valid.mean() * 100:.1f}%".replace(".", ",") if not tirm_valid.empty else "-"
+        capex_map = data_loader.get_mapa_capex_custo_economico()
+        if "id_empreendimento" in df.columns and not df.empty:
+            eids = pd.to_numeric(df["id_empreendimento"], errors="coerce").dropna().astype(int)
+            total_capex = float(eids.map(capex_map).fillna(0).sum())
+            inv_formatado = fmt_bilhoes_br(total_capex)
+        else:
+            inv_formatado = "-"
+
         st.markdown(
             f"""
             <div class="kpi-card">
-                <div class="kpi-title">TIRM Média Declarada</div>
-                <div class="kpi-value">{tirm_media}</div>
-                <div class="kpi-subtext">{fmt_int_br(len(tirm_valid))} projetos com TIRM</div>
+                <div class="kpi-title">Investimento Total</div>
+                <div class="kpi-value">{inv_formatado}</div>
+                <div class="kpi-subtext">CAPEX</div>
             </div>
             """,
             unsafe_allow_html=True,

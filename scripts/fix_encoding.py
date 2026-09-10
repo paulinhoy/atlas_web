@@ -20,6 +20,7 @@ TARGET_FILES = {
     "dados_financeiro": ["vw_empreendimento_custo_economico_lp"],
     "obras_priorizacao": ["vw_obra"],
     "custo_obra": ["vw_custo_economico"],
+    "resumo_financeiro": ["resumo_financeiro"],
 }
 
 

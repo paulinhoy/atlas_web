@@ -118,3 +118,28 @@ def fmt_mes_ano_br(mes_base: Any) -> str:
         return f"{meses_pt.get(dt.month, '')}/{str(dt.year)[2:]}"
     except Exception:
         return str(mes_base)
+
+
+def fmt_bilhoes_br(valor: Any, com_cifrao: bool = True) -> str:
+    """
+    Formata valor monetário em bilhões no padrão brasileiro arredondado.
+    Exemplo: 481441025165.75 -> 'R$ 481 Bi' (ou '481Bi' se com_cifrao=False).
+    Retorna '-' caso o valor seja nulo ou inválido.
+    """
+    if pd.isna(valor) or valor is None:
+        return "-"
+    try:
+        val = float(valor)
+    except (ValueError, TypeError):
+        return "-"
+
+    bi = val / 1e9
+    if abs(bi) >= 1:
+        num_str = f"{round(bi)}"
+    elif abs(bi) > 0:
+        num_str = f"{bi:.1f}".replace(".", ",")
+    else:
+        num_str = "0"
+
+    prefixo = "R$ " if com_cifrao else ""
+    return f"{prefixo}{num_str} Bi"

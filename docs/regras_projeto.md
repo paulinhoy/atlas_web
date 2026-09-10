@@ -83,6 +83,7 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 | `demanda_ferro_passageiro_*` | `demanda_pax_ferro_ano.parquet` | `id_empreendimento` | Demanda anual de passageiros para o setor Ferroviário |
 | `demanda_duto_*` | `demanda_duto_ano.parquet` | `id_empreendimento` | Volume e demanda TKU para o setor Dutoviário |
 | `capacidade_satur_aero_cenarios_*` | `demanda_pax_aero_ano.parquet` | `id_empreendimento`, `id_cenario` | Demanda de passageiros por ano/cenário para o setor Aeroviário |
+| `resumo_financeiro*` | `resumo_financeiro.parquet` | `id_empreendimento`, `id_cenario` | Resumo financeiro consolidado por cenário (Cenários 10, 7 e outros: CAPEX, OPEX, Receita CODEMGE, TIRM CODEMGE) |
 
 ### ⚠️ Regras Cruciais de Tratos com Dados:
 1. **Sem limite de obras na Web:** Diferente da versão física do QGIS que limitava em 4 obras, a versão web deve exibir **todas** as obras relacionadas na tabela de detalhamento.
@@ -97,6 +98,50 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 7. **Tratamento de Mojibake:** Sempre utilizar a função `fix_mojibake` para tratar codificações duplas provenientes da exportação do banco.
 8. **Regra de Dados Ausentes (`-`):** Todo dado nulo, não informado ou indisponível deve ser exibido universalmente com hífen simples `"-"` (evitando `"N/D"` ou `"N/A"`).
 9. **Nomenclaturas de Alocação por Setor:** No setor Dutoviário (`id_setor = 6`), a coluna de volume (`volume_2055`) deve ser rotulada como **"Tonelada Total"** na tabela de alocação.
+10. **Resolução Hierárquica dos Dados Financeiros:** Na tabela de Dados Financeiros do Atlas, os valores de CAPEX, OPEX, Valor Total, Receita e TIRM seguem a ordem de precedência:
+    - 1º: Valores do **Cenário Recomendado (`id_cenario = 10`)** em `resumo_financeiro`;
+    - 2º: Se não houver, valores do **Cenário Otimizado (`id_cenario = 7`)** em `resumo_financeiro`;
+    - 3º: Se não houver, valores de **Custo Econômico LP** (`dados_financeiro` / `vw_empreendimento_custo_economico_lp`) e TIRM da priorização.
+11. **Card de Investimento Total na Home:** Substitui o antigo indicador de TIRM Média Declarada. Exibe o montante de investimentos em bilhões arredondados (ex.: `R$ 460 Bi` na Recomendada, `R$ 446 Bi` na Otimizada, `R$ 767 Bi` na Completa), considerando estritamente a soma de CAPEX dos empreendimentos da carteira ativa obtida diretamente de **Custo Econômico LP** (`vw_empreendimento_custo_economico_lp` / `dados_financeiro.parquet`, campo `capex_empreendimento_atualizado`). O subtexto fixo do card é **CAPEX**.
+
+### 4.1. Queries SQL Oficiais de Extração (PostGIS)
+
+Arquivo salvo no repositório: [`docs/queries_extracao.sql`](./queries_extracao.sql)
+
+```sql
+-- 1. Priorizações
+SELECT *,
+ 'priorizacao geral' AS fonte_priorizacao
+FROM priorizacao_peltlp.mvw_8_calcula_impacto_3_pond_cenario -- Cenario geral
+UNION ALL 
+SELECT *,
+ 'cenario otimizado' AS fonte_priorizacao
+FROM cenario_recomendado_1.cr0_mvw_8_calcula_impacto_3_pond_cenario  -- Cenario otimizado 
+UNION ALL 
+SELECT *,
+ 'cenario recomendado' AS fonte_priorizacao
+FROM cenario_recomendado_2.cr0_mvw_8_calcula_impacto_3_pond_cenario; -- Cenario recomendado
+
+-- 2. Alocação de Fluxos 2055
+SELECT *
+FROM financeiro.tbl_alocacaoempreendimento ta -- Outros cenarios 
+UNION ALL 
+SELECT *
+FROM cenario_recomendado_1.tbl_alocacaoempreendimento_otimizado_1 taa  -- id_cenario = 7
+UNION ALL 
+SELECT *
+FROM cenario_recomendado_2.tbl_alocacaoempreendimento_otimizado_2 tab   -- id_cenario = 10
+ORDER BY id_empreendimento, id_cenario;
+
+-- 3. Dados Financeiros
+SELECT *
+FROM cenario_recomendado_1.resumo_financeiro_otimizado_1
+WHERE receita_codemge IS NOT NULL AND id_cenario >= 4
+UNION ALL 
+SELECT *
+FROM cenario_recomendado_2.resumo_financeiro_otimizado_2
+WHERE receita_codemge IS NOT NULL AND id_cenario >= 4;
+```
 
 ### ⚙️ Estratégia de Cache em Memória (Decisão Arquitetural):
 1. **Datasets pequenos (< 2 MB):** Utilizam `@st.cache_data` em `services/data_loader.py`. Este decorator entrega uma **cópia isolada** por sessão — seguro contra mutações acidentais entre usuários.

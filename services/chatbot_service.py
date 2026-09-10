@@ -261,32 +261,31 @@ def listar_empreendimentos(
 @tool
 def consultar_financeiro(id_empreendimento: int) -> str:
     """Consulta os dados financeiros consolidados de um empreendimento pelo seu ID.
-    Retorna CAPEX atualizado, OPEX atualizado, Valor Total, Receita Total, Mês Base e Viabilidade.
+    Retorna CAPEX atualizado, OPEX atualizado, Valor Total, Receita Total, TIRM, Mês Base e Fonte.
     """
-    df_fin = data_loader.get_dados_financeiro()
-    if df_fin.empty:
-        return "Base financeira não disponível."
-    
-    rec = df_fin[df_fin["id_empreendimento"] == id_empreendimento]
-    if rec.empty:
+    fin = data_loader.get_dados_financeiro_resolvido(id_empreendimento)
+    if not fin or (fin.get("capex") is None and fin.get("opex") is None and fin.get("receita") is None):
         return f"Dados financeiros não encontrados para o empreendimento ID {id_empreendimento}."
     
-    row = rec.iloc[0]
-    capex = row.get("capex_empreendimento_atualizado")
-    opex = row.get("opex_empreendimento_atualizado")
-    receita = row.get("receita")
-    mes_base = row.get("mes_atualizacao", "-")
-    
-    valor_total = None
-    if pd.notna(capex) and pd.notna(opex):
-        valor_total = float(capex) + float(opex)
+    emp_res = data_loader.get_empreendimento_resolvido(id_empreendimento)
+    nome_emp = emp_res.get("nome_empreendimento") if emp_res is not None else f"ID {id_empreendimento}"
+
+    capex = fin.get("capex")
+    opex = fin.get("opex")
+    valor_total = fin.get("valor_total")
+    receita = fin.get("receita")
+    tirm_val = fin.get("tirm_val")
+    mes_base = fin.get("mes_base", "-")
+    fonte = fin.get("fonte_financeiro", "Custo Econômico LP")
         
     res = [
-        f"Dados Financeiros do Empreendimento {id_empreendimento} ({row.get('nome_empreendimento')}):",
+        f"Dados Financeiros do Empreendimento {id_empreendimento} ({nome_emp}):",
+        f"- Fonte dos Dados: {fonte}",
         f"- CAPEX: {fmt_brl(capex)}",
         f"- OPEX: {fmt_brl(opex)}",
         f"- Valor Total (CAPEX + OPEX): {fmt_brl(valor_total)}",
         f"- Receita Total: {fmt_brl(receita)}",
+        f"- TIRM: {fmt_pct_br(tirm_val) if tirm_val is not None else '-'}",
         f"- Mês Base de Atualização: {mes_base}",
     ]
     return "\n".join(res)

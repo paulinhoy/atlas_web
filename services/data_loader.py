@@ -189,8 +189,122 @@ def get_demanda_duto() -> pd.DataFrame:
     return load_parquet("demanda_duto_ano")
 
 
-def get_demanda_pax_aero() -> pd.DataFrame:
-    """Retorna os dados de demanda de passageiros aeroviários por ano/cenário."""
-    return load_parquet("demanda_pax_aero_ano")
+def get_resumo_financeiro() -> pd.DataFrame:
+    """Retorna os dados do resumo financeiro (cenários 10, 7 e outros)."""
+    return load_parquet("resumo_financeiro")
+
+
+def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
+    """Retorna os dados financeiros consolidados do empreendimento com a regra de precedência:
+    1. Cenário Recomendado (id_cenario = 10 em resumo_financeiro)
+    2. Cenário Otimizado (id_cenario = 7 em resumo_financeiro)
+    3. Custo Econômico LP (dados_financeiro / vw_empreendimento_custo_economico_lp)
+    
+    Retorna um dicionário com:
+        - capex: float | None
+        - opex: float | None
+        - valor_total: float | None (capex + opex)
+        - receita: float | None
+        - tirm_val: float | None (em percentual, ex: 7.76 para 7,76%)
+        - viabilidade: str ("-" se ausente)
+        - mes_base: str ("-" se ausente)
+        - fonte_financeiro: str ("Cenário Recomendado", "Cenário Otimizado" ou "Custo Econômico LP")
+    """
+    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
+    
+    # 1. Tenta buscar em resumo_financeiro (Cenário 10 ou 7)
+    df_resumo = get_resumo_financeiro()
+    r_sel = None
+    fonte_fin = "Custo Econômico LP"
+    
+    if not df_resumo.empty:
+        if pd.notna(emp_id_num):
+            rec_resumo = df_resumo[pd.to_numeric(df_resumo["id_empreendimento"], errors="coerce") == emp_id_num]
+        else:
+            rec_resumo = df_resumo[df_resumo["id_empreendimento"].astype(str) == str(empreendimento_id)]
+            
+        if not rec_resumo.empty:
+            cenarios_num = pd.to_numeric(rec_resumo["id_cenario"], errors="coerce")
+            r10 = rec_resumo[cenarios_num == 10]
+            r7 = rec_resumo[cenarios_num == 7]
+            if not r10.empty:
+                r_sel = r10.iloc[0]
+                fonte_fin = "Cenário Recomendado"
+            elif not r7.empty:
+                r_sel = r7.iloc[0]
+                fonte_fin = "Cenário Otimizado"
+                
+    # 2. Dados de Custo Econômico LP (para fallback ou mês base)
+    df_fin = get_dados_financeiro()
+    rec_fin = pd.DataFrame()
+    if not df_fin.empty:
+        if pd.notna(emp_id_num):
+            rec_fin = df_fin[pd.to_numeric(df_fin["id_empreendimento"], errors="coerce") == emp_id_num]
+        else:
+            rec_fin = df_fin[df_fin["id_empreendimento"].astype(str) == str(empreendimento_id)]
+            
+    rf = rec_fin.iloc[0] if not rec_fin.empty else {}
+    mes_base = rf.get("mes_atualizacao", "-")
+    
+    # 3. Metadados complementares (Viabilidade e TIRM da priorização)
+    emp_res = get_empreendimento_resolvido(empreendimento_id)
+    viab = emp_res.get("viabilidade") if emp_res is not None and pd.notna(emp_res.get("viabilidade")) else "-"
+    
+    if r_sel is not None:
+        capex = r_sel.get("capex")
+        opex = r_sel.get("opex")
+        receita = r_sel.get("receita_codemge")
+        tirm_val = r_sel.get("tirm_codemge")
+        # Se tirm_codemge for nulo no resumo, faz fallback para o tirm da priorização
+        if pd.isna(tirm_val) and emp_res is not None and pd.notna(emp_res.get("tirm")):
+            tirm_val = float(emp_res["tirm"]) * 100
+    else:
+        capex = rf.get("capex_empreendimento_atualizado")
+        opex = rf.get("opex_empreendimento_atualizado")
+        receita = rf.get("receita")
+        tirm_raw = emp_res.get("tirm") if emp_res is not None else None
+        tirm_val = float(tirm_raw) * 100 if pd.notna(tirm_raw) else None
+        
+    valor_total = float(capex) + float(opex) if pd.notna(capex) and pd.notna(opex) else None
+    
+    return {
+        "id_empreendimento": empreendimento_id,
+        "capex": capex if pd.notna(capex) else None,
+        "opex": opex if pd.notna(opex) else None,
+        "valor_total": valor_total,
+        "receita": receita if pd.notna(receita) else None,
+        "tirm_val": float(tirm_val) if pd.notna(tirm_val) else None,
+        "viabilidade": viab if viab not in (None, "", "nan") else "-",
+        "mes_base": mes_base if mes_base not in (None, "", "nan") else "-",
+        "fonte_financeiro": fonte_fin,
+    }
+
+
+@st.cache_data(show_spinner=False)
+def get_mapa_capex_custo_economico() -> dict:
+    """Retorna um dicionário {id_empreendimento (int): capex (float)} obtido diretamente de
+    Custo Econômico LP (dados_financeiro / vw_empreendimento_custo_economico_lp).
+    """
+    df_fin = get_dados_financeiro()
+    capex_map = {}
+
+    if not df_fin.empty and "capex_empreendimento_atualizado" in df_fin.columns:
+        for _, row in df_fin.iterrows():
+            eid = row.get("id_empreendimento")
+            c = row.get("capex_empreendimento_atualizado")
+            if pd.notna(eid) and pd.notna(c):
+                try:
+                    eid_int = int(float(eid))
+                    if eid_int not in capex_map:
+                        capex_map[eid_int] = float(c)
+                except (ValueError, TypeError):
+                    pass
+
+    return capex_map
+
+
+# Alias para retrocompatibilidade
+get_mapa_capex_resolvido = get_mapa_capex_custo_economico
+
 
 

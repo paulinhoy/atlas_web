@@ -461,53 +461,30 @@ def render_tabela_priorizacao(row):
 
 
 def render_tabela_financeiros(empreendimento_id):
-    """Tabela 2 — Dados Financeiros."""
-    df_fin = data_loader.get_dados_financeiro()
-    if df_fin.empty:
+    """Tabela 2 — Dados Financeiros consolidados com precedência (Cenário 10 ➔ Cenário 7 ➔ Custo Econômico LP)."""
+    fin = data_loader.get_dados_financeiro_resolvido(empreendimento_id)
+    if not fin:
         st.warning("Dados financeiros não disponíveis.")
         return
 
-    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
-    if pd.notna(emp_id_num):
-        rec = df_fin[pd.to_numeric(df_fin["id_empreendimento"], errors="coerce") == emp_id_num]
-    else:
-        rec = df_fin[df_fin["id_empreendimento"].astype(str) == str(empreendimento_id)]
-
-    if rec.empty:
-        st.info("Sem dados financeiros para este empreendimento.")
-        return
-
-    r = rec.iloc[0]
-    capex = r.get("capex_empreendimento_atualizado")
-    opex = r.get("opex_empreendimento_atualizado")
-    receita = r.get("receita")
-    mes_base = r.get("mes_atualizacao", "-")
-
-    # Valor total = CAPEX + OPEX
-    valor_total = None
-    if pd.notna(capex) and pd.notna(opex):
-        valor_total = float(capex) + float(opex)
-
-    # TIRM e Viabilidade vêm da tabela principal de empreendimentos
-    df_emp = data_loader.get_empreendimentos()
-    if pd.notna(emp_id_num):
-        emp_rec = df_emp[pd.to_numeric(df_emp["id_empreendimento"], errors="coerce") == emp_id_num]
-    else:
-        emp_rec = df_emp[df_emp["id_empreendimento"].astype(str) == str(empreendimento_id)]
-    tirm_val = None
-    viabilidade = "-"
-    if not emp_rec.empty:
-        e = emp_rec.iloc[0]
-        tirm_raw = e.get("tirm")
-        if pd.notna(tirm_raw):
-            tirm_val = float(tirm_raw) * 100
-        viabilidade = html_mod.escape(str(e.get("viabilidade") or "-"))
+    capex = fin.get("capex")
+    opex = fin.get("opex")
+    valor_total = fin.get("valor_total")
+    receita = fin.get("receita")
+    tirm_val = fin.get("tirm_val")
+    viabilidade = html_mod.escape(str(fin.get("viabilidade") or "-"))
+    mes_base = fin.get("mes_base", "-")
+    fonte_fin = html_mod.escape(str(fin.get("fonte_financeiro") or "Custo Econômico LP"))
 
     # Formatar mês base para exibição
-    mes_display = fmt_mes_ano_br(mes_base)
+    mes_display = fmt_mes_ano_br(mes_base) if mes_base != "-" else "-"
+    badge_html = f'<span class="fonte-badge">Fonte: {fonte_fin}</span>'
 
     st.markdown(
-        f'<div class="section-title">Dados Financeiros — Mês Base: {mes_display}</div>',
+        f'<div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">'
+        f'<span>Dados Financeiros — Mês Base: {mes_display}</span>'
+        f'{badge_html}'
+        f'</div>',
         unsafe_allow_html=True,
     )
     st.markdown(
