@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 from services import data_loader
 from services.formatters import fmt_int_br, fmt_bilhoes_br
+from streamlit_sortables import sort_items
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOGOS_DIR = BASE_DIR / "logos"
@@ -212,6 +213,11 @@ def apply_custom_styles():
                 background: #fef9c3;
                 color: #a16207;
                 border: 1px solid #fef08a;
+            }
+            .home-atlas-table .badge-priv {
+                background: #f5f3ff;
+                color: #6d28d9;
+                border: 1px solid #ddd6fe;
             }
             /* Painel de Filtros e Busca */
             .filter-panel-header {
@@ -472,70 +478,202 @@ def render_kpis(df: pd.DataFrame):
     st.write("")
 
 
-def render_table_html(df_page: pd.DataFrame):
-    """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas com links funcionais."""
+# ─────────────────────────────────────────────────────────────────────────────
+# REGISTRO DECLARATIVO DE COLUNAS DA TABELA (DESACOPLADO)
+# Permite adicionar, remover ou reordenar colunas de forma centralizada e independente.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_badge_impacto(val) -> str:
+    raw = str(val or "-")
+    safe = html_mod.escape(raw)
+    raw_lower = raw.lower()
+    if "alto" in raw_lower:
+        return f'<span class="badge badge-high">{safe}</span>'
+    elif "médio" in raw_lower or "medio" in raw_lower:
+        return f'<span class="badge badge-med">{safe}</span>'
+    elif "baixo" in raw_lower:
+        return f'<span class="badge badge-low">{safe}</span>'
+    return f'<span class="badge badge-neutral">{safe}</span>'
+
+
+def _render_badge_esfera(val) -> str:
+    raw = str(val or "-")
+    safe = html_mod.escape(raw)
+    raw_lower = raw.lower()
+    if "federal" in raw_lower:
+        return f'<span class="badge badge-fed">{safe}</span>'
+    elif "estadual" in raw_lower:
+        return f'<span class="badge badge-est">{safe}</span>'
+    elif "municipal" in raw_lower:
+        return f'<span class="badge badge-mun">{safe}</span>'
+    elif "privad" in raw_lower:
+        return f'<span class="badge badge-priv">{safe}</span>'
+    return f'<span class="badge badge-neutral">{safe}</span>'
+
+
+def _render_badge_viabilidade(val) -> str:
+    raw = str(val or "-")
+    safe = html_mod.escape(raw)
+    raw_lower = raw.lower()
+    if "alta" in raw_lower:
+        return f'<span class="badge badge-high">{safe}</span>'
+    elif "média" in raw_lower or "media" in raw_lower:
+        return f'<span class="badge badge-med">{safe}</span>'
+    elif "baixa" in raw_lower:
+        return f'<span class="badge badge-low">{safe}</span>'
+    return f'<span class="badge badge-neutral">{safe}</span>'
+
+
+def _fmt_ic(val) -> str:
+    if pd.notnull(val) and isinstance(val, (int, float)):
+        return f"{float(val):.4f}".replace(".", ",")
+    return "-"
+
+
+AVAILABLE_COLUMNS = {
+    "id": {
+        "label": "ID",
+        "th_class": "tc",
+        "th_style": "width: 60px;",
+        "td_class": "tc font-bold",
+        "render": lambda r: str(int(r["id_empreendimento"])),
+    },
+    "nome": {
+        "label": "Nome do Empreendimento",
+        "th_class": "tl",
+        "th_style": "text-align: left; width: 28%;",
+        "td_class": "tl",
+        "render": lambda r: f'<a href="?id={int(r["id_empreendimento"])}" target="_self" class="emp-link">{html_mod.escape(str(r.get("nome_empreendimento") or "-"))}</a>',
+    },
+    "setor": {
+        "label": "Setor",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: html_mod.escape(str(r.get("setor") or "-")),
+    },
+    "esfera": {
+        "label": "Esfera",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: _render_badge_esfera(r.get("esfera_acao")),
+    },
+    "status": {
+        "label": "Status",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: html_mod.escape(str(r.get("descr_status_empreendimento") or "-")),
+    },
+    "viabilidade": {
+        "label": "Viabilidade",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: _render_badge_viabilidade(r.get("viabilidade")),
+    },
+    "vocacao": {
+        "label": "Vocação",
+        "th_class": "tl",
+        "th_style": "text-align: left;",
+        "td_class": "tl",
+        "render": lambda r: html_mod.escape(str(r.get("vocacao") or "-")),
+    },
+    "origem_ajustada": {
+        "label": "Origem",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: f'<span class="badge badge-neutral">{html_mod.escape(str(r.get("origem_ajustada") or "-"))}</span>',
+    },
+    "fonte_financiamento": {
+        "label": "Financiamento",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: html_mod.escape(str(r.get("fonte_financiamento") or "-")),
+    },
+    "responsavel_gestao": {
+        "label": "Responsável",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: html_mod.escape(str(r.get("responsavel_gestao_infraestrutura") or "-")),
+    },
+    "ic": {
+        "label": "Índice (IC)",
+        "th_class": "tr",
+        "th_style": "text-align: right;",
+        "td_class": "tr font-mono",
+        "render": lambda r: _fmt_ic(r.get("ic_3_pond")),
+    },
+    "impacto": {
+        "label": "Impacto",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: _render_badge_impacto(r.get("impacto_avaliado_3_pond_cenario")),
+    },
+    "acao": {
+        "label": "Ação",
+        "th_class": "tc",
+        "th_style": "width: 105px;",
+        "td_class": "tc",
+        "render": lambda r: f'<a href="?id={int(r["id_empreendimento"])}" target="_self" class="btn-action">Ver Atlas</a>',
+    },
+}
+
+# Colunas exibidas por padrão na tabela (altere aqui para ligar/desligar colunas via código)
+DEFAULT_ACTIVE_COLUMNS = [
+    "id",
+    "nome",
+    "setor",
+    "esfera",
+    "status",
+    "viabilidade",
+    "ic",
+    "impacto",
+    "acao",
+]
+
+
+def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
+    """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas com colunas desacopladas."""
+    if not active_columns:
+        active_columns = DEFAULT_ACTIVE_COLUMNS
+
+    cols_to_render = [c for c in active_columns if c in AVAILABLE_COLUMNS]
+
+    # Cabeçalho da tabela
+    ths_html = ""
+    for col_id in cols_to_render:
+        cfg = AVAILABLE_COLUMNS[col_id]
+        th_class = cfg.get("th_class", "tc")
+        th_style = cfg.get("th_style", "")
+        style_attr = f' style="{th_style}"' if th_style else ""
+        ths_html += f'<th class="{th_class}"{style_attr}>{cfg["label"]}</th>'
+
+    # Linhas da tabela
     rows_html = ""
     for _, r in df_page.iterrows():
         id_emp = int(r["id_empreendimento"])
-        nome = html_mod.escape(str(r.get("nome_empreendimento") or "-"))
-        setor = html_mod.escape(str(r.get("setor") or "-"))
-        esfera = html_mod.escape(str(r.get("esfera_acao") or "-"))
-        status = html_mod.escape(str(r.get("descr_status_empreendimento") or "-"))
-        
-        ic_val = r.get("ic_3_pond")
-        ic_str = f"{ic_val:.4f}".replace(".", ",") if pd.notnull(ic_val) and isinstance(ic_val, (int, float)) else "-"
-        
-        impacto_raw = str(r.get("impacto_avaliado_3_pond_cenario") or "-")
-        impacto_safe = html_mod.escape(impacto_raw)
-
-        # Badges contextuais de impacto
-        if "alto" in impacto_raw.lower():
-            impacto_badge = f'<span class="badge badge-high">{impacto_safe}</span>'
-        elif "médio" in impacto_raw.lower() or "medio" in impacto_raw.lower():
-            impacto_badge = f'<span class="badge badge-med">{impacto_safe}</span>'
-        elif "baixo" in impacto_raw.lower():
-            impacto_badge = f'<span class="badge badge-low">{impacto_safe}</span>'
-        else:
-            impacto_badge = f'<span class="badge badge-neutral">{impacto_safe}</span>'
-
-        # Badges contextuais de esfera
-        esfera_lower = esfera.lower()
-        if "federal" in esfera_lower:
-            esfera_badge = f'<span class="badge badge-fed">{esfera}</span>'
-        elif "estadual" in esfera_lower:
-            esfera_badge = f'<span class="badge badge-est">{esfera}</span>'
-        elif "municipal" in esfera_lower:
-            esfera_badge = f'<span class="badge badge-mun">{esfera}</span>'
-        elif "privad" in esfera_lower:
-            esfera_badge = f'<span class="badge badge-priv">{esfera}</span>'
-        else:
-            esfera_badge = f'<span class="badge badge-neutral">{esfera}</span>'
+        tds_html = ""
+        for col_id in cols_to_render:
+            cfg = AVAILABLE_COLUMNS[col_id]
+            td_class = cfg.get("td_class", "tc")
+            content = cfg["render"](r)
+            tds_html += f'<td class="{td_class}">{content}</td>'
 
         rows_html += (
             f'<tr onclick="window.location.href=\'?id={id_emp}\'">'
-            f'<td class="tc font-bold">{id_emp}</td>'
-            f'<td class="tl"><a href="?id={id_emp}" target="_self" class="emp-link">{nome}</a></td>'
-            f'<td class="tc">{setor}</td>'
-            f'<td class="tc">{esfera_badge}</td>'
-            f'<td class="tc">{status}</td>'
-            f'<td class="tr font-mono">{ic_str}</td>'
-            f'<td class="tc">{impacto_badge}</td>'
-            f'<td class="tc"><a href="?id={id_emp}" target="_self" class="btn-action">Ver Atlas</a></td>'
+            f'{tds_html}'
             '</tr>'
         )
 
     table_html = (
         '<table class="home-atlas-table">'
-        '<thead><tr>'
-        '<th style="width: 60px;">ID</th>'
-        '<th style="text-align: left; width: 35%;">Nome do Empreendimento</th>'
-        '<th>Setor</th>'
-        '<th>Esfera</th>'
-        '<th>Status</th>'
-        '<th style="text-align: right;">Índice (IC)</th>'
-        '<th>Impacto</th>'
-        '<th style="width: 110px;">Ação</th>'
-        '</tr></thead>'
+        f'<thead><tr>{ths_html}</tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         '</table>'
     )
@@ -692,14 +830,15 @@ def render():
                 Pesquisa e Filtros da Carteira
             </div>
             <div class="filter-panel-subtitle">
-                Refine a listagem por carteira metodológica, busca textual, setor, esfera governamental ou classificação
+                Refine a listagem por carteira metodológica, busca textual, setor, esfera, classificação, viabilidade, origem ou vocação
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns([2.5, 1.4, 1.4, 1.5, 2.2])
+    # Linha 1 de Filtros: Busca textual, Setor, Esfera e Seletor de Carteira
+    f_col1, f_col2, f_col3, f_col4 = st.columns([2.6, 1.4, 1.4, 2.0])
 
     with f_col1:
         busca = st.text_input(
@@ -709,19 +848,14 @@ def render():
         )
 
     with f_col2:
-        setores = ["Todos"] + sorted(df_emp["setor"].dropna().unique().tolist()) if "setor" in df_emp.columns else ["Todos"]
+        setores = ["Todos"] + sorted([str(x) for x in df_emp["setor"].dropna().unique() if str(x).strip()]) if "setor" in df_emp.columns else ["Todos"]
         filtro_setor = st.selectbox("Setor:", setores, key="filtro_setor")
 
     with f_col3:
-        esferas = ["Todas"] + sorted(df_emp["esfera_acao"].dropna().unique().tolist()) if "esfera_acao" in df_emp.columns else ["Todas"]
+        esferas = ["Todas"] + sorted([str(x) for x in df_emp["esfera_acao"].dropna().unique() if str(x).strip()]) if "esfera_acao" in df_emp.columns else ["Todas"]
         filtro_esfera = st.selectbox("Esfera:", esferas, key="filtro_esfera")
 
-    col_impacto = "impacto_avaliado_3_pond_cenario"
     with f_col4:
-        impactos = ["Todos"] + sorted(df_emp[col_impacto].dropna().unique().tolist()) if col_impacto in df_emp.columns else ["Todos"]
-        filtro_impacto = st.selectbox("Classificação:", impactos, key="filtro_impacto")
-
-    with f_col5:
         cur_idx = lista_carteiras.index(carteira_ativa)
         carteira_escolhida = st.selectbox(
             "Carteira:",
@@ -734,6 +868,26 @@ def render():
             st.session_state["home_page"] = 1
             st.rerun()
 
+    # Linha 2 de Filtros: Classificação (Impacto), Viabilidade, Origem Ajustada e Vocação
+    col_impacto = "impacto_avaliado_3_pond_cenario"
+    g_col1, g_col2, g_col3, g_col4 = st.columns([1.5, 1.5, 1.5, 2.9])
+
+    with g_col1:
+        impactos = ["Todos"] + sorted([str(x) for x in df_emp[col_impacto].dropna().unique() if str(x).strip()]) if col_impacto in df_emp.columns else ["Todos"]
+        filtro_impacto = st.selectbox("Classificação:", impactos, key="filtro_impacto")
+
+    with g_col2:
+        viabilidades = ["Todas"] + sorted([str(x) for x in df_emp["viabilidade"].dropna().unique() if str(x).strip()]) if "viabilidade" in df_emp.columns else ["Todas"]
+        filtro_viabilidade = st.selectbox("Viabilidade:", viabilidades, key="filtro_viabilidade")
+
+    with g_col3:
+        origens = ["Todas"] + sorted([str(x) for x in df_emp["origem_ajustada"].dropna().unique() if str(x).strip()]) if "origem_ajustada" in df_emp.columns else ["Todas"]
+        filtro_origem = st.selectbox("Origem Ajustada:", origens, key="filtro_origem")
+
+    with g_col4:
+        vocacoes = ["Todas"] + sorted([str(x) for x in df_emp["vocacao"].dropna().unique() if str(x).strip()]) if "vocacao" in df_emp.columns else ["Todas"]
+        filtro_vocacao = st.selectbox("Vocação:", vocacoes, key="filtro_vocacao")
+
     # Aplicação dos Filtros
     df_filtrado = df_emp.copy()
 
@@ -743,14 +897,18 @@ def render():
         nome_mask = df_filtrado["nome_empreendimento"].astype(str).str.lower().str.contains(termo, na=False)
         df_filtrado = df_filtrado[id_mask | nome_mask]
 
-    if filtro_setor != "Todos" and "setor" in df_filtrado.columns:
-        df_filtrado = df_filtrado[df_filtrado["setor"] == filtro_setor]
+    filtros_categoricos = [
+        (filtro_setor, "setor", "Todos"),
+        (filtro_esfera, "esfera_acao", "Todas"),
+        (filtro_impacto, col_impacto, "Todos"),
+        (filtro_viabilidade, "viabilidade", "Todas"),
+        (filtro_origem, "origem_ajustada", "Todas"),
+        (filtro_vocacao, "vocacao", "Todas"),
+    ]
 
-    if filtro_esfera != "Todas" and "esfera_acao" in df_filtrado.columns:
-        df_filtrado = df_filtrado[df_filtrado["esfera_acao"] == filtro_esfera]
-
-    if filtro_impacto != "Todos" and col_impacto in df_filtrado.columns:
-        df_filtrado = df_filtrado[df_filtrado[col_impacto] == filtro_impacto]
+    for val, col, default_val in filtros_categoricos:
+        if val != default_val and col in df_filtrado.columns:
+            df_filtrado = df_filtrado[df_filtrado[col] == val]
 
     # Ordenação defensiva estrita por ic_3_pond decrescente
     if "ic_3_pond" in df_filtrado.columns:
@@ -760,6 +918,94 @@ def render():
     total_filtrado = len(df_filtrado)
 
     st.markdown(f'<div class="section-title">Carteira de Empreendimentos Priorizados — {config_carteira["titulo"]}</div>', unsafe_allow_html=True)
+
+    # ── Painel de Personalização e Ordenação das Colunas (Drag & Drop) ──
+    if "home_colunas_ativas" not in st.session_state:
+        st.session_state["home_colunas_ativas"] = list(DEFAULT_ACTIVE_COLUMNS)
+
+    # Mapas de conversão label ↔ id (para streamlit-sortables que trabalha com strings)
+    _label_to_id = {cfg["label"]: col_id for col_id, cfg in AVAILABLE_COLUMNS.items()}
+    _id_to_label = {col_id: cfg["label"] for col_id, cfg in AVAILABLE_COLUMNS.items()}
+
+    with st.expander("Personalizar Colunas Visíveis da Tabela", expanded=False):
+        st.caption("Arraste os cards para reordenar as colunas ou mova entre os grupos para exibir/ocultar.")
+
+        # Monta listas de labels para os dois containers
+        active_ids = [c for c in st.session_state["home_colunas_ativas"] if c in AVAILABLE_COLUMNS]
+        available_ids = [c for c in AVAILABLE_COLUMNS if c not in active_ids]
+
+        sortable_items = [
+            {"header": "📋 Colunas Visíveis na Tabela", "items": [_id_to_label[c] for c in active_ids]},
+            {"header": "➕ Colunas Disponíveis (arraste para cima para adicionar)", "items": [_id_to_label[c] for c in available_ids]},
+        ]
+
+        custom_style = """
+        .sortable-component {
+            gap: 12px;
+        }
+        .sortable-container {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0;
+        }
+        .sortable-container-header {
+            background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: 8px 8px 0 0;
+        }
+        .sortable-container-body {
+            padding: 8px;
+            min-height: 40px;
+        }
+        .sortable-item {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #0b2545;
+            cursor: grab;
+            transition: all 0.15s ease;
+        }
+        .sortable-item:hover {
+            background: #e0f2fe;
+            border-color: #0284c7;
+            box-shadow: 0 1px 3px rgba(2,132,199,0.15);
+        }
+        .sortable-item.dragging {
+            opacity: 0.5;
+        }
+        """
+
+        sorted_containers = sort_items(
+            sortable_items,
+            multi_containers=True,
+            direction="horizontal",
+            custom_style=custom_style,
+            key="home_sortable_colunas",
+        )
+
+        # Converte labels de volta para IDs preservando a ordem do drag
+        new_active_labels = sorted_containers[0]["items"]
+        new_active_ids = [_label_to_id[lbl] for lbl in new_active_labels if lbl in _label_to_id]
+
+        # Atualiza session_state se houve mudança
+        if new_active_ids != st.session_state["home_colunas_ativas"]:
+            st.session_state["home_colunas_ativas"] = new_active_ids if new_active_ids else list(DEFAULT_ACTIVE_COLUMNS)
+
+        # Botão restaurar padrão
+        if st.button("↺ Restaurar Padrão", key="btn_restaurar_colunas", help="Restaurar a configuração de colunas original recomendada"):
+            st.session_state["home_colunas_ativas"] = list(DEFAULT_ACTIVE_COLUMNS)
+            st.rerun()
+
+    colunas_ativas = st.session_state.get("home_colunas_ativas", DEFAULT_ACTIVE_COLUMNS)
+    if not colunas_ativas:
+        colunas_ativas = DEFAULT_ACTIVE_COLUMNS
 
     if total_filtrado == 0:
         st.warning("Nenhum empreendimento encontrado para os filtros selecionados.")
@@ -782,9 +1028,9 @@ def render():
     start_idx = (current_page - 1) * page_size
     end_idx = min(start_idx + page_size, total_filtrado)
 
-    # 1. Fatia e renderiza a tabela estilizada
+    # 1. Fatia e renderiza a tabela estilizada com colunas desacopladas
     df_page = df_filtrado.iloc[start_idx:end_idx]
-    render_table_html(df_page)
+    render_table_html(df_page, active_columns=colunas_ativas)
 
     # 2. Barra de paginação numérica minimalista (< 1 ... 5 [6] 7 ... 17 >)
     render_pagination(
