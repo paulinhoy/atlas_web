@@ -13,6 +13,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 3. [Codificação Dupla (Mojibake) em Exportações de Banco PostGIS](#caso-3-codificação-dupla-mojibake-em-exportações-de-banco-postgis)
 4. [Persistência de Query Params na URL ao Voltar do Atlas para a Home](#caso-4-persistência-de-query-params-na-url-ao-voltar-do-atlas-para-a-home)
 5. [Desalinhamento Visual de Ordenação por IC devido a Limiares Setoriais de Impacto](#caso-5-desalinhamento-visual-de-ordenação-por-ic-devido-a-limiares-setoriais-de-impacto)
+6. [Incompatibilidade de `@st.dialog` e Seletores DOM no Streamlit 1.36.0](#caso-6-incompatibilidade-de-stdialog-e-seletores-dom-no-streamlit-1360)
 
 ---
 
@@ -146,6 +147,38 @@ Ao alternar entre as carteiras metodológicas (Cenário Otimizado ou Priorizaç�
 ### ✅ Solução Adotada
 1. Forçar a conversão estrita de `ic_3_pond` para float com `pd.to_numeric(..., errors="coerce")` e reordenação decrescente `.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)` tanto na seleção da carteira quanto logo antes do fatiamento da paginação no `df_filtrado`.
 2. Registrar nos metadados que a ordenação prioritária é estritamente pelo valor contínuo do índice de priorização (IC), prevalecendo sobre as categorias qualitativas setoriais.
+
+---
+
+## Caso 6: Incompatibilidade de `@st.dialog` e Seletores DOM no Streamlit 1.36.0
+
+* **Data:** 14/09/2026
+* **Componentes Afetados:** `views/home.py`, `app.py`
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+1. Ao tentar utilizar o decorador `@st.dialog(...)`, a aplicação quebrou com `AttributeError: module 'streamlit' has no attribute 'dialog'`.
+2. Botões renderizados dentro de colunas (`st.columns`) tiveram suas larguras esmagadas para 32px e o texto quebrado verticalmente, devido a regras de CSS globais da paginação que afetavam qualquer `button` em `div[data-testid="stHorizontalBlock"]`.
+3. Estilos customizados para o modal do diálogo não surtiam efeito quando utilizavam `div[data-testid="stDialog"]`.
+
+### 🔍 Causa Raiz
+1. No **Streamlit 1.36.0**, a funcionalidade de modal ainda era experimental, registrada como **`st.experimental_dialog`**. O método oficial `st.dialog` só foi lançado no Streamlit 1.37.0.
+2. O elemento do modal no DOM do Streamlit 1.36.0 possui o atributo `data-testid="stModal"`, e não `data-testid="stDialog"`.
+3. O seletor CSS `div[data-testid="stHorizontalBlock"] button[kind="secondary"]` utilizado para a paginação tinha escopo amplo demais, atingindo qualquer botão inserido em `st.columns`.
+
+### ✅ Solução Adotada
+1. **Fallback automático de compatibilidade:**
+   ```python
+   if hasattr(st, "dialog"):
+       _dialog_decorator = st.dialog("Personalizar Colunas da Tabela", width="large")
+   elif hasattr(st, "experimental_dialog"):
+       _dialog_decorator = st.experimental_dialog("Personalizar Colunas da Tabela", width="large")
+   else:
+       def _dialog_decorator(f): return f
+   ```
+2. **Escopo estrito nos seletores CSS:**
+   - Paginação restrita a blocos com 5 ou mais colunas: `div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button`.
+   - Modal estilizado aceitando ambos os seletores: `div[data-testid="stModal"]` e `div[data-testid="stDialog"]`.
 
 ---
 

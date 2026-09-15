@@ -292,8 +292,8 @@ def apply_custom_styles():
                 box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12) !important;
             }
 
-            /* Controles de paginação numérica minimalista (estilo < 1 ... 5 [6] 7 ... 17 >) */
-            div[data-testid="stHorizontalBlock"] button[kind="primary"] {
+            /* Controles de paginação numérica minimalista (apenas em blocos horizontais de paginação com 5+ colunas) */
+            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="primary"] {
                 background-color: #0b2545 !important;
                 color: #ffffff !important;
                 border: none !important;
@@ -312,7 +312,7 @@ def apply_custom_styles():
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
             }
 
-            div[data-testid="stHorizontalBlock"] button[kind="secondary"] {
+            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"] {
                 background-color: transparent !important;
                 color: #0f172a !important;
                 border: none !important;
@@ -331,14 +331,166 @@ def apply_custom_styles():
                 box-shadow: none !important;
                 transition: all 0.15s ease !important;
             }
-            div[data-testid="stHorizontalBlock"] button[kind="secondary"]:hover:not(:disabled) {
+            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:hover:not(:disabled) {
                 background-color: #f1f5f9 !important;
                 color: #0b2545 !important;
             }
-            div[data-testid="stHorizontalBlock"] button[kind="secondary"]:disabled {
+            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:disabled {
                 color: #cbd5e1 !important;
                 background-color: transparent !important;
                 cursor: not-allowed !important;
+            }
+
+            /* Cabeçalho da Tabela - Alinhamento vertical perfeito entre título e botão */
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) {
+                display: flex !important;
+                align-items: flex-end !important;
+                margin-top: 1.8rem !important;
+                margin-bottom: 0px !important;
+            }
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="column"] {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-end !important;
+                margin-bottom: 0px !important;
+                padding-bottom: 0px !important;
+            }
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="element-container"] {
+                margin-bottom: 0px !important;
+                padding-bottom: 0px !important;
+            }
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stMarkdownContainer"] {
+                margin-bottom: 0px !important;
+                padding-bottom: 0px !important;
+            }
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stMarkdownContainer"] p {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stButton"] {
+                margin-bottom: 0px !important;
+                padding-bottom: 0px !important;
+                display: flex !important;
+                justify-content: flex-end !important;
+            }
+
+            .carteira-header-title {
+                font-size: 20px;
+                font-weight: 700;
+                color: #0b2545;
+                line-height: 34px;
+                margin: 0 !important;
+                padding: 0 !important;
+                letter-spacing: -0.2px;
+            }
+
+            /* Botão Executivo de Personalizar Colunas no cabeçalho da tabela */
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button,
+            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button {
+                min-width: 175px !important;
+                max-width: 220px !important;
+                width: auto !important;
+                height: 34px !important;
+                min-height: 34px !important;
+                padding: 0 16px !important;
+                border-radius: 6px !important;
+                border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                background: linear-gradient(135deg, #0b2545 0%, #134074 100%) !important;
+                color: #ffffff !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                letter-spacing: 0.2px !important;
+                box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25) !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin-left: auto !important;
+                margin-right: 0 !important;
+                margin-bottom: 0px !important;
+                transition: all 0.2s ease !important;
+            }
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button:hover,
+            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button:hover {
+                background: linear-gradient(135deg, #134074 0%, #1d4ed8 100%) !important;
+                color: #ffffff !important;
+                box-shadow: 0 4px 12px rgba(11, 37, 69, 0.35) !important;
+                transform: translateY(-1px);
+            }
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button p,
+            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button p {
+                white-space: nowrap !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                color: #ffffff !important;
+                margin: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 7px !important;
+            }
+            /* Ícone de engrenagem vetorizado (SVG) monocromático para evitar emoji roxo do Windows */
+            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button p::before,
+            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button p::before {
+                content: "";
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                background-color: #ffffff;
+                -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'%3E%3C/path%3E%3Ccircle cx='12' cy='12' r='3'%3E%3C/circle%3E%3C/svg%3E") no-repeat center;
+                mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'%3E%3C/path%3E%3Ccircle cx='12' cy='12' r='3'%3E%3C/circle%3E%3C/svg%3E") no-repeat center;
+                mask-size: contain;
+                -webkit-mask-size: contain;
+            }
+
+            /* Botões do Modal de Personalização (compatível com stModal 1.36.0 e stDialog 1.37+) */
+            div[data-testid="stModal"] div[data-testid="stButton"] button,
+            div[data-testid="stDialog"] div[data-testid="stButton"] button {
+                min-width: auto !important;
+                max-width: none !important;
+                height: 38px !important;
+                padding: 0 18px !important;
+                border-radius: 6px !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                transition: all 0.2s ease !important;
+            }
+            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button,
+            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button {
+                background: linear-gradient(135deg, #0b2545 0%, #134074 100%) !important;
+                color: #ffffff !important;
+                border: none !important;
+                box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25) !important;
+            }
+            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover,
+            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover {
+                background: linear-gradient(135deg, #134074 0%, #1d4ed8 100%) !important;
+                color: #ffffff !important;
+                box-shadow: 0 4px 12px rgba(11, 37, 69, 0.35) !important;
+                transform: translateY(-1px);
+            }
+            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p,
+            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p {
+                color: #ffffff !important;
+                font-weight: 600 !important;
+            }
+
+            /* Botão Restaurar Padrão no Modal: estilo sutil com borda limpa */
+            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button,
+            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button {
+                background: #f8fafc !important;
+                color: #64748b !important;
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                font-weight: 500 !important;
+            }
+            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover,
+            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover {
+                background: #f1f5f9 !important;
+                color: #0b2545 !important;
+                border-color: #94a3b8 !important;
+            }
+            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p,
+            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p {
+                color: inherit !important;
             }
 
             /* ---- Botão Flutuante do Chatbot (Floating Action Pill) ---- */
@@ -637,6 +789,108 @@ DEFAULT_ACTIVE_COLUMNS = [
     "acao",
 ]
 
+LABEL_TO_ID = {cfg["label"]: col_id for col_id, cfg in AVAILABLE_COLUMNS.items()}
+ID_TO_LABEL = {col_id: cfg["label"] for col_id, cfg in AVAILABLE_COLUMNS.items()}
+
+
+if hasattr(st, "dialog"):
+    _dialog_decorator = st.dialog("Personalizar Colunas da Tabela", width="large")
+elif hasattr(st, "experimental_dialog"):
+    _dialog_decorator = st.experimental_dialog("Personalizar Colunas da Tabela", width="large")
+else:
+    def _dialog_decorator(f):
+        return f
+
+
+@_dialog_decorator
+def modal_personalizar_colunas():
+    """Modal interativo para ordenação e seleção de colunas via drag-and-drop."""
+    st.markdown(
+        "<div style='color: #475569; font-size: 13px; margin-bottom: 12px;'>"
+        "Arraste os cards para reordenar as colunas na tabela ou mova entre os blocos para exibir/ocultar."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    active_ids = [c for c in st.session_state.get("home_colunas_ativas", DEFAULT_ACTIVE_COLUMNS) if c in AVAILABLE_COLUMNS]
+    available_ids = [c for c in AVAILABLE_COLUMNS if c not in active_ids]
+
+    sortable_items = [
+        {"header": "Colunas Visíveis na Tabela", "items": [ID_TO_LABEL[c] for c in active_ids]},
+        {"header": "Colunas Ocultas (arraste para cima para incluir)", "items": [ID_TO_LABEL[c] for c in available_ids]},
+    ]
+
+    custom_style = """
+    .sortable-component {
+        gap: 14px;
+    }
+    .sortable-container {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0;
+    }
+    .sortable-container-header {
+        background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 8px 14px;
+        border-radius: 8px 8px 0 0;
+        letter-spacing: 0.2px;
+    }
+    .sortable-container-body {
+        padding: 10px;
+        min-height: 48px;
+    }
+    .sortable-item {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #0b2545;
+        cursor: grab;
+        transition: all 0.15s ease;
+    }
+    .sortable-item:hover {
+        background: #e0f2fe;
+        border-color: #0284c7;
+        box-shadow: 0 1px 3px rgba(2,132,199,0.15);
+    }
+    .sortable-item.dragging {
+        opacity: 0.5;
+    }
+    """
+
+    ver = st.session_state.get("sortable_modal_ver", 0)
+    sorted_containers = sort_items(
+        sortable_items,
+        multi_containers=True,
+        direction="horizontal",
+        custom_style=custom_style,
+        key=f"home_sortable_colunas_modal_{ver}",
+    )
+
+    # Converte labels de volta para IDs preservando a ordem do drag
+    new_active_labels = sorted_containers[0]["items"]
+    new_active_ids = [LABEL_TO_ID[lbl] for lbl in new_active_labels if lbl in LABEL_TO_ID]
+
+    if new_active_ids:
+        st.session_state["home_colunas_ativas"] = new_active_ids
+
+    st.markdown('<div style="border-top: 1px solid #e2e8f0; margin: 20px 0 14px 0;"></div>', unsafe_allow_html=True)
+    c_rst, c_done = st.columns([1.5, 1], vertical_alignment="center")
+    with c_rst:
+        if st.button("↺ Restaurar padrão", key="btn_restaurar_colunas", help="Restaurar a configuração de colunas original recomendada"):
+            st.session_state["home_colunas_ativas"] = list(DEFAULT_ACTIVE_COLUMNS)
+            st.session_state["sortable_modal_ver"] = ver + 1
+            st.rerun()
+    with c_done:
+        if st.button("Salvar e Fechar", key="btn_fechar_modal_colunas", type="primary", use_container_width=True):
+            st.rerun()
+
 
 def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
     """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas com colunas desacopladas."""
@@ -917,91 +1171,28 @@ def render():
 
     total_filtrado = len(df_filtrado)
 
-    st.markdown(f'<div class="section-title">Carteira de Empreendimentos Priorizados — {config_carteira["titulo"]}</div>', unsafe_allow_html=True)
-
-    # ── Painel de Personalização e Ordenação das Colunas (Drag & Drop) ──
+    # ── Cabeçalho da Tabela com Botão de Personalização Integrado ──
     if "home_colunas_ativas" not in st.session_state:
         st.session_state["home_colunas_ativas"] = list(DEFAULT_ACTIVE_COLUMNS)
 
-    # Mapas de conversão label ↔ id (para streamlit-sortables que trabalha com strings)
-    _label_to_id = {cfg["label"]: col_id for col_id, cfg in AVAILABLE_COLUMNS.items()}
-    _id_to_label = {col_id: cfg["label"] for col_id, cfg in AVAILABLE_COLUMNS.items()}
-
-    with st.expander("Personalizar Colunas Visíveis da Tabela", expanded=False):
-        st.caption("Arraste os cards para reordenar as colunas ou mova entre os grupos para exibir/ocultar.")
-
-        # Monta listas de labels para os dois containers
-        active_ids = [c for c in st.session_state["home_colunas_ativas"] if c in AVAILABLE_COLUMNS]
-        available_ids = [c for c in AVAILABLE_COLUMNS if c not in active_ids]
-
-        sortable_items = [
-            {"header": "📋 Colunas Visíveis na Tabela", "items": [_id_to_label[c] for c in active_ids]},
-            {"header": "➕ Colunas Disponíveis (arraste para cima para adicionar)", "items": [_id_to_label[c] for c in available_ids]},
-        ]
-
-        custom_style = """
-        .sortable-component {
-            gap: 12px;
-        }
-        .sortable-container {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 0;
-        }
-        .sortable-container-header {
-            background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 600;
-            padding: 8px 14px;
-            border-radius: 8px 8px 0 0;
-        }
-        .sortable-container-body {
-            padding: 8px;
-            min-height: 40px;
-        }
-        .sortable-item {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            padding: 6px 14px;
-            font-size: 13px;
-            font-weight: 500;
-            color: #0b2545;
-            cursor: grab;
-            transition: all 0.15s ease;
-        }
-        .sortable-item:hover {
-            background: #e0f2fe;
-            border-color: #0284c7;
-            box-shadow: 0 1px 3px rgba(2,132,199,0.15);
-        }
-        .sortable-item.dragging {
-            opacity: 0.5;
-        }
-        """
-
-        sorted_containers = sort_items(
-            sortable_items,
-            multi_containers=True,
-            direction="horizontal",
-            custom_style=custom_style,
-            key="home_sortable_colunas",
+    col_hdr_title, col_hdr_btn = st.columns([0.76, 0.24], vertical_alignment="bottom")
+    with col_hdr_title:
+        st.markdown(
+            f'<div class="carteira-header-title">'
+            f'Carteira de Empreendimentos Priorizados — {config_carteira["titulo"]}'
+            f'</div>',
+            unsafe_allow_html=True,
         )
+    with col_hdr_btn:
+        if st.button(
+            "Personalizar Colunas",
+            key="btn_abrir_modal_colunas",
+            help="Personalizar ordem e visibilidade das colunas na tabela",
+            use_container_width=True,
+        ):
+            modal_personalizar_colunas()
 
-        # Converte labels de volta para IDs preservando a ordem do drag
-        new_active_labels = sorted_containers[0]["items"]
-        new_active_ids = [_label_to_id[lbl] for lbl in new_active_labels if lbl in _label_to_id]
-
-        # Atualiza session_state se houve mudança
-        if new_active_ids != st.session_state["home_colunas_ativas"]:
-            st.session_state["home_colunas_ativas"] = new_active_ids if new_active_ids else list(DEFAULT_ACTIVE_COLUMNS)
-
-        # Botão restaurar padrão
-        if st.button("↺ Restaurar Padrão", key="btn_restaurar_colunas", help="Restaurar a configuração de colunas original recomendada"):
-            st.session_state["home_colunas_ativas"] = list(DEFAULT_ACTIVE_COLUMNS)
-            st.rerun()
+    st.markdown('<div style="border-bottom: 2px solid #0b2545; margin: 4px 0 12px 0;"></div>', unsafe_allow_html=True)
 
     colunas_ativas = st.session_state.get("home_colunas_ativas", DEFAULT_ACTIVE_COLUMNS)
     if not colunas_ativas:
