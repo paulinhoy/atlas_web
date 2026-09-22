@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Empreendimentos e Investimentos</title>
+  <style>
+    :root {
+      --bg-page: #eef2f5;
+      --card-bg: #ffffff;
+      --card-sub-bg: #f8fafc;
+      --navy-dark: #1e3347;
+      --navy-medium: #365373;
+      --teal-card: #5a827e;
+      --purple-light: #9fa5c4;
+      --purple-subtle: #b6d3dc;
+      --line-chart: #8ec3cf;
+      --text-dark: #1b2631;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-dark);
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .dashboard-container {
+      width: 100%;
+      max-width: 980px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* --- TOPO: CARDS DE KPI --- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    .kpi-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .kpi-card {
+      border-radius: 12px;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+      color: #ffffff;
+    }
+
+    .kpi-value {
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .kpi-label {
+      font-size: 0.95rem;
+      font-weight: 500;
+      opacity: 0.95;
+    }
+
+    /* Variações de cor dos cards */
+    .bg-dark-navy { background-color: var(--navy-dark); }
+    .bg-med-navy  { background-color: var(--navy-medium); }
+    .bg-teal      { background-color: var(--teal-card); }
+    .bg-purple    { background-color: var(--purple-light); }
+    .bg-ice-blue  { background-color: var(--purple-subtle); color: #223447; }
+
+    /* --- SEÇÕES CENTRAIS (GRÁFICO HORIZONTAL + TABELA) --- */
+    .data-row {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+    }
+
+    .card-panel {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      border: 1px solid var(--border-color);
+    }
+
+    .panel-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    /* Gráficos de barras horizontais */
+    .bar-chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 8px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 95px 1fr 45px;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+
+    .bar-label {
+      text-align: right;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .bar-track {
+      background: #f1f5f9;
+      height: 14px;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      background-color: var(--navy-dark);
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    .bar-val {
+      font-weight: 700;
+      color: var(--navy-dark);
+    }
+
+    /* Tabelas estilizadas */
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .styled-table th, .styled-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .styled-table th {
+      background-color: var(--card-sub-bg);
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .styled-table tr.total-row {
+      font-weight: 700;
+      background-color: #f1f5f9;
+      color: var(--navy-dark);
+    }
+
+    .styled-table td.category {
+      text-align: left;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    /* --- PAINEL INFERIOR: VISÃO GERAL POR SETOR --- */
+    .overview-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .overview-table th {
+      background-color: #f8fafc;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      font-weight: 600;
+    }
+
+    .overview-table td {
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      font-weight: 500;
+    }
+
+    .legend-box {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-badge {
+      width: 14px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Gráfico Ilustrativo Combinado em SVG */
+    .svg-chart-container {
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    svg {
+      overflow: visible;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+
+    <!-- KPI CARDS (Topo) -->
+    <div class="kpi-grid">
+      <!-- Coluna 1 -->
+      <div class="kpi-col">
+        <div class="kpi-card bg-dark-navy" style="flex: 1.1;">
+          <div class="kpi-value">1.043</div>
+          <div class="kpi-label">Empreendimentos</div>
+        </div>
+        <div class="kpi-card bg-dark-navy" style="flex: 0.9;">
+          <div class="kpi-value">R$ 449 B</div>
+          <div class="kpi-label">CAPEX</div>
+        </div>
+      </div>
+
+      <!-- Coluna 2 -->
+      <div class="kpi-col">
+        <div class="kpi-card bg-med-navy" style="flex: 1.1;">
+          <div class="kpi-value">852</div>
+          <div class="kpi-label">Empreendimentos Futuros</div>
+        </div>
+        <div class="kpi-card bg-teal" style="flex: 0.9;">
+          <div class="kpi-value">191</div>
+          <div class="kpi-label">Empreendimentos Contratados</div>
+        </div>
+      </div>
+
+      <!-- Coluna 3 -->
+      <div class="kpi-col">
+        <div class="kpi-card bg-purple">
+          <div class="kpi-value">772</div>
+          <div class="kpi-label">Futuros Estaduais</div>
+        </div>
+        <div class="kpi-card bg-purple">
+          <div class="kpi-value">80</div>
+          <div class="kpi-label">Futuros Federais</div>
+        </div>
+        <div class="kpi-card bg-ice-blue">
+          <div class="kpi-value">152</div>
+          <div class="kpi-label">Contratados Estaduais</div>
+        </div>
+        <div class="kpi-card bg-ice-blue">
+          <div class="kpi-value">39</div>
+          <div class="kpi-label">Contratados Federais</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 1: EMPREENDIMENTOS FUTUROS -->
+    <div class="data-row">
+      <!-- Barras Futuros -->
+      <div class="card-panel">
+        <div class="panel-title">Quantidade de Empreendimentos Futuros</div>
+        <div class="bar-chart-container">
+          <div class="bar-row">
+            <span class="bar-label">Rodoviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 100%;"></div></div>
+            <span class="bar-val">771</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Hidroviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 1.5%;"></div></div>
+            <span class="bar-val">2</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Ferroviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 7%;"></div></div>
+            <span class="bar-val">54</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Dutoviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 2%;"></div></div>
+            <span class="bar-val">4</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Aeroportuário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 3.5%;"></div></div>
+            <span class="bar-val">14</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela Futuros -->
+      <div class="card-panel">
+        <table class="styled-table">
+          <thead>
+            <tr>
+              <th rowspan="2" style="text-align:left; vertical-align: bottom;">Empreendimentos Futuros</th>
+              <th colspan="3">Investimento (R$)</th>
+            </tr>
+            <tr>
+              <th>Estadual</th>
+              <th>Federal</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="category">Aeroportuário</td>
+              <td>0.8 B</td>
+              <td>0.1 B</td>
+              <td>0.9 B</td>
+            </tr>
+            <tr>
+              <td class="category">Dutoviário</td>
+              <td>-</td>
+              <td>13.7 B</td>
+              <td>13.7 B</td>
+            </tr>
+            <tr>
+              <td class="category">Ferroviário</td>
+              <td>-</td>
+              <td>193.1 B</td>
+              <td>193.1 B</td>
+            </tr>
+            <tr>
+              <td class="category">Hidroviário</td>
+              <td>-</td>
+              <td>2.1 B</td>
+              <td>2.1 B</td>
+            </tr>
+            <tr>
+              <td class="category">Rodoviário</td>
+              <td>88.7 B</td>
+              <td>28.6 B</td>
+              <td>117.3 B</td>
+            </tr>
+            <tr class="total-row">
+              <td class="category" style="color:var(--navy-dark);">Total</td>
+              <td>89.5 B</td>
+              <td>237.6 B</td>
+              <td>327.1 B</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 2: EMPREENDIMENTOS CONTRATADOS -->
+    <div class="data-row">
+      <!-- Barras Contratados -->
+      <div class="card-panel">
+        <div class="panel-title">Quantidade de Empreendimentos Contratados</div>
+        <div class="bar-chart-container">
+          <div class="bar-row">
+            <span class="bar-label">Rodoviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 100%;"></div></div>
+            <span class="bar-val">165</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Hidroviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 2.5%;"></div></div>
+            <span class="bar-val">3</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Ferroviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 4.5%;"></div></div>
+            <span class="bar-val">6</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Dutoviário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 7%;"></div></div>
+            <span class="bar-val">10</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Aeroportuário</span>
+            <div class="bar-track"><div class="bar-fill" style="width: 5%;"></div></div>
+            <span class="bar-val">7</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela Contratados -->
+      <div class="card-panel">
+        <table class="styled-table">
+          <thead>
+            <tr>
+              <th rowspan="2" style="text-align:left; vertical-align: bottom;">Empreendimentos Contratados</th>
+              <th colspan="3">Investimento (R$)</th>
+            </tr>
+            <tr>
+              <th>Estadual</th>
+              <th>Federal</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="category">Aeroportuário</td>
+              <td>0.2 B</td>
+              <td>-</td>
+              <td>0.2 B</td>
+            </tr>
+            <tr>
+              <td class="category">Dutoviário</td>
+              <td>0.8 B</td>
+              <td>-</td>
+              <td>0.8 B</td>
+            </tr>
+            <tr>
+              <td class="category">Ferroviário</td>
+              <td>-</td>
+              <td>21.7 B</td>
+              <td>21.7 B</td>
+            </tr>
+            <tr>
+              <td class="category">Hidroviário</td>
+              <td>0.0 B</td>
+              <td>0.1 B</td>
+              <td>0.1 B</td>
+            </tr>
+            <tr>
+              <td class="category">Rodoviário</td>
+              <td>26.8 B</td>
+              <td>72.5 B</td>
+              <td>99.3 B</td>
+            </tr>
+            <tr class="total-row">
+              <td class="category" style="color:var(--navy-dark);">Total</td>
+              <td>27.8 B</td>
+              <td>94.3 B</td>
+              <td>122.1 B</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 3: EMPREENDIMENTOS E INVESTIMENTO POR SETOR -->
+    <div class="card-panel">
+      <div class="panel-title">Empreendimentos e Investimento por Setor</div>
+      
+      <!-- Gráfico Combinado SVG Dinâmico -->
+      <div class="svg-chart-container">
+        <svg viewBox="0 0 850 160" width="100%" height="160">
+          <!-- Linhas de grade horizontais -->
+          <line x1="50" y1="20" x2="800" y2="20" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="55" x2="800" y2="55" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="90" x2="800" y2="90" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="125" x2="800" y2="125" stroke="#f1f5f9" stroke-width="1"/>
+          <line x1="50" y1="145" x2="800" y2="145" stroke="#cbd5e1" stroke-width="1"/>
+
+          <!-- Eixo Y Esquerdo (CAPEX) -->
+          <text x="40" y="24" fill="#94a3b8" font-size="10" text-anchor="end">250.0 B</text>
+          <text x="40" y="59" fill="#94a3b8" font-size="10" text-anchor="end">200.0 B</text>
+          <text x="40" y="94" fill="#94a3b8" font-size="10" text-anchor="end">100.0 B</text>
+          <text x="40" y="148" fill="#94a3b8" font-size="10" text-anchor="end">0.0 B</text>
+
+          <!-- Eixo Y Direito (Quantidade) -->
+          <text x="810" y="24" fill="#94a3b8" font-size="10">1.000</text>
+          <text x="810" y="59" fill="#94a3b8" font-size="10">800</text>
+          <text x="810" y="94" fill="#94a3b8" font-size="10">400</text>
+          <text x="810" y="148" fill="#94a3b8" font-size="10">0</text>
+
+          <!-- Barras (Quantidade) -->
+          <!-- Aeroportuário: 21 -->
+          <rect x="105" y="142" width="22" height="3" fill="#1e3347" rx="1"/>
+          <!-- Dutoviário: 14 -->
+          <rect x="235" y="143" width="22" height="2" fill="#1e3347" rx="1"/>
+          <!-- Ferroviário: 60 -->
+          <rect x="365" y="137" width="22" height="8" fill="#1e3347" rx="1"/>
+          <!-- Hidroviário: 5 -->
+          <rect x="495" y="144" width="22" height="1" fill="#1e3347" rx="1"/>
+          <!-- Portuário: 7 -->
+          <rect x="625" y="144" width="22" height="1" fill="#1e3347" rx="1"/>
+          <!-- Rodoviário: 936 -->
+          <rect x="745" y="28" width="25" height="117" fill="#1e3347" rx="2"/>
+
+          <!-- Linha CAPEX (Azul suave) -->
+          <!-- Pontos: Aerop (116, 144), Duto (246, 137), Ferro (376, 37), Hidro (506, 143), Port (636, 145), Rodo (757, 36) -->
+          <polyline fill="none" stroke="#8ec3cf" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+                    points="116,144 246,137 376,37 506,143 636,145 757,36" />
+        </svg>
+      </div>
+
+      <!-- Tabela Integrada de Totais Setoriais -->
+      <table class="overview-table">
+        <thead>
+          <tr>
+            <th style="width: 14%;">Setor / Métrica</th>
+            <th style="width: 14%;">Aeroportuário</th>
+            <th style="width: 14%;">Dutoviário</th>
+            <th style="width: 14%;">Ferroviário</th>
+            <th style="width: 14%;">Hidroviário</th>
+            <th style="width: 14%;">Portuário</th>
+            <th style="width: 16%;">Rodoviário</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align: left; font-weight: 600; color: var(--navy-dark);">Quantidade</td>
+            <td>21</td>
+            <td>14</td>
+            <td>60</td>
+            <td>5</td>
+            <td>7</td>
+            <td>936</td>
+          </tr>
+          <tr>
+            <td style="text-align: left; font-weight: 600; color: #5a9ca8;">CAPEX</td>
+            <td>1.2 B</td>
+            <td>14.5 B</td>
+            <td>214.8 B</td>
+            <td>2.2 B</td>
+            <td>-</td>
+            <td>216.6 B</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Legenda do gráfico -->
+      <div class="legend-box">
+        <div class="legend-item">
+          <div class="legend-badge" style="background-color: var(--navy-dark);"></div>
+          <span>Quantidade</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-badge" style="background-color: #8ec3cf; height: 3px;"></div>
+          <span>CAPEX</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

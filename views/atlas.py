@@ -420,7 +420,7 @@ def render_tabela_priorizacao(row):
     impacto = html_mod.escape(str(row.get("impacto_avaliado_3_pond_cenario") or "-"))
 
     fonte = html_mod.escape(str(row.get("fonte_dimensoes") or "Priorização Geral"))
-    badge_html = f'<span class="fonte-badge">Fonte da Nota: {fonte}</span>'
+    badge_html = f'<span class="fonte-badge">Fonte: {fonte}</span>'
 
     st.markdown(
         f'<div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">'
@@ -847,4 +847,4 @@ def render(empreendimento_id):
     render_tabela_alocacao(empreendimento_id, row)
 
     # ── Tabela 4: Detalhamento das Obras ──
-    render_tabela_obras(df_obras)
+    render_tabela_obras(df_obras)
