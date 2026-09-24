@@ -4,7 +4,8 @@
     --navy-2: #133b63;
     --navy-3: #134074;
     --blue-accent: #1d4ed8;
-    --pill-border: #BAD6D9;
+    --pelt-teal: #BAD6D9;
+    --pelt-lilac: #9BA0BF;
 
     --text: #0f172a;
     --text-2: #334155;
@@ -41,11 +42,12 @@
     font-weight: 600;
     text-decoration: none !important;
     box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
-    border: 1.5px solid var(--pill-border);
+    border: 1.5px solid var(--pelt-teal);
     transition: all 0.2s ease;
     backdrop-filter: blur(8px);
 }
 .atlas-floating-back-btn { left: 24px; }
+.atlas-floating-back-btn .back-arrow { font-size: 1.1rem; line-height: 1; }
 .atlas-floating-chat-btn { right: 24px; }
 .atlas-floating-back-btn:hover,
 .atlas-floating-chat-btn:hover {

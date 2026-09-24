@@ -7,7 +7,7 @@ import html as html_mod
 import streamlit as st
 import pandas as pd
 from services import data_loader, map_service
-from views.ui import inject_css
+from views.ui import inject_css, render_back_button
 from services.formatters import (
     fmt_brl,
     fmt_decimal_br,
@@ -20,19 +20,6 @@ from services.formatters import (
 # ---------------------------------------------------------------------------
 # Componentes Visuais
 # ---------------------------------------------------------------------------
-
-def render_back_button():
-    """Botão flutuante de retorno para a lista de empreendimentos."""
-    st.markdown(
-        """
-        <a href="?" target="_self" class="atlas-floating-back-btn">
-            <span class="back-arrow">←</span>
-            <span>Voltar para a Lista</span>
-        </a>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 def render_header(empreendimento_id, nome_emp, setor, esfera):
     """Cabeçalho institucional com título e badges de setor/esfera."""

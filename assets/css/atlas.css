@@ -166,11 +166,6 @@
     letter-spacing: 0.2px;
 }
 
-.back-arrow {
-    font-size: 1.1rem;
-    line-height: 1;
-}
-
 /* ---- Alinhamento Metadados ↔ Mapa (520px em ambas as colunas) ---- */
 div[data-testid="stColumn"] iframe[title="streamlit_folium.folium_static"],
 div[data-testid="stColumn"] div[data-testid="stCustomComponentV1"] iframe,

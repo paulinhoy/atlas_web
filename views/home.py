@@ -10,14 +10,15 @@ import pandas as pd
 from services import data_loader
 from services.formatters import fmt_int_br, fmt_bilhoes_br
 from streamlit_sortables import sort_items
+from views import estado_url
 from views.ui import inject_css, read_css
 
 
-def render_chatbot_button():
-    """Botão flutuante para acessar o assistente virtual."""
-    st.markdown(
-        """
-        <a href="?page=chatbot" target="_self" class="atlas-floating-chat-btn">
+def render_chatbot_button(container):
+    """Botão flutuante para acessar o assistente virtual (leva o estado atual da Home)."""
+    container.markdown(
+        f"""
+        <a href="{estado_url.link_chatbot()}" target="_self" class="atlas-floating-chat-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             <span>Assistente Virtual</span>
         </a>
@@ -116,7 +117,7 @@ AVAILABLE_COLUMNS = {
         "th_class": "tl",
         "th_style": "text-align: left; width: 28%;",
         "td_class": "tl",
-        "render": lambda r: f'<a href="?id={int(r["id_empreendimento"])}" target="_self" class="emp-link">{html_mod.escape(str(r.get("nome_empreendimento") or "-"))}</a>',
+        "render": lambda r: f'<a href="{estado_url.link_empreendimento(int(r["id_empreendimento"]))}" target="_self" class="emp-link">{html_mod.escape(str(r.get("nome_empreendimento") or "-"))}</a>',
     },
     "setor": {
         "label": "Setor",
@@ -193,7 +194,7 @@ AVAILABLE_COLUMNS = {
         "th_class": "tc",
         "th_style": "width: 105px;",
         "td_class": "tc",
-        "render": lambda r: f'<a href="?id={int(r["id_empreendimento"])}" target="_self" class="btn-action">Ver Atlas</a>',
+        "render": lambda r: f'<a href="{estado_url.link_empreendimento(int(r["id_empreendimento"]))}" target="_self" class="btn-action">Ver Atlas</a>',
     },
 }
 
@@ -209,6 +210,16 @@ DEFAULT_ACTIVE_COLUMNS = [
     "impacto",
     "acao",
 ]
+
+PAGE_SIZE_OPTIONS = [15, 25, 50, 100]
+
+
+def _inteiro_positivo(texto: str) -> int:
+    valor = int(texto)
+    if valor < 1:
+        raise ValueError(texto)
+    return valor
+
 
 LABEL_TO_ID = {cfg["label"]: col_id for col_id, cfg in AVAILABLE_COLUMNS.items()}
 ID_TO_LABEL = {col_id: cfg["label"] for col_id, cfg in AVAILABLE_COLUMNS.items()}
@@ -298,7 +309,7 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
             tds_html += f'<td class="{td_class}">{content}</td>'
 
         rows_html += (
-            f'<tr onclick="window.location.href=\'?id={id_emp}\'">'
+            f'<tr onclick="window.location.href=\'{estado_url.link_empreendimento(id_emp)}\'">'
             f'{tds_html}'
             '</tr>'
         )
@@ -336,11 +347,10 @@ def render_pagination(
         with c_lbl:
             st.markdown("<div class='pagination-info pagination-size-label'>Itens por pág.:</div>", unsafe_allow_html=True)
         with c_sel:
-            size_options = [15, 25, 50, 100]
-            cur_size_idx = size_options.index(page_size) if page_size in size_options else 1
+            cur_size_idx = PAGE_SIZE_OPTIONS.index(page_size) if page_size in PAGE_SIZE_OPTIONS else 1
             novo_size = st.selectbox(
                 "Itens por página:",
-                options=size_options,
+                options=PAGE_SIZE_OPTIONS,
                 index=cur_size_idx,
                 key="select_page_size",
                 label_visibility="collapsed",
@@ -406,7 +416,7 @@ def render_pagination(
 def render():
     """Função principal da tela Home."""
     inject_css("home")
-    render_chatbot_button()
+    botao_chatbot = st.empty()  # preenchido depois que o estado atual é gravado na URL
     render_header()
 
     df_base = data_loader.get_empreendimentos()
@@ -416,24 +426,34 @@ def render():
             "Nenhum dado encontrado em `data/processed/empreendimentos_priorizacao.parquet`.\n"
             "Execute o script `scripts/process_data.py` para processar a base de dados."
         )
+        render_chatbot_button(botao_chatbot)
         return
 
     # ── Mapeamento das Carteiras Metodológicas ──
     carteiras_map = {
         "Carteira Recomendada (1.044)": {
+            "slug": "recomendada",
             "fonte": "cenario recomendado",
             "titulo": "Carteira Recomendada",
         },
         "Carteira Otimizada (1.059)": {
+            "slug": "otimizada",
             "fonte": "cenario otimizado",
             "titulo": "Carteira Otimizada",
         },
         "Carteira Completa (1.682)": {
+            "slug": "completa",
             "fonte": "priorizacao geral",
             "titulo": "Carteira Completa",
         },
     }
     lista_carteiras = list(carteiras_map.keys())
+    label_por_slug = {cfg["slug"]: label for label, cfg in carteiras_map.items()}
+
+    if estado_url.inicio_da_sessao():
+        slug_url = estado_url.ler("carteira", label_por_slug)
+        if slug_url:
+            st.session_state["home_carteira_selecionada"] = label_por_slug[slug_url]
 
     if "home_carteira_selecionada" not in st.session_state or st.session_state["home_carteira_selecionada"] not in carteiras_map:
         st.session_state["home_carteira_selecionada"] = lista_carteiras[0]
@@ -473,6 +493,7 @@ def render():
     f_col1, f_col2, f_col3, f_col4 = st.columns([2.6, 1.4, 1.4, 2.0])
 
     with f_col1:
+        estado_url.semear_widget("busca_termo", "q")
         busca = st.text_input(
             "Buscar por Nome ou Código ID:",
             placeholder="Ex: Ferrovia Centro-Atlântica, BR-381, 113...",
@@ -481,10 +502,12 @@ def render():
 
     with f_col2:
         setores = ["Todos"] + sorted([str(x) for x in df_emp["setor"].dropna().unique() if str(x).strip()]) if "setor" in df_emp.columns else ["Todos"]
+        estado_url.semear_widget("filtro_setor", "setor", setores)
         filtro_setor = st.selectbox("Setor:", setores, key="filtro_setor")
 
     with f_col3:
         esferas = ["Todas"] + sorted([str(x) for x in df_emp["esfera_acao"].dropna().unique() if str(x).strip()]) if "esfera_acao" in df_emp.columns else ["Todas"]
+        estado_url.semear_widget("filtro_esfera", "esfera", esferas)
         filtro_esfera = st.selectbox("Esfera:", esferas, key="filtro_esfera")
 
     with f_col4:
@@ -506,18 +529,22 @@ def render():
 
     with g_col1:
         impactos = ["Todos"] + sorted([str(x) for x in df_emp[col_impacto].dropna().unique() if str(x).strip()]) if col_impacto in df_emp.columns else ["Todos"]
+        estado_url.semear_widget("filtro_impacto", "classificacao", impactos)
         filtro_impacto = st.selectbox("Classificação:", impactos, key="filtro_impacto")
 
     with g_col2:
         viabilidades = ["Todas"] + sorted([str(x) for x in df_emp["viabilidade"].dropna().unique() if str(x).strip()]) if "viabilidade" in df_emp.columns else ["Todas"]
+        estado_url.semear_widget("filtro_viabilidade", "viabilidade", viabilidades)
         filtro_viabilidade = st.selectbox("Viabilidade:", viabilidades, key="filtro_viabilidade")
 
     with g_col3:
         origens = ["Todas"] + sorted([str(x) for x in df_emp["origem_ajustada"].dropna().unique() if str(x).strip()]) if "origem_ajustada" in df_emp.columns else ["Todas"]
+        estado_url.semear_widget("filtro_origem", "origem", origens)
         filtro_origem = st.selectbox("Origem Ajustada:", origens, key="filtro_origem")
 
     with g_col4:
         vocacoes = ["Todas"] + sorted([str(x) for x in df_emp["vocacao"].dropna().unique() if str(x).strip()]) if "vocacao" in df_emp.columns else ["Todas"]
+        estado_url.semear_widget("filtro_vocacao", "vocacao", vocacoes)
         filtro_vocacao = st.selectbox("Vocação:", vocacoes, key="filtro_vocacao")
 
     # Aplicação dos Filtros
@@ -549,9 +576,46 @@ def render():
 
     total_filtrado = len(df_filtrado)
 
-    # ── Cabeçalho da Tabela com Botão de Personalização Integrado ──
+    # ── Estado da tabela (colunas e paginação), lido da URL no início da sessão ──
     if "home_colunas_ativas" not in st.session_state:
-        st.session_state["home_colunas_ativas"] = list(DEFAULT_ACTIVE_COLUMNS)
+        cols_url = estado_url.ler("cols", conversor=lambda t: [c for c in t.split(",") if c in AVAILABLE_COLUMNS])
+        st.session_state["home_colunas_ativas"] = cols_url or list(DEFAULT_ACTIVE_COLUMNS)
+    if "home_page" not in st.session_state:
+        st.session_state["home_page"] = estado_url.ler("pg", conversor=_inteiro_positivo) or 1
+    if "home_page_size" not in st.session_state:
+        st.session_state["home_page_size"] = estado_url.ler("itens", PAGE_SIZE_OPTIONS, int) or 25
+
+    # Qualquer mudança de filtro volta a listagem para a página 1
+    assinatura = (carteira_ativa, busca.strip(), filtro_setor, filtro_esfera, filtro_impacto,
+                  filtro_viabilidade, filtro_origem, filtro_vocacao)
+    if st.session_state.get("_home_assinatura_filtros", assinatura) != assinatura:
+        st.session_state["home_page"] = 1
+    st.session_state["_home_assinatura_filtros"] = assinatura
+
+    page_size = st.session_state["home_page_size"]
+    total_pages = max(1, math.ceil(total_filtrado / page_size))
+    if st.session_state["home_page"] > total_pages:
+        st.session_state["home_page"] = 1
+
+    colunas_ativas = st.session_state.get("home_colunas_ativas") or DEFAULT_ACTIVE_COLUMNS
+
+    estado_url.gravar(
+        {
+            "carteira": config_carteira["slug"], "q": busca.strip(),
+            "setor": filtro_setor, "esfera": filtro_esfera, "classificacao": filtro_impacto,
+            "viabilidade": filtro_viabilidade, "origem": filtro_origem, "vocacao": filtro_vocacao,
+            "pg": st.session_state["home_page"], "itens": page_size, "cols": ",".join(colunas_ativas),
+        },
+        padroes={
+            "carteira": "recomendada", "setor": "Todos", "esfera": "Todas", "classificacao": "Todos",
+            "viabilidade": "Todas", "origem": "Todas", "vocacao": "Todas",
+            "pg": 1, "itens": 25, "cols": ",".join(DEFAULT_ACTIVE_COLUMNS),
+        },
+    )
+    estado_url.marcar_sessao_iniciada()
+    render_chatbot_button(botao_chatbot)
+
+    # ── Cabeçalho da Tabela com Botão de Personalização Integrado ──
 
     col_hdr_title, col_hdr_btn = st.columns([0.76, 0.24], vertical_alignment="bottom")
     with col_hdr_title:
@@ -572,26 +636,9 @@ def render():
 
     st.markdown('<div class="divider-navy"></div>', unsafe_allow_html=True)
 
-    colunas_ativas = st.session_state.get("home_colunas_ativas", DEFAULT_ACTIVE_COLUMNS)
-    if not colunas_ativas:
-        colunas_ativas = DEFAULT_ACTIVE_COLUMNS
-
     if total_filtrado == 0:
         st.warning("Nenhum empreendimento encontrado para os filtros selecionados.")
         return
-
-    # Inicializa estado da página e tamanho se necessário
-    if "home_page" not in st.session_state:
-        st.session_state["home_page"] = 1
-    if "home_page_size" not in st.session_state:
-        st.session_state["home_page_size"] = 25
-
-    page_size = st.session_state["home_page_size"]
-    total_pages = max(1, math.ceil(total_filtrado / page_size))
-    
-    # Corrige se a página atual ultrapassar o total de páginas após filtro
-    if st.session_state["home_page"] > total_pages:
-        st.session_state["home_page"] = 1
 
     current_page = st.session_state["home_page"]
     start_idx = (current_page - 1) * page_size

@@ -2,8 +2,8 @@
 
 Guia de referência para quem (pessoa ou agente) for mexer na interface. Leia antes de alterar qualquer coisa em `views/`, `assets/css/` ou `services/map_service.py`.
 
-> **Escopo:** Home (`views/home.py`), Ficha do empreendimento (`views/atlas.py`) e Mapa (`services/map_service.py`).
-> O **chatbot** (`views/chatbot.py`) está em desenvolvimento e tem CSS próprio embutido. **Não mexa nele** e não o migre para `assets/css/` sem pedido explícito.
+> **Escopo:** Home (`views/home.py`), Ficha do empreendimento (`views/atlas.py`), tela do chatbot (`views/chatbot.py`) e Mapa (`services/map_service.py`).
+> A **lógica** do chatbot (`services/chatbot_service.py`, `services/chat_logger.py`) está em desenvolvimento — não mexa nela sem pedido explícito. A tela do chatbot segue as mesmas regras de UI deste guia.
 
 ---
 
@@ -32,10 +32,11 @@ Guia de referência para quem (pessoa ou agente) for mexer na interface. Leia an
 ```
 app.py                      Roteamento pela URL (?id=123 → ficha; ?page=chatbot → chatbot; vazio → Home)
 views/
-├── ui.py                   Carregador de CSS: inject_css() e read_css()
+├── ui.py                   inject_css()/read_css() + componentes comuns (render_back_button)
+├── estado_url.py           Estado da Home (filtros, página, colunas) guardado na URL — ver seção 5.9
 ├── home.py                 Tela inicial: KPIs, filtros, tabela, paginação, modal de colunas
 ├── atlas.py                Ficha do empreendimento: cabeçalho, metadados, mapa, 4 tabelas
-└── chatbot.py              (fora do escopo — não mexer)
+└── chatbot.py              Tela do assistente virtual (a lógica fica em services/chatbot_service.py)
 services/
 ├── map_service.py          Mapa Folium da ficha + aviso "sem geometria"
 ├── formatters.py           Formatação brasileira (R$, %, milhar, datas) — use sempre na UI
@@ -44,6 +45,7 @@ assets/css/
 ├── base.css                Tokens de cor + componentes compartilhados (carregado em TODAS as páginas)
 ├── home.css                Estilos exclusivos da Home
 ├── atlas.css               Estilos exclusivos da Ficha (inclui o aviso do mapa)
+├── chatbot.css             Estilos exclusivos do chatbot (cabeçalho, balões, campo de digitação)
 └── sortable_modal.css      Estilos do componente de arrastar colunas (roda dentro de um iframe)
 ```
 
@@ -92,7 +94,7 @@ Definidos no topo de `assets/css/base.css`. **Use sempre `var(--nome)` em vez de
 | `--navy-2` | `#133b63` | Fim do degradê dos cabeçalhos; hover |
 | `--navy-3` | `#134074` | Fim do degradê dos botões |
 | `--blue-accent` | `#1d4ed8` | Destaque em hover (links, degradês) |
-| `--pill-border` | `#BAD6D9` | Borda dos botões flutuantes |
+| `--pelt-teal` / `--pelt-lilac` | `#BAD6D9` / `#9BA0BF` | Tons claros da paleta PELT: borda dos botões flutuantes, balões do chatbot |
 | `--text` / `--text-2` / `--text-3` | `#0f172a` / `#334155` / `#475569` | Texto principal → secundário |
 | `--muted` / `--muted-2` | `#64748b` / `#94a3b8` | Textos auxiliares, legendas |
 | `--border` / `--border-2` | `#e2e8f0` / `#cbd5e1` | Bordas |
@@ -108,7 +110,7 @@ O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.t
 **`base.css` (todas as páginas)**
 | Classe | O que é |
 |---|---|
-| `.atlas-floating-back-btn` / `.atlas-floating-chat-btn` | Botões flutuantes "Voltar" (esquerda) e "Assistente Virtual" (direita) |
+| `.atlas-floating-back-btn` / `.atlas-floating-chat-btn` | Botões flutuantes "Voltar" (esquerda) e "Assistente Virtual" (direita); `.back-arrow` é a seta do Voltar |
 | `.home-atlas-table`, `.atlas-table` | Estrutura comum das tabelas (cabeçalho navy, zebra, alinhamento) |
 | `.font-mono` (dentro das tabelas) | Números em fonte monoespaçada |
 | `.home-atlas-table .badge`, `.fonte-badge` | Base dos badges; `.badge-fed` e `.fonte-badge` compartilham o azul |
@@ -138,7 +140,6 @@ O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.t
 | `.atlas-table …` | Complementos das tabelas da ficha (`.tl`/`.tr` com `!important`, `.text-left`/`.text-right`) |
 | `.obras-scroll` | Contêiner com rolagem e cabeçalho fixo da tabela de obras |
 | `.fonte-badge` | Badge "Fonte: …" nos títulos de seção |
-| `.back-arrow` | Seta do botão Voltar |
 | `.legenda-*` | Legenda QGIS (código preservado, hoje desativado) |
 | Seletores `iframe` / `stCustomComponentV1` | Altura e borda do mapa (520px) |
 
@@ -180,7 +181,7 @@ Exceção aceita: as larguras de coluna (`th_style`) em `AVAILABLE_COLUMNS` fica
    elif page == "minha_view":
        minha_view.render()
    ```
-4. Para voltar à Home, reutilize o padrão do botão flutuante (`class="atlas-floating-back-btn"`, `href="?"`).
+4. Para voltar à Home, chame `render_back_button()` de `views/ui.py` — ele já devolve os filtros da Home (seção 5.9). Nunca use `href="?"` fixo: isso apaga os filtros do usuário.
 5. Reaproveite `.atlas-table` para tabelas simples e `.section-title` para títulos (se a página não carregar `atlas.css`, mova essas classes para `base.css`).
 
 ### 5.4 Adicionar uma coluna na tabela da Home
@@ -225,6 +226,23 @@ Seguem o mesmo molde: título `.section-title` + `<table class="atlas-table">`. 
 ### 5.8 Mapa
 Tudo em `services/map_service.py` (`render_map(id)`). Cores das linhas/pontos estão nos `style_function`/`CircleMarker`; altura em `folium_static(m, height=510)` casada com os 520px do CSS (`.meta-card`, `.map-placeholder`, regras de `iframe` em `atlas.css`). **Se mudar a altura, mude nos quatro lugares.**
 
+### 5.9 Estado da Home na URL (filtros, página, colunas)
+Links recarregam a página e zeram a sessão; a URL sobrevive. `views/estado_url.py` faz a ponte:
+
+- **Início da sessão:** `semear_widget(chave, param, opcoes)` coloca o valor da URL no widget **se for válido** (senão ignora).
+- **Toda execução:** `estado_url.gravar(valores, padroes)` escreve o estado na URL sem recarregar; valores iguais ao padrão ficam fora (URL limpa).
+- **Links:** `link_empreendimento(id)`, `link_chatbot()`, `link_home()` montam o `href` com o estado atual.
+
+Parâmetros atuais: `carteira` (recomendada/otimizada/completa), `q` (busca), `setor`, `esfera`, `classificacao`, `viabilidade`, `origem`, `vocacao`, `pg`, `itens`, `cols` (ids separados por vírgula).
+Exemplo: `?id=1042&carteira=completa&setor=Rodoviário&q=BR&pg=2`.
+
+**Para incluir um filtro novo na Home:**
+1. Antes do widget: `estado_url.semear_widget("filtro_novo", "novo", opcoes)` (sem `opcoes` para campos de texto livre).
+2. Inclua `"novo": filtro_novo` no dicionário de `estado_url.gravar(...)` e o valor padrão em `padroes`.
+3. Inclua o filtro na tupla `assinatura` (para a listagem voltar à página 1 quando ele mudar).
+
+A troca de qualquer filtro volta a paginação para a página 1.
+
 ---
 
 ## 6. Regras para não quebrar nada
@@ -236,7 +254,8 @@ Tudo em `services/map_service.py` (`render_map(id)`). Cores das linhas/pontos es
 5. **Classes de uma página só** ficam no CSS da página. Colocar em `base.css` faz a regra valer em todas — confira se o nome não colide com algo de outra tela.
 6. **Não altere o DataFrame geoespacial** retornado por `data_loader.get_empreendimento_geo()` (é compartilhado entre usuários; use `.copy()` se precisar).
 7. **Fins de linha:** `app.py`, `views/atlas.py` e `services/map_service.py` usam CRLF. Scripts que reescrevem arquivos devem preservar isso para não gerar diffs gigantes.
-8. **Não mexa no chatbot** (`views/chatbot.py`, `services/chatbot_service.py`, `services/chat_logger.py`).
+8. **Não mexa na lógica do chatbot** (`services/chatbot_service.py`, `services/chat_logger.py`) sem pedido explícito.
+9. **Links internos** (`<a href>`) sempre por `estado_url.link_empreendimento()`, `link_chatbot()`, `link_home()` ou `render_back_button()`; nunca `?id=...` ou `?` escritos à mão.
 
 ---
 
@@ -286,7 +305,8 @@ Compare as declarações CSS efetivas antes/depois por seletor (resolvendo `var(
 | **Seletores dependentes da versão do Streamlit** | A paginação usa `data-testid="column"` (1.36) e o alinhamento do mapa usa `data-testid="stColumn"` (1.37+). Com 1.36, as regras do mapa não se aplicam. Atualizar o Streamlit exige revisar todos os seletores `div[data-testid=...]`. |
 | **`button[key="..."]` não funciona** | O Streamlit não coloca o atributo `key` no HTML do botão. As regras do botão "Personalizar Colunas" e dos botões do modal provavelmente não têm efeito. Preservadas por ora; remover/corrigir só com conferência visual. |
 | **`onclick` em HTML é descartado** | `st.markdown` não executa JavaScript inline (ex.: `<tr onclick=...>` na tabela). Só links `<a href>` funcionam. |
-| **Navegar reinicia a sessão** | Links `<a href="?id=...">` recarregam a página: `st.session_state` é zerado (filtros, página, colunas escolhidas voltam ao padrão). Persistir estado exige guardá-lo na URL (`st.query_params`). |
+| **Navegar reinicia a sessão** | Links `<a href>` recarregam a página e zeram o `st.session_state`. Por isso o estado da Home vive na URL (`views/estado_url.py`). O que ainda se perde ao navegar: o histórico de conversa do chatbot. |
+| **Valor fora das opções derruba o selectbox** | Colocar em `st.session_state` um valor que não está nas `options` do selectbox gera `"... is not in iterable"` e a página quebra. Todo valor vindo da URL passa por `estado_url.ler(..., opcoes)`. |
 | **Iframes não herdam CSS** | Componentes como `streamlit-sortables` e o mapa Folium rodam em iframe: o CSS da página e os tokens não chegam lá dentro. Por isso `sortable_modal.css` é passado via `custom_style=read_css("sortable_modal")` e usa cores literais. |
 | **Cache após atualizar dados** | Os parquets ficam em cache; após trocar os arquivos em `data/processed/`, reinicie o servidor. |
 | **Contagens fixas nos rótulos** | `"Carteira Recomendada (1.044)"` etc. em `views/home.py` são texto fixo — atualize na carga anual. |
