@@ -6,7 +6,7 @@ Interface isolada construída com componentes nativos do Streamlit para posterio
 import uuid
 import streamlit as st
 from services import chatbot_service, chat_logger
-from views.ui import inject_css, render_back_button
+from views.ui import inject_css, render_back_button, render_navbar
 
 
 def render_header():
@@ -27,6 +27,7 @@ def render_header():
 def render():
     """Função principal de renderização da tela do Chatbot."""
     inject_css("chatbot")
+    render_navbar("chatbot")
 
     # 1. Botão flutuante de retorno
     render_back_button()

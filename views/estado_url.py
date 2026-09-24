@@ -73,6 +73,10 @@ def link_chatbot() -> str:
     return _link(page="chatbot")
 
 
+def link_bi() -> str:
+    return _link(page="bi")
+
+
 def link_home() -> str:
     """href de volta para a Home com os filtros que vieram na URL."""
     return _link()

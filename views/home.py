@@ -11,7 +11,7 @@ from services import data_loader
 from services.formatters import fmt_int_br, fmt_bilhoes_br
 from streamlit_sortables import sort_items
 from views import estado_url
-from views.ui import inject_css, read_css
+from views.ui import inject_css, read_css, render_navbar
 
 
 def render_chatbot_button(container):
@@ -416,7 +416,8 @@ def render_pagination(
 def render():
     """Função principal da tela Home."""
     inject_css("home")
-    botao_chatbot = st.empty()  # preenchido depois que o estado atual é gravado na URL
+    barra_nav = st.empty()  # barra e botão do chatbot são preenchidos depois que o estado atual é gravado na URL
+    botao_chatbot = st.empty()
     render_header()
 
     df_base = data_loader.get_empreendimentos()
@@ -426,6 +427,7 @@ def render():
             "Nenhum dado encontrado em `data/processed/empreendimentos_priorizacao.parquet`.\n"
             "Execute o script `scripts/process_data.py` para processar a base de dados."
         )
+        render_navbar("home", barra_nav)
         render_chatbot_button(botao_chatbot)
         return
 
@@ -613,6 +615,7 @@ def render():
         },
     )
     estado_url.marcar_sessao_iniciada()
+    render_navbar("home", barra_nav)
     render_chatbot_button(botao_chatbot)
 
     # ── Cabeçalho da Tabela com Botão de Personalização Integrado ──
