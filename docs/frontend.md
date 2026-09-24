@@ -100,7 +100,7 @@ Definidos no topo de `assets/css/base.css`. **Use sempre `var(--nome)` em vez de
 | `--border` / `--border-2` | `#e2e8f0` / `#cbd5e1` | Bordas |
 | `--bg-soft` / `--bg-soft-2` | `#f8fafc` / `#f1f5f9` | Fundos claros, linhas zebradas |
 | `--grad-header`, `--grad-header-hover` | degradês navy | Cabeçalhos e botões flutuantes |
-| `--grad-button`, `--grad-button-hover` | degradês navy | Botões de ação (Personalizar colunas, Salvar) |
+| `--grad-button`, `--grad-button-hover` | degradês navy | Botões de ação (Salvar do modal). O botão "Personalizar Colunas" usa navy sólido a 80% (`rgba(11, 37, 69, 0.8)`) |
 | `--font-mono` | pilha monoespaçada | Números (índice IC, valores) |
 
 O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.toml` e usa os mesmos valores (`primaryColor = "#0b2545"`).
@@ -303,7 +303,7 @@ Compare as declarações CSS efetivas antes/depois por seletor (resolvendo `var(
 | Problema | Detalhe |
 |---|---|
 | **Seletores dependentes da versão do Streamlit** | A paginação usa `data-testid="column"` (1.36) e o alinhamento do mapa usa `data-testid="stColumn"` (1.37+). Com 1.36, as regras do mapa não se aplicam. Atualizar o Streamlit exige revisar todos os seletores `div[data-testid=...]`. |
-| **`button[key="..."]` não funciona** | O Streamlit não coloca o atributo `key` no HTML do botão. As regras do botão "Personalizar Colunas" e dos botões do modal provavelmente não têm efeito. Preservadas por ora; remover/corrigir só com conferência visual. |
+| **`button[key="..."]` não funciona** | O Streamlit não coloca o atributo `key` no HTML do botão. O botão "Personalizar Colunas" é estilizado pela linha do título (`div[data-testid="stHorizontalBlock"]:has(.carteira-header-title)`). As regras `key` dos botões **dentro** do modal seguem sem efeito — mantidas porque o visual atual do modal está aprovado. Ver `docs/erros_solucoes.md`, caso 7. |
 | **`onclick` em HTML é descartado** | `st.markdown` não executa JavaScript inline (ex.: `<tr onclick=...>` na tabela). Só links `<a href>` funcionam. |
 | **Navegar reinicia a sessão** | Links `<a href>` recarregam a página e zeram o `st.session_state`. Por isso o estado da Home vive na URL (`views/estado_url.py`). O que ainda se perde ao navegar: o histórico de conversa do chatbot. |
 | **Valor fora das opções derruba o selectbox** | Colocar em `st.session_state` um valor que não está nas `options` do selectbox gera `"... is not in iterable"` e a página quebra. Todo valor vindo da URL passa por `estado_url.ler(..., opcoes)`. |

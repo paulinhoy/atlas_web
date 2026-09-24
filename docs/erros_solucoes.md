@@ -14,6 +14,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 4. [Persistência de Query Params na URL ao Voltar do Atlas para a Home](#caso-4-persistência-de-query-params-na-url-ao-voltar-do-atlas-para-a-home)
 5. [Desalinhamento Visual de Ordenação por IC devido a Limiares Setoriais de Impacto](#caso-5-desalinhamento-visual-de-ordenação-por-ic-devido-a-limiares-setoriais-de-impacto)
 6. [Incompatibilidade de `@st.dialog` e Seletores DOM no Streamlit 1.36.0](#caso-6-incompatibilidade-de-stdialog-e-seletores-dom-no-streamlit-1360)
+7. [Botão "Personalizar Colunas" sem Estilo (Seletor `button[key=...]`)](#caso-7-botão-personalizar-colunas-sem-estilo-seletor-buttonkey)
 
 ---
 
@@ -189,6 +190,30 @@ Ao alternar entre as carteiras metodológicas (Cenário Otimizado ou Priorizaç�
 2. **Escopo estrito nos seletores CSS:**
    - Paginação restrita a blocos com 5 ou mais colunas: `div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button`.
    - Modal estilizado aceitando ambos os seletores: `div[data-testid="stModal"]` e `div[data-testid="stDialog"]`.
+
+---
+
+## Caso 7: Botão "Personalizar Colunas" sem Estilo (Seletor `button[key=...]`)
+
+* **Data:** 24/09/2026
+* **Componentes Afetados:** `assets/css/home.css`, `views/home.py`
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+O botão "Personalizar Colunas" aparecia como o botão branco padrão do Streamlit, esticado por toda a coluna, destoando do visual navy do projeto — embora `home.css` tivesse um estilo completo para ele (degradê navy, ícone de engrenagem, largura automática).
+
+### 🔍 Causa Raiz
+Todas as regras usavam `button[key="btn_abrir_modal_colunas"]`. O parâmetro `key` do `st.button` fica só no Python: o Streamlit **não** escreve esse atributo no HTML. O seletor nunca casava e o navegador ignorava a regra em silêncio.
+
+### ✅ Solução Adotada
+Mirar a linha pelo título que está ao lado do botão, cuja classe existe de fato no HTML:
+```css
+/* "o botão que está na mesma linha do título da carteira" */
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stButton"] button { ... }
+```
+O modal não é afetado: no 1.36 ele é desenhado fora da linha (no fim da página, via portal do baseweb). As regras dos botões **dentro** do modal ainda usam `button[key=...]` e continuam sem efeito — mantidas de propósito, pois o visual atual do modal foi aprovado.
+
+**Regra geral:** para estilizar um widget nativo, ancore o seletor em uma classe HTML própria vizinha (via `:has(...)`) ou em `data-testid`; nunca em `key`.
 
 ---
 
