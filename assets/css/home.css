@@ -1,0 +1,399 @@
+/* ---- Cabeçalho institucional ---- */
+.main-header {
+    background: var(--grad-header);
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.main-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.header-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin: 0;
+    color: #ffffff;
+}
+.header-subtitle {
+    font-size: 26px;
+    color: #d1e3f8;
+    margin-top: 0.3rem;
+    font-weight: 300;
+    line-height: 1.3;
+}
+
+/* ---- Cartões de KPI ---- */
+.kpi-card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+}
+.kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 0.2rem;
+}
+.kpi-subtext {
+    font-size: 12px;
+    color: var(--muted-2);
+    margin-top: 0.2rem;
+}
+
+/* ---- Tabela de empreendimentos (complementa base.css) ---- */
+.home-atlas-table {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+    border: 1px solid var(--border);
+    margin-top: 0.6rem;
+    margin-bottom: 1.2rem;
+}
+.home-atlas-table thead th {
+    padding: 0.75rem 0.85rem;
+    letter-spacing: 0.25px;
+    border: none;
+}
+.home-atlas-table tbody td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid #eef2f7;
+}
+.home-atlas-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.home-atlas-table tbody tr:hover { background: #edf4fb; }
+.home-atlas-table .tl { text-align: left; }
+.home-atlas-table .tc { text-align: center; }
+.home-atlas-table .tr { text-align: right; }
+.home-atlas-table .font-bold {
+    font-weight: 600;
+    color: var(--navy);
+}
+.home-atlas-table .emp-link {
+    color: var(--navy);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 12px;
+    display: block;
+    transition: color 0.15s ease;
+}
+.home-atlas-table .emp-link:hover {
+    color: var(--blue-accent);
+    text-decoration: underline;
+}
+.home-atlas-table .btn-action {
+    display: inline-block;
+    background: var(--navy);
+    color: #ffffff !important;
+    padding: 0.32rem 0.70rem;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none !important;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+}
+.home-atlas-table .btn-action:hover {
+    background: var(--navy-2);
+    color: #ffffff !important;
+    transform: translateX(2px);
+}
+.home-atlas-table .badge {
+    padding: 0.20rem 0.50rem;
+    white-space: nowrap;
+}
+.home-atlas-table .badge-high { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.home-atlas-table .badge-med { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.home-atlas-table .badge-low { background: var(--bg-soft-2); color: var(--text-3); border: 1px solid var(--border-2); }
+.home-atlas-table .badge-neutral { background: var(--bg-soft-2); color: var(--text-2); border: 1px solid var(--border); }
+.home-atlas-table .badge-est { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.home-atlas-table .badge-mun { background: #fef9c3; color: #a16207; border: 1px solid #fef08a; }
+.home-atlas-table .badge-priv { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+
+/* ---- Painel de filtros e busca ---- */
+.filter-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1.2rem;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+}
+.filter-panel-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.filter-panel-subtitle {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+/* ---- Inputs e dropdowns do Streamlit ---- */
+div[data-testid="stTextInput"] label,
+div[data-testid="stSelectbox"] label {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: var(--text-3) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    margin-bottom: 0.25rem !important;
+}
+div[data-testid="stTextInput"] input,
+div[data-testid="stSelectbox"] > div > div {
+    background-color: var(--bg-soft) !important;
+    border: 1px solid var(--border-2) !important;
+    border-radius: 8px !important;
+    color: var(--text) !important;
+    font-size: 14px !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stTextInput"] input {
+    padding: 0.48rem 0.8rem !important;
+}
+div[data-testid="stTextInput"] input:hover,
+div[data-testid="stSelectbox"] > div > div:hover {
+    background-color: #ffffff !important;
+    border-color: var(--muted-2) !important;
+}
+div[data-testid="stTextInput"] input:focus,
+div[data-testid="stSelectbox"] > div > div[aria-expanded="true"] {
+    background-color: #ffffff !important;
+    border-color: var(--navy) !important;
+    box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12) !important;
+}
+
+/* ---- Paginação numérica (blocos horizontais com 5+ colunas) ---- */
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="primary"],
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"] {
+    border: none !important;
+    border-radius: 4px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+}
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="primary"] {
+    background-color: var(--navy) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+}
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"] {
+    background-color: transparent !important;
+    color: var(--text) !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    transition: all 0.15s ease !important;
+}
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:hover:not(:disabled) {
+    background-color: var(--bg-soft-2) !important;
+    color: var(--navy) !important;
+}
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:disabled {
+    color: var(--border-2) !important;
+    background-color: transparent !important;
+    cursor: not-allowed !important;
+}
+
+/* ---- Cabeçalho da tabela: alinhamento entre título e botão ---- */
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) {
+    display: flex !important;
+    align-items: flex-end !important;
+    margin-top: 1.8rem !important;
+    margin-bottom: 0px !important;
+}
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="column"] {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    margin-bottom: 0px !important;
+    padding-bottom: 0px !important;
+}
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="element-container"],
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stMarkdownContainer"] {
+    margin-bottom: 0px !important;
+    padding-bottom: 0px !important;
+}
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stMarkdownContainer"] p {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stButton"] {
+    margin-bottom: 0px !important;
+    padding-bottom: 0px !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+}
+.carteira-header-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 34px;
+    margin: 0 !important;
+    padding: 0 !important;
+    letter-spacing: -0.2px;
+}
+
+/* ---- Botão "Personalizar Colunas" ---- */
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button,
+div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button {
+    min-width: 175px !important;
+    max-width: 220px !important;
+    width: auto !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 16px !important;
+    border-radius: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: var(--grad-button) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.2px !important;
+    box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    margin-bottom: 0px !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button:hover,
+div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button:hover,
+div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover,
+div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover {
+    background: var(--grad-button-hover) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(11, 37, 69, 0.35) !important;
+    transform: translateY(-1px);
+}
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button p,
+div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button p {
+    white-space: nowrap !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+}
+/* Ícone de engrenagem em SVG monocromático (evita o emoji roxo do Windows) */
+div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button p::before,
+div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button p::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    background-color: #ffffff;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'%3E%3C/path%3E%3Ccircle cx='12' cy='12' r='3'%3E%3C/circle%3E%3C/svg%3E") no-repeat center;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'%3E%3C/path%3E%3Ccircle cx='12' cy='12' r='3'%3E%3C/circle%3E%3C/svg%3E") no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+}
+
+/* ---- Botões do modal de colunas (stModal 1.36 / stDialog 1.37+) ---- */
+div[data-testid="stModal"] div[data-testid="stButton"] button,
+div[data-testid="stDialog"] div[data-testid="stButton"] button {
+    min-width: auto !important;
+    max-width: none !important;
+    height: 38px !important;
+    padding: 0 18px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button,
+div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button {
+    background: var(--grad-button) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25) !important;
+}
+div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p,
+div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button,
+div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button {
+    background: var(--bg-soft) !important;
+    color: var(--muted) !important;
+    border: 1px solid var(--border-2) !important;
+    box-shadow: none !important;
+    font-weight: 500 !important;
+}
+div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover,
+div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover {
+    background: var(--bg-soft-2) !important;
+    color: var(--navy) !important;
+    border-color: var(--muted-2) !important;
+}
+div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p,
+div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p {
+    color: inherit !important;
+}
+
+/* ---- Textos auxiliares, separadores e paginação ---- */
+.atlas-floating-chat-btn svg { vertical-align: middle; }
+.modal-hint {
+    color: var(--text-3);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+.divider-light {
+    border-top: 1px solid var(--border);
+    margin: 20px 0 14px 0;
+}
+.divider-navy {
+    border-bottom: 2px solid var(--navy);
+    margin: 4px 0 12px 0;
+}
+.pagination-info {
+    font-size: 0.85rem;
+    color: var(--muted);
+    padding-top: 0.4rem;
+}
+.pagination-size-label {
+    text-align: right;
+    font-size: 0.82rem;
+}
+.pagination-ellipsis {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 32px;
+    font-weight: bold;
+}

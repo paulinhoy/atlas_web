@@ -1,0 +1,41 @@
+.sortable-component {
+    gap: 14px;
+}
+.sortable-container {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0;
+}
+.sortable-container-header {
+    background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px 8px 0 0;
+    letter-spacing: 0.2px;
+}
+.sortable-container-body {
+    padding: 10px;
+    min-height: 48px;
+}
+.sortable-item {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0b2545;
+    cursor: grab;
+    transition: all 0.15s ease;
+}
+.sortable-item:hover {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    box-shadow: 0 1px 3px rgba(2,132,199,0.15);
+}
+.sortable-item.dragging {
+    opacity: 0.5;
+}

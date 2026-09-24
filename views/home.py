@@ -3,7 +3,6 @@ Tela Inicial (Home) - Painel Executivo e Busca de Empreendimentos Priorizados
 Apresenta KPIs, filtros dinâmicos e tabela de empreendimentos estilizada no mesmo padrão visual do Atlas.
 """
 
-from pathlib import Path
 import html as html_mod
 import math
 import streamlit as st
@@ -11,520 +10,7 @@ import pandas as pd
 from services import data_loader
 from services.formatters import fmt_int_br, fmt_bilhoes_br
 from streamlit_sortables import sort_items
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOGOS_DIR = BASE_DIR / "logos"
-
-
-def apply_custom_styles():
-    """Aplica estilos CSS customizados para a tela inicial."""
-    st.markdown(
-        """
-        <style>
-            /* Cabeçalho institucional */
-            .main-header {
-                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
-                padding: 1.5rem 2rem;
-                border-radius: 12px;
-                color: #ffffff;
-                margin-bottom: 1.5rem;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            }
-            .header-title {
-                font-size: 28px;
-                font-weight: 700;
-                letter-spacing: -0.5px;
-                margin: 0;
-                color: #ffffff;
-            }
-            .header-subtitle {
-                font-size: 26px;
-                color: #d1e3f8;
-                margin-top: 0.3rem;
-                font-weight: 300;
-                line-height: 1.3;
-            }
-
-            /* Cartões de KPI */
-            .kpi-card {
-                background: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 1.1rem 1.2rem;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-                transition: transform 0.2s ease, box-shadow 0.2s ease;
-            }
-            .kpi-title {
-                font-size: 13px;
-                font-weight: 600;
-                text-transform: uppercase;
-                color: #64748b;
-                letter-spacing: 0.5px;
-            }
-            .kpi-value {
-                font-size: 28px;
-                font-weight: 700;
-                color: #0f172a;
-                margin-top: 0.2rem;
-            }
-            .kpi-subtext {
-                font-size: 12px;
-                color: #94a3b8;
-                margin-top: 0.2rem;
-            }
-
-            /* Título de seção com sublinhado padrão Atlas */
-            .section-title {
-                font-size: 20px;
-                font-weight: 700;
-                color: #0b2545;
-                margin: 1.5rem 0 0.8rem 0;
-                padding-bottom: 0.35rem;
-                border-bottom: 2px solid #0b2545;
-            }
-
-            /* Tabela de Empreendimentos no padrão visual do Atlas */
-            .home-atlas-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 12px;
-                border-radius: 8px;
-                overflow: hidden;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                background: #ffffff;
-                border: 1px solid #e2e8f0;
-                margin-top: 0.6rem;
-                margin-bottom: 1.2rem;
-            }
-            .home-atlas-table thead th {
-                background: #0b2545;
-                color: #ffffff;
-                padding: 0.75rem 0.85rem;
-                text-align: center;
-                font-weight: 600;
-                font-size: 16px;
-                letter-spacing: 0.25px;
-                white-space: nowrap;
-                border: none;
-            }
-            .home-atlas-table tbody td {
-                padding: 0.55rem 0.75rem;
-                text-align: center;
-                border-bottom: 1px solid #eef2f7;
-                color: #334155;
-                font-size: 12px;
-                vertical-align: middle;
-            }
-            .home-atlas-table tbody tr {
-                cursor: pointer;
-                transition: background-color 0.15s ease;
-            }
-            .home-atlas-table tbody tr:nth-child(even) {
-                background: #f8fafc;
-            }
-            .home-atlas-table tbody tr:hover {
-                background: #edf4fb;
-            }
-            .home-atlas-table .tl {
-                text-align: left;
-            }
-            .home-atlas-table .tc {
-                text-align: center;
-            }
-            .home-atlas-table .tr {
-                text-align: right;
-            }
-            .home-atlas-table .font-bold {
-                font-weight: 600;
-                color: #0b2545;
-            }
-            .home-atlas-table .font-mono {
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size: 12px;
-            }
-            .home-atlas-table .emp-link {
-                color: #0b2545;
-                text-decoration: none;
-                font-weight: 600;
-                font-size: 12px;
-                display: block;
-                transition: color 0.15s ease;
-            }
-            .home-atlas-table .emp-link:hover {
-                color: #1d4ed8;
-                text-decoration: underline;
-            }
-            .home-atlas-table .btn-action {
-                display: inline-block;
-                background: #0b2545;
-                color: #ffffff !important;
-                padding: 0.32rem 0.70rem;
-                border-radius: 5px;
-                font-size: 12px;
-                font-weight: 600;
-                text-decoration: none !important;
-                transition: background-color 0.15s ease, transform 0.1s ease;
-                white-space: nowrap;
-            }
-            .home-atlas-table .btn-action:hover {
-                background: #133b63;
-                color: #ffffff !important;
-                transform: translateX(2px);
-            }
-            .home-atlas-table .badge {
-                display: inline-block;
-                padding: 0.20rem 0.50rem;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: 600;
-                white-space: nowrap;
-            }
-            .home-atlas-table .badge-high {
-                background: #dcfce7;
-                color: #166534;
-                border: 1px solid #bbf7d0;
-            }
-            .home-atlas-table .badge-med {
-                background: #fef3c7;
-                color: #92400e;
-                border: 1px solid #fde68a;
-            }
-            .home-atlas-table .badge-low {
-                background: #f1f5f9;
-                color: #475569;
-                border: 1px solid #cbd5e1;
-            }
-            .home-atlas-table .badge-neutral {
-                background: #f1f5f9;
-                color: #334155;
-                border: 1px solid #e2e8f0;
-            }
-            .home-atlas-table .badge-fed {
-                background: #e0f2fe;
-                color: #0369a1;
-                border: 1px solid #bae6fd;
-            }
-            .home-atlas-table .badge-est {
-                background: #f0fdf4;
-                color: #15803d;
-                border: 1px solid #bbf7d0;
-            }
-            .home-atlas-table .badge-mun {
-                background: #fef9c3;
-                color: #a16207;
-                border: 1px solid #fef08a;
-            }
-            .home-atlas-table .badge-priv {
-                background: #f5f3ff;
-                color: #6d28d9;
-                border: 1px solid #ddd6fe;
-            }
-            /* Painel de Filtros e Busca */
-            .filter-panel-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-top: 1.2rem;
-                margin-bottom: 0.6rem;
-                padding-bottom: 0.4rem;
-                border-bottom: 1px solid #e2e8f0;
-            }
-            .filter-panel-title {
-                font-size: 20px;
-                font-weight: 700;
-                color: #0b2545;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            .filter-panel-subtitle {
-                font-size: 14px;
-                color: #64748b;
-            }
-
-            /* Customização profunda dos Inputs e Dropdowns Streamlit */
-            div[data-testid="stTextInput"] label,
-            div[data-testid="stSelectbox"] label {
-                font-size: 13px !important;
-                font-weight: 700 !important;
-                color: #475569 !important;
-                text-transform: uppercase !important;
-                letter-spacing: 0.4px !important;
-                margin-bottom: 0.25rem !important;
-            }
-            
-            div[data-testid="stTextInput"] input {
-                background-color: #f8fafc !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 8px !important;
-                color: #0f172a !important;
-                font-size: 14px !important;
-                padding: 0.48rem 0.8rem !important;
-                box-shadow: none !important;
-                transition: all 0.2s ease !important;
-            }
-            div[data-testid="stTextInput"] input:hover {
-                background-color: #ffffff !important;
-                border-color: #94a3b8 !important;
-            }
-            div[data-testid="stTextInput"] input:focus {
-                background-color: #ffffff !important;
-                border-color: #0b2545 !important;
-                box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12) !important;
-            }
-
-            div[data-testid="stSelectbox"] > div > div {
-                background-color: #f8fafc !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 8px !important;
-                color: #0f172a !important;
-                font-size: 14px !important;
-                box-shadow: none !important;
-                transition: all 0.2s ease !important;
-            }
-            div[data-testid="stSelectbox"] > div > div:hover {
-                background-color: #ffffff !important;
-                border-color: #94a3b8 !important;
-            }
-            div[data-testid="stSelectbox"] > div > div[aria-expanded="true"] {
-                background-color: #ffffff !important;
-                border-color: #0b2545 !important;
-                box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.12) !important;
-            }
-
-            /* Controles de paginação numérica minimalista (apenas em blocos horizontais de paginação com 5+ colunas) */
-            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="primary"] {
-                background-color: #0b2545 !important;
-                color: #ffffff !important;
-                border: none !important;
-                border-radius: 4px !important;
-                min-width: 32px !important;
-                max-width: 32px !important;
-                height: 32px !important;
-                min-height: 32px !important;
-                padding: 0 !important;
-                font-size: 14px !important;
-                font-weight: 700 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                margin: 0 auto !important;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
-            }
-
-            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"] {
-                background-color: transparent !important;
-                color: #0f172a !important;
-                border: none !important;
-                border-radius: 4px !important;
-                min-width: 32px !important;
-                max-width: 32px !important;
-                height: 32px !important;
-                min-height: 32px !important;
-                padding: 0 !important;
-                font-size: 14px !important;
-                font-weight: 500 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                margin: 0 auto !important;
-                box-shadow: none !important;
-                transition: all 0.15s ease !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:hover:not(:disabled) {
-                background-color: #f1f5f9 !important;
-                color: #0b2545 !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:disabled {
-                color: #cbd5e1 !important;
-                background-color: transparent !important;
-                cursor: not-allowed !important;
-            }
-
-            /* Cabeçalho da Tabela - Alinhamento vertical perfeito entre título e botão */
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) {
-                display: flex !important;
-                align-items: flex-end !important;
-                margin-top: 1.8rem !important;
-                margin-bottom: 0px !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="column"] {
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: flex-end !important;
-                margin-bottom: 0px !important;
-                padding-bottom: 0px !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="element-container"] {
-                margin-bottom: 0px !important;
-                padding-bottom: 0px !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stMarkdownContainer"] {
-                margin-bottom: 0px !important;
-                padding-bottom: 0px !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stMarkdownContainer"] p {
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) div[data-testid="stButton"] {
-                margin-bottom: 0px !important;
-                padding-bottom: 0px !important;
-                display: flex !important;
-                justify-content: flex-end !important;
-            }
-
-            .carteira-header-title {
-                font-size: 20px;
-                font-weight: 700;
-                color: #0b2545;
-                line-height: 34px;
-                margin: 0 !important;
-                padding: 0 !important;
-                letter-spacing: -0.2px;
-            }
-
-            /* Botão Executivo de Personalizar Colunas no cabeçalho da tabela */
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button,
-            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button {
-                min-width: 175px !important;
-                max-width: 220px !important;
-                width: auto !important;
-                height: 34px !important;
-                min-height: 34px !important;
-                padding: 0 16px !important;
-                border-radius: 6px !important;
-                border: 1px solid rgba(255, 255, 255, 0.15) !important;
-                background: linear-gradient(135deg, #0b2545 0%, #134074 100%) !important;
-                color: #ffffff !important;
-                font-size: 13px !important;
-                font-weight: 600 !important;
-                letter-spacing: 0.2px !important;
-                box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25) !important;
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                margin-left: auto !important;
-                margin-right: 0 !important;
-                margin-bottom: 0px !important;
-                transition: all 0.2s ease !important;
-            }
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button:hover,
-            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button:hover {
-                background: linear-gradient(135deg, #134074 0%, #1d4ed8 100%) !important;
-                color: #ffffff !important;
-                box-shadow: 0 4px 12px rgba(11, 37, 69, 0.35) !important;
-                transform: translateY(-1px);
-            }
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button p,
-            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button p {
-                white-space: nowrap !important;
-                font-size: 13px !important;
-                font-weight: 600 !important;
-                color: #ffffff !important;
-                margin: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                gap: 7px !important;
-            }
-            /* Ícone de engrenagem vetorizado (SVG) monocromático para evitar emoji roxo do Windows */
-            div[data-testid="stHorizontalBlock"]:has(button[key="btn_abrir_modal_colunas"]) button p::before,
-            div[data-testid="stButton"]:has(button[key="btn_abrir_modal_colunas"]) button p::before {
-                content: "";
-                display: inline-block;
-                width: 14px;
-                height: 14px;
-                background-color: #ffffff;
-                -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'%3E%3C/path%3E%3Ccircle cx='12' cy='12' r='3'%3E%3C/circle%3E%3C/svg%3E") no-repeat center;
-                mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'%3E%3C/path%3E%3Ccircle cx='12' cy='12' r='3'%3E%3C/circle%3E%3C/svg%3E") no-repeat center;
-                mask-size: contain;
-                -webkit-mask-size: contain;
-            }
-
-            /* Botões do Modal de Personalização (compatível com stModal 1.36.0 e stDialog 1.37+) */
-            div[data-testid="stModal"] div[data-testid="stButton"] button,
-            div[data-testid="stDialog"] div[data-testid="stButton"] button {
-                min-width: auto !important;
-                max-width: none !important;
-                height: 38px !important;
-                padding: 0 18px !important;
-                border-radius: 6px !important;
-                font-size: 13px !important;
-                font-weight: 600 !important;
-                transition: all 0.2s ease !important;
-            }
-            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button,
-            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button {
-                background: linear-gradient(135deg, #0b2545 0%, #134074 100%) !important;
-                color: #ffffff !important;
-                border: none !important;
-                box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25) !important;
-            }
-            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover,
-            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover {
-                background: linear-gradient(135deg, #134074 0%, #1d4ed8 100%) !important;
-                color: #ffffff !important;
-                box-shadow: 0 4px 12px rgba(11, 37, 69, 0.35) !important;
-                transform: translateY(-1px);
-            }
-            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p,
-            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p {
-                color: #ffffff !important;
-                font-weight: 600 !important;
-            }
-
-            /* Botão Restaurar Padrão no Modal: estilo sutil com borda limpa */
-            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button,
-            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button {
-                background: #f8fafc !important;
-                color: #64748b !important;
-                border: 1px solid #cbd5e1 !important;
-                box-shadow: none !important;
-                font-weight: 500 !important;
-            }
-            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover,
-            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover {
-                background: #f1f5f9 !important;
-                color: #0b2545 !important;
-                border-color: #94a3b8 !important;
-            }
-            div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p,
-            div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p {
-                color: inherit !important;
-            }
-
-            /* ---- Botão Flutuante do Chatbot (Floating Action Pill) ---- */
-            .atlas-floating-chat-btn {
-                position: fixed;
-                bottom: 24px;
-                right: 24px;
-                z-index: 99999;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
-                color: #ffffff !important;
-                padding: 0.65rem 1.30rem;
-                border-radius: 30px;
-                font-size: 14px;
-                font-weight: 600;
-                text-decoration: none !important;
-                box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
-                border: 1.5px solid #BAD6D9;
-                transition: all 0.2s ease;
-                backdrop-filter: blur(8px);
-            }
-            .atlas-floating-chat-btn:hover {
-                background: linear-gradient(135deg, #133b63 0%, #1d4ed8 100%);
-                color: #ffffff !important;
-                border-color: #ffffff;
-                transform: translateY(-2px);
-                box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+from views.ui import inject_css, read_css
 
 
 def render_chatbot_button():
@@ -532,7 +18,7 @@ def render_chatbot_button():
     st.markdown(
         """
         <a href="?page=chatbot" target="_self" class="atlas-floating-chat-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             <span>Assistente Virtual</span>
         </a>
         """,
@@ -545,7 +31,7 @@ def render_header():
     st.markdown(
         """
         <div class="main-header">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+            <div class="main-header-row">
                 <div>
                     <div class="header-title">PELTMG — Atlas de Empreendimentos</div>
                     <div class="header-subtitle">
@@ -567,63 +53,25 @@ def render_kpis(df: pd.DataFrame):
     col_impacto = "impacto_avaliado_3_pond_cenario"
     alto_impacto = len(df[df[col_impacto] == "Alto impacto"]) if col_impacto in df.columns else 0
     top_setor = df["setor"].mode()[0] if "setor" in df.columns and not df.empty else "-"
+    pct_alto = (alto_impacto / total_emp) * 100 if total_emp > 0 else 0
 
-    c1, c2, c3, c4 = st.columns(4)
+    capex_map = data_loader.get_mapa_capex_custo_economico()
+    if "id_empreendimento" in df.columns and not df.empty:
+        eids = pd.to_numeric(df["id_empreendimento"], errors="coerce").dropna().astype(int)
+        inv_formatado = fmt_bilhoes_br(float(eids.map(capex_map).fillna(0).sum()))
+    else:
+        inv_formatado = "-"
 
-    with c1:
-        st.markdown(
-            f"""
-            <div class="kpi-card">
-                <div class="kpi-title">Empreendimentos Priorizados</div>
-                <div class="kpi-value">{fmt_int_br(total_emp)}</div>
-                <div class="kpi-subtext">Carteira avaliada</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with c2:
-        st.markdown(
-            f"""
-            <div class="kpi-card">
-                <div class="kpi-title">Setores Atendidos</div>
-                <div class="kpi-value">{total_setores}</div>
-                <div class="kpi-subtext">Principal: <b>{top_setor}</b></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with c3:
-        pct_alto = (alto_impacto / total_emp) * 100 if total_emp > 0 else 0
-        st.markdown(
-            f"""
-            <div class="kpi-card">
-                <div class="kpi-title">Alto Impacto</div>
-                <div class="kpi-value">{fmt_int_br(alto_impacto)}</div>
-                <div class="kpi-subtext">{pct_alto:.1f}% da carteira</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with c4:
-        capex_map = data_loader.get_mapa_capex_custo_economico()
-        if "id_empreendimento" in df.columns and not df.empty:
-            eids = pd.to_numeric(df["id_empreendimento"], errors="coerce").dropna().astype(int)
-            total_capex = float(eids.map(capex_map).fillna(0).sum())
-            inv_formatado = fmt_bilhoes_br(total_capex)
-        else:
-            inv_formatado = "-"
-
-        st.markdown(
-            f"""
-            <div class="kpi-card">
-                <div class="kpi-title">Investimento Total</div>
-                <div class="kpi-value">{inv_formatado}</div>
-                <div class="kpi-subtext">CAPEX</div>
-            </div>
-            """,
+    cards = [
+        ("Empreendimentos Priorizados", fmt_int_br(total_emp), "Carteira avaliada"),
+        ("Setores Atendidos", total_setores, f"Principal: <b>{top_setor}</b>"),
+        ("Alto Impacto", fmt_int_br(alto_impacto), f"{pct_alto:.1f}% da carteira"),
+        ("Investimento Total", inv_formatado, "CAPEX"),
+    ]
+    for col, (titulo, valor, subtexto) in zip(st.columns(4), cards):
+        col.markdown(
+            f'<div class="kpi-card"><div class="kpi-title">{titulo}</div>'
+            f'<div class="kpi-value">{valor}</div><div class="kpi-subtext">{subtexto}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -635,45 +83,19 @@ def render_kpis(df: pd.DataFrame):
 # Permite adicionar, remover ou reordenar colunas de forma centralizada e independente.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_badge_impacto(val) -> str:
+BADGE_RULES = {
+    "impacto": [(("alto",), "badge-high"), (("médio", "medio"), "badge-med"), (("baixo",), "badge-low")],
+    "esfera": [(("federal",), "badge-fed"), (("estadual",), "badge-est"), (("municipal",), "badge-mun"), (("privad",), "badge-priv")],
+    "viabilidade": [(("alta",), "badge-high"), (("média", "media"), "badge-med"), (("baixa",), "badge-low")],
+}
+
+
+def _render_badge(tipo: str, val) -> str:
+    """Badge colorido: a classe é escolhida pelo primeiro trecho de texto encontrado no valor."""
     raw = str(val or "-")
-    safe = html_mod.escape(raw)
     raw_lower = raw.lower()
-    if "alto" in raw_lower:
-        return f'<span class="badge badge-high">{safe}</span>'
-    elif "médio" in raw_lower or "medio" in raw_lower:
-        return f'<span class="badge badge-med">{safe}</span>'
-    elif "baixo" in raw_lower:
-        return f'<span class="badge badge-low">{safe}</span>'
-    return f'<span class="badge badge-neutral">{safe}</span>'
-
-
-def _render_badge_esfera(val) -> str:
-    raw = str(val or "-")
-    safe = html_mod.escape(raw)
-    raw_lower = raw.lower()
-    if "federal" in raw_lower:
-        return f'<span class="badge badge-fed">{safe}</span>'
-    elif "estadual" in raw_lower:
-        return f'<span class="badge badge-est">{safe}</span>'
-    elif "municipal" in raw_lower:
-        return f'<span class="badge badge-mun">{safe}</span>'
-    elif "privad" in raw_lower:
-        return f'<span class="badge badge-priv">{safe}</span>'
-    return f'<span class="badge badge-neutral">{safe}</span>'
-
-
-def _render_badge_viabilidade(val) -> str:
-    raw = str(val or "-")
-    safe = html_mod.escape(raw)
-    raw_lower = raw.lower()
-    if "alta" in raw_lower:
-        return f'<span class="badge badge-high">{safe}</span>'
-    elif "média" in raw_lower or "media" in raw_lower:
-        return f'<span class="badge badge-med">{safe}</span>'
-    elif "baixa" in raw_lower:
-        return f'<span class="badge badge-low">{safe}</span>'
-    return f'<span class="badge badge-neutral">{safe}</span>'
+    css = next((c for termos, c in BADGE_RULES[tipo] if any(t in raw_lower for t in termos)), "badge-neutral")
+    return f'<span class="badge {css}">{html_mod.escape(raw)}</span>'
 
 
 def _fmt_ic(val) -> str:
@@ -709,7 +131,7 @@ AVAILABLE_COLUMNS = {
         "th_class": "tc",
         "th_style": "",
         "td_class": "tc",
-        "render": lambda r: _render_badge_esfera(r.get("esfera_acao")),
+        "render": lambda r: _render_badge("esfera", r.get("esfera_acao")),
     },
     "status": {
         "label": "Status",
@@ -723,7 +145,7 @@ AVAILABLE_COLUMNS = {
         "th_class": "tc",
         "th_style": "",
         "td_class": "tc",
-        "render": lambda r: _render_badge_viabilidade(r.get("viabilidade")),
+        "render": lambda r: _render_badge("viabilidade", r.get("viabilidade")),
     },
     "vocacao": {
         "label": "Vocação",
@@ -765,7 +187,7 @@ AVAILABLE_COLUMNS = {
         "th_class": "tc",
         "th_style": "",
         "td_class": "tc",
-        "render": lambda r: _render_badge_impacto(r.get("impacto_avaliado_3_pond_cenario")),
+        "render": lambda r: _render_badge("impacto", r.get("impacto_avaliado_3_pond_cenario")),
     },
     "acao": {
         "label": "Ação",
@@ -806,7 +228,7 @@ else:
 def modal_personalizar_colunas():
     """Modal interativo para ordenação e seleção de colunas via drag-and-drop."""
     st.markdown(
-        "<div style='color: #475569; font-size: 13px; margin-bottom: 12px;'>"
+        "<div class='modal-hint'>"
         "Arraste os cards para reordenar as colunas na tabela ou mova entre os blocos para exibir/ocultar."
         "</div>",
         unsafe_allow_html=True,
@@ -820,56 +242,13 @@ def modal_personalizar_colunas():
         {"header": "Colunas Ocultas (arraste para cima para incluir)", "items": [ID_TO_LABEL[c] for c in available_ids]},
     ]
 
-    custom_style = """
-    .sortable-component {
-        gap: 14px;
-    }
-    .sortable-container {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 0;
-    }
-    .sortable-container-header {
-        background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
-        color: #ffffff;
-        font-size: 13px;
-        font-weight: 600;
-        padding: 8px 14px;
-        border-radius: 8px 8px 0 0;
-        letter-spacing: 0.2px;
-    }
-    .sortable-container-body {
-        padding: 10px;
-        min-height: 48px;
-    }
-    .sortable-item {
-        background: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        padding: 6px 14px;
-        font-size: 13px;
-        font-weight: 500;
-        color: #0b2545;
-        cursor: grab;
-        transition: all 0.15s ease;
-    }
-    .sortable-item:hover {
-        background: #e0f2fe;
-        border-color: #0284c7;
-        box-shadow: 0 1px 3px rgba(2,132,199,0.15);
-    }
-    .sortable-item.dragging {
-        opacity: 0.5;
-    }
-    """
 
     ver = st.session_state.get("sortable_modal_ver", 0)
     sorted_containers = sort_items(
         sortable_items,
         multi_containers=True,
         direction="horizontal",
-        custom_style=custom_style,
+        custom_style=read_css("sortable_modal"),
         key=f"home_sortable_colunas_modal_{ver}",
     )
 
@@ -880,7 +259,7 @@ def modal_personalizar_colunas():
     if new_active_ids:
         st.session_state["home_colunas_ativas"] = new_active_ids
 
-    st.markdown('<div style="border-top: 1px solid #e2e8f0; margin: 20px 0 14px 0;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="divider-light"></div>', unsafe_allow_html=True)
     c_rst, c_done = st.columns([1.5, 1], vertical_alignment="center")
     with c_rst:
         if st.button("↺ Restaurar padrão", key="btn_restaurar_colunas", help="Restaurar a configuração de colunas original recomendada"):
@@ -948,7 +327,7 @@ def render_pagination(
     c_info, c_size = st.columns([3.5, 1.5])
     with c_info:
         st.markdown(
-            f"<div style='font-size: 0.85rem; color: #64748b; padding-top: 0.4rem;'>"
+            f"<div class='pagination-info'>"
             f"Mostrando <b>{fmt_int_br(start_idx + 1)}–{fmt_int_br(end_idx)}</b> de <b>{fmt_int_br(total_filtrado)}</b> empreendimentos (Total: {fmt_int_br(total_emp)})"
             f"</div>",
             unsafe_allow_html=True,
@@ -956,7 +335,7 @@ def render_pagination(
     with c_size:
         c_lbl, c_sel = st.columns([1.1, 1.2])
         with c_lbl:
-            st.markdown("<div style='text-align: right; font-size: 0.82rem; color: #64748b; padding-top: 0.4rem;'>Itens por pág.:</div>", unsafe_allow_html=True)
+            st.markdown("<div class='pagination-info pagination-size-label'>Itens por pág.:</div>", unsafe_allow_html=True)
         with c_sel:
             size_options = [15, 25, 50, 100]
             cur_size_idx = size_options.index(page_size) if page_size in size_options else 1
@@ -1006,7 +385,7 @@ def render_pagination(
         with cols[2 + i]:
             if item == "...":
                 st.markdown(
-                    "<div style='text-align: center; color: #64748b; font-size: 0.95rem; line-height: 32px; font-weight: bold;'>…</div>",
+                    "<div class='pagination-ellipsis'>…</div>",
                     unsafe_allow_html=True,
                 )
             else:
@@ -1027,7 +406,7 @@ def render_pagination(
 
 def render():
     """Função principal da tela Home."""
-    apply_custom_styles()
+    inject_css("home")
     render_chatbot_button()
     render_header()
 
@@ -1192,7 +571,7 @@ def render():
         ):
             modal_personalizar_colunas()
 
-    st.markdown('<div style="border-bottom: 2px solid #0b2545; margin: 4px 0 12px 0;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="divider-navy"></div>', unsafe_allow_html=True)
 
     colunas_ativas = st.session_state.get("home_colunas_ativas", DEFAULT_ACTIVE_COLUMNS)
     if not colunas_ativas:

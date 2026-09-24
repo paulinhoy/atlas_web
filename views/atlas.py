@@ -3,11 +3,11 @@ Tela do Atlas - Ficha Técnica e Detalhamento do Empreendimento Selecionado
 Réplica fiel do layout do Atlas gerado pelo QGIS (Atlasref.jpeg).
 """
 
-from pathlib import Path
 import html as html_mod
 import streamlit as st
 import pandas as pd
 from services import data_loader, map_service
+from views.ui import inject_css
 from services.formatters import (
     fmt_brl,
     fmt_decimal_br,
@@ -16,260 +16,6 @@ from services.formatters import (
     fmt_pct_br,
     fmt_mes_ano_br,
 )
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOGOS_DIR = BASE_DIR / "logos"
-
-
-# ---------------------------------------------------------------------------
-# Estilos CSS
-# ---------------------------------------------------------------------------
-
-def apply_atlas_styles():
-    """Aplica estilos CSS para a ficha técnica do Atlas."""
-    st.markdown(
-        """
-        <style>
-            /* ---- Cabeçalho institucional ---- */
-            .atlas-header {
-                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
-                padding: 1.4rem 2rem;
-                border-radius: 10px;
-                color: #ffffff;
-                margin-bottom: 1.2rem;
-                box-shadow: 0 4px 14px rgba(0,0,0,0.10);
-            }
-            .atlas-header h2 {
-                color: #ffffff;
-                margin: 0;
-                font-size: 28px;
-                font-weight: 700;
-                line-height: 1.3;
-            }
-            .atlas-header .sub {
-                margin-top: 0.35rem;
-                color: #c7d6ea;
-                font-size: 24px;
-                font-weight: 300;
-                line-height: 1.3;
-            }
-
-            /* ---- Card de metadados ---- */
-            .meta-card {
-                background: #ffffff;
-                border: 1px solid #dde3ec;
-                border-radius: 10px;
-                padding: 1.1rem 1.4rem;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-                height: 520px;
-                box-sizing: border-box;
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-            }
-            .meta-card .meta-row {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                padding: 0.30rem 0;
-                border-bottom: 1px solid #eef1f6;
-            }
-            .meta-card .meta-row:last-child {
-                border-bottom: none;
-            }
-            .meta-label {
-                font-size: 12px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.6px;
-                color: #64748b;
-                margin-bottom: 0.15rem;
-            }
-            .meta-value {
-                font-size: 15px;
-                color: #0f172a;
-                font-weight: 500;
-                line-height: 1.35;
-            }
-
-            /* ---- Espaço reservado para mapa ---- */
-            .map-placeholder {
-                background: #f0f4f8;
-                border: 2px dashed #b0bec5;
-                border-radius: 10px;
-                min-height: 260px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #78909c;
-                font-size: 14px;
-                font-weight: 500;
-                text-align: center;
-                padding: 1.5rem;
-            }
-
-            /* ---- Legenda ---- */
-            .legenda-box {
-                background: #ffffff;
-                border: 1px solid #dde3ec;
-                border-radius: 8px;
-                padding: 0.9rem 1.1rem;
-                margin-top: 0.6rem;
-                box-shadow: 0 1px 4px rgba(0,0,0,0.03);
-            }
-            .legenda-title {
-                font-size: 14px;
-                font-weight: 700;
-                color: #334155;
-                margin-bottom: 0.5rem;
-                text-transform: uppercase;
-                letter-spacing: 0.4px;
-            }
-            .legenda-item {
-                font-size: 13px;
-                color: #475569;
-                padding: 0.15rem 0;
-                display: flex;
-                align-items: center;
-                gap: 0.45rem;
-            }
-            .legenda-icon {
-                display: inline-block;
-                width: 18px;
-                height: 5px;
-                border-radius: 2px;
-            }
-            .legenda-dot {
-                display: inline-block;
-                width: 9px;
-                height: 9px;
-                border-radius: 50%;
-            }
-            .legenda-square {
-                display: inline-block;
-                width: 12px;
-                height: 12px;
-                border-radius: 2px;
-            }
-
-            /* ---- Seção / Título de tabela ---- */
-            .section-title {
-                font-size: 20px;
-                font-weight: 700;
-                color: #0b2545;
-                margin: 1.5rem 0 0.5rem 0;
-                padding-bottom: 0.3rem;
-                border-bottom: 2px solid #0b2545;
-            }
-
-            /* ---- Tabelas HTML estilizadas ---- */
-            .atlas-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 12px;
-                margin-bottom: 0.8rem;
-                box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-                border-radius: 6px;
-                overflow: hidden;
-            }
-            .atlas-table thead th {
-                background: #0b2545;
-                color: #ffffff;
-                padding: 0.65rem 0.75rem;
-                text-align: center;
-                font-weight: 600;
-                font-size: 16px;
-                letter-spacing: 0.2px;
-                white-space: nowrap;
-            }
-            .atlas-table tbody td {
-                padding: 0.5rem 0.7rem;
-                text-align: center;
-                border-bottom: 1px solid #e8ecf1;
-                color: #334155;
-                font-size: 12px;
-                vertical-align: middle;
-            }
-            .atlas-table tbody tr:nth-child(even) {
-                background: #f8fafc;
-            }
-            .atlas-table tbody tr:hover {
-                background: #eef2f7;
-            }
-            .atlas-table td.text-left, .atlas-table .tl {
-                text-align: left !important;
-            }
-            .atlas-table td.text-right, .atlas-table .tr {
-                text-align: right !important;
-            }
-            .atlas-table .font-mono {
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size: 12px;
-            }
-            .atlas-table .font-bold {
-                font-weight: 600;
-            }
-            .fonte-badge {
-                display: inline-block;
-                padding: 0.22rem 0.65rem;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: 600;
-                background: #e0f2fe;
-                color: #0369a1;
-                border: 1px solid #bae6fd;
-                letter-spacing: 0.2px;
-            }
-            /* ---- Botão Voltar Flutuante (Floating Action Pill) ---- */
-            .atlas-floating-back-btn {
-                position: fixed;
-                bottom: 24px;
-                left: 24px;
-                z-index: 99999;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                background: linear-gradient(135deg, #0b2545 0%, #133b63 100%);
-                color: #ffffff !important;
-                padding: 0.65rem 1.30rem;
-                border-radius: 30px;
-                font-size: 14px;
-                font-weight: 600;
-                text-decoration: none !important;
-                box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
-                border: 1.5px solid #BAD6D9;
-                transition: all 0.2s ease;
-                backdrop-filter: blur(8px);
-            }
-            .atlas-floating-back-btn:hover {
-                background: linear-gradient(135deg, #133b63 0%, #1d4ed8 100%);
-                color: #ffffff !important;
-                border-color: #ffffff;
-                transform: translateY(-2px);
-                box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
-            }
-
-            /* ---- Alinhamento Metadados ↔ Mapa (520px exatos em ambas as colunas) ---- */
-            div[data-testid="stColumn"] iframe[title="streamlit_folium.folium_static"],
-            div[data-testid="stColumn"] div[data-testid="stCustomComponentV1"] iframe,
-            div[data-testid="stColumn"] iframe {
-                border-radius: 10px !important;
-                border: 1px solid #dde3ec !important;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-                height: 520px !important;
-                min-height: 520px !important;
-                box-sizing: border-box !important;
-            }
-            div[data-testid="stColumn"] div[data-testid="stCustomComponentV1"] {
-                height: 520px !important;
-                min-height: 520px !important;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 # ---------------------------------------------------------------------------
 # Componentes Visuais
@@ -280,7 +26,7 @@ def render_back_button():
     st.markdown(
         """
         <a href="?" target="_self" class="atlas-floating-back-btn">
-            <span style="font-size: 1.1rem; line-height: 1;">←</span>
+            <span class="back-arrow">←</span>
             <span>Voltar para a Lista</span>
         </a>
         """,
@@ -423,7 +169,7 @@ def render_tabela_priorizacao(row):
     badge_html = f'<span class="fonte-badge">Fonte: {fonte}</span>'
 
     st.markdown(
-        f'<div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">'
+        f'<div class="section-title section-title--badge">'
         f'<span>Resultados da Priorização</span>'
         f'{badge_html}'
         f'</div>',
@@ -481,7 +227,7 @@ def render_tabela_financeiros(empreendimento_id):
     badge_html = f'<span class="fonte-badge">Fonte: {fonte_fin}</span>'
 
     st.markdown(
-        f'<div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">'
+        f'<div class="section-title section-title--badge">'
         f'<span>Dados Financeiros — Mês Base: {mes_display}</span>'
         f'{badge_html}'
         f'</div>',
@@ -765,14 +511,14 @@ def render_tabela_obras(df_obras):
         )
 
     table_html = (
-        '<div style="max-height: 520px; overflow-y: auto; border: 1px solid #e8ecf1; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); margin-bottom: 1.5rem;">'
-        '<table class="atlas-table" style="margin-bottom: 0;">'
+        '<div class="obras-scroll">'
+        '<table class="atlas-table">'
         '<thead><tr>'
-        '<th style="text-align:left; position: sticky; top: 0; z-index: 2;">Descrição da Obra</th>'
-        '<th style="position: sticky; top: 0; z-index: 2;">Intervenção</th>'
-        '<th style="position: sticky; top: 0; z-index: 2;">Tipo da Infraestrutura</th>'
-        '<th style="position: sticky; top: 0; z-index: 2;">Extensão (Km)</th>'
-        '<th style="text-align:right; position: sticky; top: 0; z-index: 2;">Valor Obra (R$)</th>'
+        '<th class="tl">Descrição da Obra</th>'
+        '<th>Intervenção</th>'
+        '<th>Tipo da Infraestrutura</th>'
+        '<th>Extensão (Km)</th>'
+        '<th class="tr">Valor Obra (R$)</th>'
         '</tr></thead>'
         f'<tbody>{rows_html}</tbody>'
         '</table>'
@@ -787,7 +533,7 @@ def render_tabela_obras(df_obras):
 
 def render(empreendimento_id):
     """Renderiza a página completa do Atlas para o empreendimento selecionado."""
-    apply_atlas_styles()
+    inject_css("atlas")
 
     df_emp = data_loader.get_empreendimentos()
 

@@ -1,0 +1,188 @@
+/* ---- Cabeçalho institucional ---- */
+.atlas-header {
+    background: var(--grad-header);
+    padding: 1.4rem 2rem;
+    border-radius: 10px;
+    color: #ffffff;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+}
+.atlas-header h2 {
+    color: #ffffff;
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+.atlas-header .sub {
+    margin-top: 0.35rem;
+    color: #c7d6ea;
+    font-size: 24px;
+    font-weight: 300;
+    line-height: 1.3;
+}
+
+/* ---- Card de metadados ---- */
+.meta-card {
+    background: #ffffff;
+    border: 1px solid #dde3ec;
+    border-radius: 10px;
+    padding: 1.1rem 1.4rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    height: 520px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.meta-card .meta-row {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.30rem 0;
+    border-bottom: 1px solid #eef1f6;
+}
+.meta-card .meta-row:last-child { border-bottom: none; }
+.meta-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin-bottom: 0.15rem;
+}
+.meta-value {
+    font-size: 15px;
+    color: var(--text);
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+/* ---- Aviso de mapa sem geometria (mesma altura do card de metadados) ---- */
+.map-placeholder {
+    background: var(--bg-soft);
+    border: 2px dashed var(--border-2);
+    border-radius: 10px;
+    height: 520px;
+    min-height: 520px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 0.92rem;
+    text-align: center;
+    padding: 1.5rem;
+}
+.map-placeholder-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ---- Legenda ---- */
+.legenda-box {
+    background: #ffffff;
+    border: 1px solid #dde3ec;
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    margin-top: 0.6rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+}
+.legenda-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-2);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.legenda-item {
+    font-size: 13px;
+    color: var(--text-3);
+    padding: 0.15rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+.legenda-icon,
+.legenda-dot,
+.legenda-square { display: inline-block; }
+.legenda-icon { width: 18px; height: 5px; border-radius: 2px; }
+.legenda-dot { width: 9px; height: 9px; border-radius: 50%; }
+.legenda-square { width: 12px; height: 12px; border-radius: 2px; }
+
+/* ---- Título de seção ---- */
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 1.5rem 0 0.5rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid var(--navy);
+}
+.section-title--badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ---- Tabelas da ficha (complementa base.css) ---- */
+.atlas-table {
+    margin-bottom: 0.8rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border-radius: 6px;
+}
+.atlas-table thead th {
+    padding: 0.65rem 0.75rem;
+    letter-spacing: 0.2px;
+}
+.atlas-table tbody td {
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid #e8ecf1;
+}
+.atlas-table tbody tr:hover { background: #eef2f7; }
+.atlas-table td.text-left, .atlas-table .tl { text-align: left !important; }
+.atlas-table td.text-right, .atlas-table .tr { text-align: right !important; }
+.atlas-table .font-bold { font-weight: 600; }
+/* Tabela de obras com rolagem e cabeçalho fixo */
+.obras-scroll {
+    max-height: 520px;
+    overflow-y: auto;
+    border: 1px solid #e8ecf1;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    margin-bottom: 1.5rem;
+}
+.obras-scroll .atlas-table { margin-bottom: 0; }
+.obras-scroll .atlas-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.fonte-badge {
+    padding: 0.22rem 0.65rem;
+    letter-spacing: 0.2px;
+}
+
+.back-arrow {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+/* ---- Alinhamento Metadados ↔ Mapa (520px em ambas as colunas) ---- */
+div[data-testid="stColumn"] iframe[title="streamlit_folium.folium_static"],
+div[data-testid="stColumn"] div[data-testid="stCustomComponentV1"] iframe,
+div[data-testid="stColumn"] iframe {
+    border-radius: 10px !important;
+    border: 1px solid #dde3ec !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    height: 520px !important;
+    min-height: 520px !important;
+    box-sizing: border-box !important;
+}
+div[data-testid="stColumn"] div[data-testid="stCustomComponentV1"] {
+    height: 520px !important;
+    min-height: 520px !important;
+}

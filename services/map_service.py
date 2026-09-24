@@ -142,26 +142,7 @@ def render_map(empreendimento_id):
 def _render_no_geometry_placeholder(mensagem: str):
     """Renderiza um cartão informativo quando o empreendimento não possui geometria."""
     st.markdown(
-        f"""
-        <div style="
-            background: #f8fafc;
-            border: 2px dashed #cbd5e1;
-            border-radius: 10px;
-            height: 520px;
-            min-height: 520px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #64748b;
-            font-size: 0.92rem;
-            text-align: center;
-            padding: 1.5rem;
-        ">
-            <span style="font-size: 2rem; margin-bottom: 0.5rem;">🗺️</span>
-            <b>{html_mod.escape(mensagem)}</b>
-        </div>
-        """,
+        f'<div class="map-placeholder"><span class="map-placeholder-icon">🗺️</span>'
+        f"<b>{html_mod.escape(mensagem)}</b></div>",
         unsafe_allow_html=True,
     )

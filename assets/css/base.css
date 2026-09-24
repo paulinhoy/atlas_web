@@ -1,0 +1,106 @@
+/* Tokens e componentes compartilhados entre as páginas (carregado antes do CSS de cada página) */
+:root {
+    --navy: #0b2545;
+    --navy-2: #133b63;
+    --navy-3: #134074;
+    --blue-accent: #1d4ed8;
+    --pill-border: #BAD6D9;
+
+    --text: #0f172a;
+    --text-2: #334155;
+    --text-3: #475569;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+
+    --border: #e2e8f0;
+    --border-2: #cbd5e1;
+    --bg-soft: #f8fafc;
+    --bg-soft-2: #f1f5f9;
+
+    --grad-header: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    --grad-header-hover: linear-gradient(135deg, var(--navy-2) 0%, var(--blue-accent) 100%);
+    --grad-button: linear-gradient(135deg, var(--navy) 0%, var(--navy-3) 100%);
+    --grad-button-hover: linear-gradient(135deg, var(--navy-3) 0%, var(--blue-accent) 100%);
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ---- Botões flutuantes (Voltar à esquerda, Assistente à direita) ---- */
+.atlas-floating-back-btn,
+.atlas-floating-chat-btn {
+    position: fixed;
+    bottom: 24px;
+    z-index: 99999;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--grad-header);
+    color: #ffffff !important;
+    padding: 0.65rem 1.30rem;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none !important;
+    box-shadow: 0 4px 18px rgba(11, 37, 69, 0.35);
+    border: 1.5px solid var(--pill-border);
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+.atlas-floating-back-btn { left: 24px; }
+.atlas-floating-chat-btn { right: 24px; }
+.atlas-floating-back-btn:hover,
+.atlas-floating-chat-btn:hover {
+    background: var(--grad-header-hover);
+    color: #ffffff !important;
+    border-color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(11, 37, 69, 0.45);
+}
+
+/* ---- Tabelas HTML (Home: .home-atlas-table | Ficha: .atlas-table) ---- */
+.home-atlas-table,
+.atlas-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    overflow: hidden;
+}
+.home-atlas-table thead th,
+.atlas-table thead th {
+    background: var(--navy);
+    color: #ffffff;
+    text-align: center;
+    font-weight: 600;
+    font-size: 16px;
+    white-space: nowrap;
+}
+.home-atlas-table tbody td,
+.atlas-table tbody td {
+    text-align: center;
+    color: var(--text-2);
+    font-size: 12px;
+    vertical-align: middle;
+}
+.home-atlas-table tbody tr:nth-child(even),
+.atlas-table tbody tr:nth-child(even) {
+    background: var(--bg-soft);
+}
+.home-atlas-table .font-mono,
+.atlas-table .font-mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+/* ---- Badges ---- */
+.home-atlas-table .badge,
+.fonte-badge {
+    display: inline-block;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.home-atlas-table .badge-fed,
+.fonte-badge {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
