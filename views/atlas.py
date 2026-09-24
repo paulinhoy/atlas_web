@@ -404,11 +404,7 @@ def render_tabela_alocacao(empreendimento_id, row):
         st.info("Sem dados de alocação para este empreendimento.")
         return
 
-    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
-    if pd.notna(emp_id_num):
-        df_emp_aloc = df_fonte[pd.to_numeric(df_fonte["id_empreendimento"], errors="coerce") == emp_id_num]
-    else:
-        df_emp_aloc = df_fonte[df_fonte["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    df_emp_aloc = data_loader.filtrar_por_empreendimento(df_fonte, empreendimento_id)
 
     # 4. Filtro defensivo: inclui cenários 1 a 4, 7 (Otimizado) e 10 (Recomendado)
     if "id_cenario" in df_emp_aloc.columns:
@@ -531,8 +527,8 @@ def render_tabela_obras(df_obras):
 # Função principal de renderização
 # ---------------------------------------------------------------------------
 
-def render(empreendimento_id):
-    """Renderiza a página completa do Atlas para o empreendimento selecionado."""
+def render(empreendimento_id: int | None):
+    """Renderiza a página completa do Atlas; None indica um ID inválido vindo da URL."""
     inject_css("atlas")
 
     df_emp = data_loader.get_empreendimentos()
@@ -541,13 +537,14 @@ def render(empreendimento_id):
         st.error("Base de empreendimentos não encontrada.")
         return
 
-    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
-
     # Busca o registro do empreendimento com notas resolvidas (Recomendado -> Otimizado -> Geral)
-    row = data_loader.get_empreendimento_resolvido(empreendimento_id)
+    row = data_loader.get_empreendimento_resolvido(empreendimento_id) if empreendimento_id is not None else None
 
     if row is None or (isinstance(row, pd.Series) and row.empty):
-        st.error(f"Empreendimento com ID '{empreendimento_id}' não foi encontrado.")
+        if empreendimento_id is None:
+            st.error("Empreendimento não encontrado: o ID informado na URL não é um número válido.")
+        else:
+            st.error(f"Empreendimento com ID '{empreendimento_id}' não foi encontrado.")
         render_back_button()
         return
 
@@ -555,18 +552,7 @@ def render(empreendimento_id):
     setor = row.get("setor", "")
     esfera = row.get("esfera_acao", "")
 
-    # Carregar obras vinculadas
-    df_obras_all = data_loader.get_obras()
-    df_obras = pd.DataFrame()
-    if not df_obras_all.empty:
-        if pd.notna(emp_id_num):
-            df_obras = df_obras_all[
-                pd.to_numeric(df_obras_all["id_empreendimento"], errors="coerce") == emp_id_num
-            ].copy()
-        else:
-            df_obras = df_obras_all[
-                df_obras_all["id_empreendimento"].astype(str) == str(empreendimento_id)
-            ].copy()
+    df_obras = data_loader.filtrar_por_empreendimento(data_loader.get_obras(), empreendimento_id)
 
     # ── Botão Voltar ──
     render_back_button()

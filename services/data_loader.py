@@ -1,6 +1,6 @@
 """
 Serviço de carregamento de dados com cache do Streamlit.
-Lê os arquivos .parquet da pasta data/processed/ com garantia de decodificação correta.
+Lê os arquivos .parquet da pasta data/processed/ (gerados em UTF-8 e com id_empreendimento inteiro pelo ETL).
 
 Estratégia de Cache:
     - Datasets PEQUENOS (< 2 MB): usam @st.cache_data (cópia por sessão, seguro contra mutação).
@@ -21,25 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
 
-from services.formatters import fix_mojibake
-
-
 @st.cache_data(show_spinner=False)
 def load_parquet(filename: str) -> pd.DataFrame:
-    """Carrega um arquivo parquet da pasta processed com cache e limpeza de caracteres.
+    """Carrega um arquivo parquet da pasta processed com cache.
     Utiliza @st.cache_data (cópia por sessão) — adequado para datasets pequenos."""
     file_path = PROCESSED_DIR / f"{filename}.parquet"
     if not file_path.exists():
         return pd.DataFrame()
-    
-    df = pd.read_parquet(file_path)
-    
-    # Aplica limpeza defensiva nas colunas de texto (exceto geometrias WKT)
-    for col in df.select_dtypes(include="object").columns:
-        if col not in ("geom_ponto", "geom_linha"):
-            df[col] = df[col].apply(fix_mojibake)
-        
-    return df
+    return pd.read_parquet(file_path)
 
 
 @st.cache_resource(show_spinner=False)
@@ -55,15 +44,14 @@ def _load_geo_shared() -> pd.DataFrame:
     file_path = PROCESSED_DIR / "empreendimento_geo.parquet"
     if not file_path.exists():
         return pd.DataFrame()
-    
-    df = pd.read_parquet(file_path)
-    
-    # Aplica limpeza de Mojibake apenas nas colunas de texto (não nas geometrias WKT)
-    for col in df.select_dtypes(include="object").columns:
-        if col not in ("geom_ponto", "geom_linha"):
-            df[col] = df[col].apply(fix_mojibake)
-    
-    return df
+    return pd.read_parquet(file_path)
+
+
+def filtrar_por_empreendimento(df: pd.DataFrame, empreendimento_id: int) -> pd.DataFrame:
+    """Linhas do DataFrame que pertencem ao empreendimento (o ETL garante id_empreendimento inteiro)."""
+    if df.empty or "id_empreendimento" not in df.columns:
+        return df.iloc[0:0]
+    return df[df["id_empreendimento"] == empreendimento_id]
 
 
 def get_empreendimentos(carteira: str = None) -> pd.DataFrame:
@@ -107,11 +95,7 @@ def get_empreendimento_resolvido(empreendimento_id) -> pd.Series | None:
     if df_all.empty:
         return None
 
-    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
-    if pd.notna(emp_id_num):
-        matches = df_all[pd.to_numeric(df_all["id_empreendimento"], errors="coerce") == emp_id_num]
-    else:
-        matches = df_all[df_all["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    matches = filtrar_por_empreendimento(df_all, empreendimento_id)
 
     if matches.empty:
         return None
@@ -218,39 +202,25 @@ def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
         - mes_base: str ("-" se ausente)
         - fonte_financeiro: str ("Cenário Recomendado", "Cenário Otimizado" ou "Custo Econômico LP")
     """
-    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
-    
     # 1. Tenta buscar em resumo_financeiro (Cenário 10 ou 7)
     df_resumo = get_resumo_financeiro()
     r_sel = None
     fonte_fin = "Custo Econômico LP"
     
-    if not df_resumo.empty:
-        if pd.notna(emp_id_num):
-            rec_resumo = df_resumo[pd.to_numeric(df_resumo["id_empreendimento"], errors="coerce") == emp_id_num]
-        else:
-            rec_resumo = df_resumo[df_resumo["id_empreendimento"].astype(str) == str(empreendimento_id)]
-            
-        if not rec_resumo.empty:
-            cenarios_num = pd.to_numeric(rec_resumo["id_cenario"], errors="coerce")
-            r10 = rec_resumo[cenarios_num == 10]
-            r7 = rec_resumo[cenarios_num == 7]
-            if not r10.empty:
-                r_sel = r10.iloc[0]
-                fonte_fin = "Cenário Recomendado"
-            elif not r7.empty:
-                r_sel = r7.iloc[0]
-                fonte_fin = "Cenário Otimizado"
+    rec_resumo = filtrar_por_empreendimento(df_resumo, empreendimento_id)
+    if not rec_resumo.empty:
+        cenarios_num = pd.to_numeric(rec_resumo["id_cenario"], errors="coerce")
+        r10 = rec_resumo[cenarios_num == 10]
+        r7 = rec_resumo[cenarios_num == 7]
+        if not r10.empty:
+            r_sel = r10.iloc[0]
+            fonte_fin = "Cenário Recomendado"
+        elif not r7.empty:
+            r_sel = r7.iloc[0]
+            fonte_fin = "Cenário Otimizado"
                 
     # 2. Dados de Custo Econômico LP (para fallback ou mês base)
-    df_fin = get_dados_financeiro()
-    rec_fin = pd.DataFrame()
-    if not df_fin.empty:
-        if pd.notna(emp_id_num):
-            rec_fin = df_fin[pd.to_numeric(df_fin["id_empreendimento"], errors="coerce") == emp_id_num]
-        else:
-            rec_fin = df_fin[df_fin["id_empreendimento"].astype(str) == str(empreendimento_id)]
-            
+    rec_fin = filtrar_por_empreendimento(get_dados_financeiro(), empreendimento_id)
     rf = rec_fin.iloc[0] if not rec_fin.empty else {}
     mes_base = rf.get("mes_atualizacao", "-")
     

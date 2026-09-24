@@ -1,25 +1,10 @@
 """
 Serviço Centralizado de Formatação e Tratamento de Dados (Atlas Web)
-Padronização de formatação brasileira (moeda, números, datas) e limpeza de strings.
+Padronização de formatação brasileira (moeda, números, datas).
 """
 
 from typing import Any, Union
 import pandas as pd
-
-
-def fix_mojibake(text: Any) -> Any:
-    """
-    Corrige strings que sofreram double-encoding (ex: UTF-8 lido como Latin1 gerando 'Ã§Ã£o').
-    Exemplo: 'ConservaÃ§Ã£o' -> 'Conservação'.
-    """
-    if not isinstance(text, str):
-        return text
-    if any(m in text for m in ["Ã", "Â", "â", "©"]):
-        try:
-            return text.encode("latin1").decode("utf-8")
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            pass
-    return text
 
 
 def fmt_int_br(valor: Any) -> str:

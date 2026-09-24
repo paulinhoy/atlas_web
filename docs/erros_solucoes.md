@@ -111,6 +111,16 @@ Exportações legadas do banco PostGIS frequentemente exportam strings codificad
    ```
 2. Aplicar a limpeza tanto na esteira ETL (`scripts/process_data.py`) quanto na camada de leitura cached (`services/data_loader.py`).
 
+### 🔄 Revisão (24/09/2026): causa real e correção na origem
+A causa estava no próprio ETL, não no banco: os CSVs exportados **são UTF-8**, mas o `process_data.py` tentava ler primeiro com `encoding="latin1"`. Latin-1 aceita qualquer byte e nunca gera erro, então o fallback para UTF-8 nunca executava e todo acento era corrompido na leitura, para depois ser "consertado" pelo `fix_mojibake`.
+
+Correção:
+1. O ETL lê com `encoding="utf-8-sig"` e só recorre a Latin-1 se houver `UnicodeDecodeError` (UTF-8 falha de verdade quando o arquivo não é UTF-8).
+2. `fix_mojibake` e `scripts/fix_encoding.py` foram removidos; o `data_loader.py` apenas lê os parquets.
+3. No lugar do conserto silencioso, o ETL **avisa** quando encontra sequências típicas de mojibake (`Ã§`, `â€“`) no texto.
+
+Validação: os parquets regenerados ficaram idênticos, célula a célula, ao que o app exibia antes.
+
 ---
 
 ## Caso 4: Persistência de Query Params na URL ao Voltar do Atlas para a Home

@@ -39,7 +39,7 @@ atlas_web/
 │
 ├── services/                   # SERVIÇOS DE DADOS E GEOESPACIAL
 │   ├── data_loader.py          # Leitor otimizado com @st.cache_data (leves) e @st.cache_resource (geo pesado)
-│   ├── formatters.py           # Formatadores padronizados (BRL, inteiros, datas) e fix_mojibake
+│   ├── formatters.py           # Formatadores padronizados (BRL, inteiros, datas)
 │   └── map_service.py          # Módulo exclusivo de renderização geoespacial (Folium / WKT)
 │
 ├── data/                       # ARMAZENAMENTO DE DADOS (ignorado pelo Git)
@@ -47,9 +47,8 @@ atlas_web/
 │   └── processed/              # Arquivos .parquet otimizados gerados pelo pipeline ETL
 │
 ├── scripts/                    # SCRIPTS AUXILIARES E PIPELINE ETL
-│   ├── process_data.py         # Mapeia CSVs brutos para Parquet com tratamento de Mojibake e pré-cálculos
-│   ├── process_geo.py          # Mapeia JSON bruto de geometrias WKT para Parquet otimizado
-│   └── fix_encoding.py         # Utilitário de correção de codificação dupla
+│   ├── process_data.py         # Mapeia CSVs brutos (UTF-8) para Parquet, tipa id_empreendimento e pré-calcula custos
+│   └── process_geo.py          # Mapeia JSON bruto de geometrias WKT para Parquet otimizado
 │
 ├── logos/                      # ATIVOS VISUAIS INSTITUCIONAIS
 │   ├── logo_pelt_branco.png
@@ -95,7 +94,7 @@ Os dados são extraídos do banco de dados PostGIS (codificação original ISO-8
 4. **Novos Cenários de Alocação (7 e 10):** A tabela de alocação suporta agora os cenários oficiais 1 a 4 e os cenários 7 (Otimizado) e 10 (Recomendado).
 5. **Seletor de Carteiras na Home:** A página inicial disponibiliza seletor entre as 3 visões metodológicas (Carteira Completa, Otimizada e Recomendada), adaptando KPIs, filtros, listagem e índices dinamicamente.
 6. **Formatação Brasileira:** Exibir números inteiros com ponto de milhar (`1.682`), números decimais e índices com vírgula (`0,4031`) e valores financeiros formatados em Reais (`R$ 289.892.422,00`).
-7. **Tratamento de Mojibake:** Sempre utilizar a função `fix_mojibake` para tratar codificações duplas provenientes da exportação do banco.
+7. **Encoding na origem:** Os CSVs exportados do banco são UTF-8 e o ETL os lê como UTF-8 (Latin-1 só como reserva). Não há correção de acentuação em tempo de execução; se o ETL avisar "possivel acentuacao corrompida", corrija a exportação ou a leitura, não o texto.
 8. **Regra de Dados Ausentes (`-`):** Todo dado nulo, não informado ou indisponível deve ser exibido universalmente com hífen simples `"-"` (evitando `"N/D"` ou `"N/A"`).
 9. **Nomenclaturas de Alocação por Setor:** No setor Dutoviário (`id_setor = 6`), a coluna de volume (`volume_2055`) deve ser rotulada como **"Tonelada Total"** na tabela de alocação.
 10. **Resolução Hierárquica dos Dados Financeiros:** Na tabela de Dados Financeiros do Atlas, os valores de CAPEX, OPEX, Valor Total, Receita e TIRM seguem a ordem de precedência:

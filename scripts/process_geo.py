@@ -1,29 +1,17 @@
 """
 Script de processamento e conversão de dados geoespaciais: JSON -> Parquet.
 Converte o arquivo mvw_empreendimento_geo_*.json da pasta data/raw/ para
-data/processed/empreendimento_geo.parquet com correção de codificação (Mojibake).
+data/processed/empreendimento_geo.parquet (JSON lido em UTF-8).
 """
 
-import sys
 from pathlib import Path
 import json
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR))
-
-from services.formatters import fix_mojibake
 
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
-
-
-def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Aplica a correção de caracteres em todas as colunas de texto (exceto geometrias WKT)."""
-    for col in df.select_dtypes(include="object").columns:
-        if col not in ("geom_ponto", "geom_linha"):
-            df[col] = df[col].apply(fix_mojibake)
-    return df
 
 
 def convert_geo_json_to_parquet():
@@ -66,14 +54,11 @@ def convert_geo_json_to_parquet():
 
         # Tipagens corretas
         if "id_empreendimento" in df.columns:
-            df["id_empreendimento"] = pd.to_numeric(df["id_empreendimento"], errors="coerce")
+            df["id_empreendimento"] = pd.to_numeric(df["id_empreendimento"]).astype("Int64")
         if "extensao_km" in df.columns:
             df["extensao_km"] = pd.to_numeric(df["extensao_km"], errors="coerce")
         if "id_setor" in df.columns:
             df["id_setor"] = pd.to_numeric(df["id_setor"], errors="coerce")
-
-        # Correção de acentuação e textos
-        df = clean_dataframe(df)
 
         # Salva em Parquet com compressão snappy
         df.to_parquet(parquet_file, engine="pyarrow", compression="snappy", index=False)

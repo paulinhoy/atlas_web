@@ -24,7 +24,9 @@ def main():
         st.session_state["selected_empreendimento_id"] = None
         chatbot.render()
     elif query_id and str(query_id).strip():
-        selected_id = str(query_id).strip()
+        # Único ponto de conversão: o texto da URL vira inteiro (None se inválido)
+        texto_id = str(query_id).strip()
+        selected_id = int(texto_id) if texto_id.isdigit() else None
         st.session_state["selected_empreendimento_id"] = selected_id
         atlas.render(selected_id)
     else:

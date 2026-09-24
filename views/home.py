@@ -57,8 +57,7 @@ def render_kpis(df: pd.DataFrame):
 
     capex_map = data_loader.get_mapa_capex_custo_economico()
     if "id_empreendimento" in df.columns and not df.empty:
-        eids = pd.to_numeric(df["id_empreendimento"], errors="coerce").dropna().astype(int)
-        inv_formatado = fmt_bilhoes_br(float(eids.map(capex_map).fillna(0).sum()))
+        inv_formatado = fmt_bilhoes_br(float(df["id_empreendimento"].map(capex_map).fillna(0).sum()))
     else:
         inv_formatado = "-"
 

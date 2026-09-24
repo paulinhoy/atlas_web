@@ -1,7 +1,7 @@
 """
 Script de processamento e conversão de dados: CSV -> Parquet.
 Mapeia os nomes brutos do banco de dados (PostGIS) para nomes padronizados em Parquet
-com correção automática de codificação dupla (Mojibake) e pré-cálculo do custo máximo de obras:
+lendo os CSVs em UTF-8 (padrão de exportação do banco) e pré-calculando o custo máximo de obras:
 - mvw_8_calcula_impacto_* -> empreendimentos_priorizacao.parquet
 - vw_empreendimento_custo_economico_* -> dados_financeiro.parquet
 - tbl_alocacaoempreendimento_* -> alocacao_empreendimento.parquet
@@ -9,14 +9,10 @@ com correção automática de codificação dupla (Mojibake) e pré-cálculo do 
 - vw_custo_economico_* -> custo_obra.parquet
 """
 
-import sys
 from pathlib import Path
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR))
-
-from services.formatters import fix_mojibake
 
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
@@ -37,18 +33,32 @@ TARGET_FILES = {
 }
 
 
-def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Aplica a correção de caracteres em todas as colunas de texto."""
+# Sequências típicas de UTF-8 lido como Latin-1 ("ç" -> "Ã§", "ã" -> "Ã£", "–" -> "â€“")
+MOJIBAKE_PATTERN = r"Ã[-¿]|â€"
+
+
+def read_csv_bruto(csv_file: Path) -> pd.DataFrame:
+    """Lê o CSV em UTF-8; Latin-1 fica só como reserva (UTF-8 falha de verdade, Latin-1 nunca falha)."""
+    try:
+        return pd.read_csv(csv_file, sep=";", encoding="utf-8-sig", low_memory=False)
+    except UnicodeDecodeError:
+        print(f"[AVISO] {csv_file.name} nao esta em UTF-8; lido como Latin-1.")
+        return pd.read_csv(csv_file, sep=";", encoding="latin1", low_memory=False)
+
+
+def avisar_acentuacao_suspeita(df: pd.DataFrame, nome: str) -> None:
+    """Alerta (sem alterar) quando o texto parece ter acentuação corrompida na origem."""
     for col in df.select_dtypes(include="object").columns:
-        df[col] = df[col].apply(fix_mojibake)
-    return df
+        suspeitos = df[col].astype(str).str.contains(MOJIBAKE_PATTERN, regex=True, na=False).sum()
+        if suspeitos:
+            print(f"[AVISO] {nome}.{col}: {suspeitos} valores com possivel acentuacao corrompida (ex.: 'Ã§').")
 
 
 def convert_csv_to_parquet():
-    """Converte os CSVs brutos em Parquet otimizado com encoding 100% corrigido e métricas pré-calculadas."""
+    """Converte os CSVs brutos (UTF-8) em Parquet otimizado com métricas pré-calculadas."""
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("--- Iniciando Conversao de CSV para Parquet com correcao de texto ---")
+    print("--- Iniciando Conversao de CSV para Parquet ---")
     print(f"Origem dos dados brutos: {RAW_DIR}")
     print(f"Destino dos dados processados: {PROCESSED_DIR}\n")
 
@@ -77,17 +87,13 @@ def convert_csv_to_parquet():
             continue
 
         try:
-            # Leitura do CSV
-            try:
-                df = pd.read_csv(csv_file, sep=";", encoding="latin1", low_memory=False)
-            except Exception:
-                df = pd.read_csv(csv_file, sep=";", encoding="utf-8", low_memory=False)
-
-            # Limpeza das colunas
+            df = read_csv_bruto(csv_file)
             df.columns = [c.strip().strip('"') for c in df.columns]
+            avisar_acentuacao_suspeita(df, target_name)
 
-            # Correção de caracteres e acentuação
-            df = clean_dataframe(df)
+            # Inteiro que aceita vazio: as views comparam o ID direto, sem conversões
+            if "id_empreendimento" in df.columns:
+                df["id_empreendimento"] = pd.to_numeric(df["id_empreendimento"]).astype("Int64")
 
             if target_name == "resumo_financeiro" and "id_empreendimento" in df.columns and "id_cenario" in df.columns:
                 df = df.drop_duplicates(subset=["id_empreendimento", "id_cenario"]).reset_index(drop=True)

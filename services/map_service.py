@@ -38,12 +38,7 @@ def render_map(empreendimento_id):
         _render_no_geometry_placeholder("Base de dados geoespaciais não disponível.")
         return
 
-    # Busca o registro geoespacial do empreendimento com conversão defensiva
-    emp_id_num = pd.to_numeric(empreendimento_id, errors="coerce")
-    if pd.notna(emp_id_num):
-        rec = df_geo[pd.to_numeric(df_geo["id_empreendimento"], errors="coerce") == emp_id_num]
-    else:
-        rec = df_geo[df_geo["id_empreendimento"].astype(str) == str(empreendimento_id)]
+    rec = data_loader.filtrar_por_empreendimento(df_geo, empreendimento_id)
 
     if rec.empty:
         _render_no_geometry_placeholder("Geometria não cadastrada para este empreendimento.")
