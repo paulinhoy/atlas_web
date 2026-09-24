@@ -14,8 +14,9 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 4. [Persistência de Query Params na URL ao Voltar do Atlas para a Home](#caso-4-persistência-de-query-params-na-url-ao-voltar-do-atlas-para-a-home)
 5. [Desalinhamento Visual de Ordenação por IC devido a Limiares Setoriais de Impacto](#caso-5-desalinhamento-visual-de-ordenação-por-ic-devido-a-limiares-setoriais-de-impacto)
 6. [Incompatibilidade de `@st.dialog` e Seletores DOM no Streamlit 1.36.0](#caso-6-incompatibilidade-de-stdialog-e-seletores-dom-no-streamlit-1360)
-7. [`select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro](#caso-7-select_slider-de-faixa-perde-a-segunda-alça-e-faixa-completa-que-vira-filtro)
-8. [Prefixo de Arquivo do ETL Capturando o Arquivo Errado](#caso-8-prefixo-de-arquivo-do-etl-capturando-o-arquivo-errado)
+7. [Botão "Personalizar Colunas" sem Estilo (Seletor `button[key=...]`)](#caso-7-botão-personalizar-colunas-sem-estilo-seletor-buttonkey)
+9. [`select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro](#caso-9-select_slider-de-faixa-perde-a-segunda-alça-e-faixa-completa-que-vira-filtro)
+10. [Prefixo de Arquivo do ETL Capturando o Arquivo Errado](#caso-10-prefixo-de-arquivo-do-etl-capturando-o-arquivo-errado)
 
 ---
 
@@ -194,7 +195,30 @@ Ao alternar entre as carteiras metodológicas (Cenário Otimizado ou Priorizaç�
 
 ---
 
-## Caso 7: `select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro
+## Caso 7: Botão "Personalizar Colunas" sem Estilo (Seletor `button[key=...]`)
+
+* **Data:** 24/09/2026
+* **Componentes Afetados:** `assets/css/home.css`, `views/home.py`
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+O botão "Personalizar Colunas" aparecia como o botão branco padrão do Streamlit, esticado por toda a coluna, destoando do visual navy do projeto — embora `home.css` tivesse um estilo completo para ele (degradê navy, ícone de engrenagem, largura automática).
+
+### 🔍 Causa Raiz
+Todas as regras usavam `button[key="btn_abrir_modal_colunas"]`. O parâmetro `key` do `st.button` fica só no Python: o Streamlit **não** escreve esse atributo no HTML. O seletor nunca casava e o navegador ignorava a regra em silêncio.
+
+### ✅ Solução Adotada
+Mirar a linha pelo título que está ao lado do botão, cuja classe existe de fato no HTML:
+```css
+/* "o botão que está na mesma linha do título da carteira" */
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stButton"] button { ... }
+```
+O modal não é afetado: no 1.36 ele é desenhado fora da linha (no fim da página, via portal do baseweb). As regras dos botões **dentro** do modal ainda usam `button[key=...]` e continuam sem efeito — mantidas de propósito, pois o visual atual do modal foi aprovado.
+
+**Regra geral:** para estilizar um widget nativo, ancore o seletor em uma classe HTML própria vizinha (via `:has(...)`) ou em `data-testid`; nunca em `key`.
+---
+
+## Caso 9: `select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro
 
 * **Data:** 25/09/2026
 * **Componentes Afetados:** `views/home.py`, `.streamlit/config.toml`
@@ -215,7 +239,7 @@ Ao alternar entre as carteiras metodológicas (Cenário Otimizado ou Priorizaç�
 
 ---
 
-## Caso 8: Prefixo de Arquivo do ETL Capturando o Arquivo Errado
+## Caso 10: Prefixo de Arquivo do ETL Capturando o Arquivo Errado
 
 * **Data:** 25/09/2026
 * **Componentes Afetados:** `scripts/process_data.py`
