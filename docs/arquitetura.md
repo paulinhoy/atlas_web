@@ -39,7 +39,8 @@ data/processed/*.parquet                    ← dados prontos para o app (fora d
 app.py  (roteia pela URL)
    ├── views/home.py     Home: KPIs, filtros, tabela da carteira
    ├── views/atlas.py    Ficha do empreendimento (+ services/map_service.py)
-   └── views/chatbot.py  Assistente virtual (lógica em services/chatbot_service.py)
+   ├── views/chatbot.py  Assistente virtual (lógica em services/chatbot_service.py)
+   └── views/bi.py       Painel de Indicadores & BI (provisório: "em construção")
 ```
 
 O app **nunca acessa o banco**: tudo é lido dos arquivos `.parquet`.
@@ -50,14 +51,15 @@ O app **nunca acessa o banco**: tudo é lido dos arquivos `.parquet`.
 
 ```
 atlas_web/
-├── app.py                  Roteador: ?page=chatbot → chatbot | ?id=N → ficha | vazio → Home
+├── app.py                  Roteador: ?page=chatbot → chatbot | ?page=bi → BI | ?id=N → ficha | vazio → Home
 ├── requirements.txt        Dependências (streamlit==1.36.0 fixo)
 ├── .streamlit/config.toml  Servidor (porta, XSRF/CORS, telemetria) e tema claro institucional
 ├── views/
 │   ├── home.py             Home
 │   ├── atlas.py            Ficha do empreendimento
 │   ├── chatbot.py          Tela do assistente virtual
-│   ├── ui.py               Carregador de CSS e componentes comuns (botão Voltar)
+│   ├── bi.py               Painel de Indicadores & BI (provisório)
+│   ├── ui.py               Carregador de CSS e componentes comuns (barra de navegação, botão Voltar)
 │   └── estado_url.py       Filtros/paginação/colunas da Home guardados na URL
 ├── services/
 │   ├── data_loader.py      Leitura dos parquets, cache e regras de precedência
@@ -153,8 +155,10 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 | `?` (vazio) | Home |
 | `?id=1042` | Ficha do empreendimento 1042 (ID inválido → mensagem de "não encontrado") |
 | `?page=chatbot` | Assistente virtual |
+| `?page=bi` | Painel de Indicadores & BI (provisório, "em construção") |
 
 - **A URL é a fonte da verdade.** Links internos são relativos (começam com `?`).
+- **Barra de navegação superior** (todas as telas, `render_navbar` em `views/ui.py`): Página Inicial, Painel de Indicadores & BI e Assistente Virtual, com destaque na tela aberta (na ficha, destaca Página Inicial). Substitui a faixa nativa do Streamlit (menu ⋮), que fica escondida.
 - **Estado da Home na URL:** carteira, busca, filtros, página, itens por página e colunas vão para a URL (`views/estado_url.py`), e os links da tabela, do chatbot e dos botões "Voltar" os carregam. Assim, abrir uma ficha e voltar não perde os filtros, e o link pode ser compartilhado. Detalhes e como incluir um filtro novo: `docs/frontend.md`, seção 5.9.
 - **Home:** 4 KPIs; filtros com carteira, busca e 8 filtros de seleção múltipla sempre visíveis (setor, status, origem, esfera, impacto, viabilidade, vocação, intervenção principal) e a seção recolhida **"Mais filtros"** (natureza, município, região intermediária, tipo de infraestrutura e sliders de CAPEX, OPEX e IC); botão "Limpar filtros"; tabela paginada com colunas configuráveis (modal de arrastar; padrão: ID, Nome, Setor, Origem, Esfera, TIRM, Índice, Impacto), botão flutuante do assistente.
 - **Ficha:** cabeçalho, metadados + mapa (mesma altura, 520px), e as tabelas Resultados da Priorização, Dados Financeiros, Alocação 2055 e Detalhamento das Obras.

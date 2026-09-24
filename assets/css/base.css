@@ -23,6 +23,7 @@
     --grad-button: linear-gradient(135deg, var(--navy) 0%, var(--navy-3) 100%);
     --grad-button-hover: linear-gradient(135deg, var(--navy-3) 0%, var(--blue-accent) 100%);
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --navbar-height: 42px;
 }
 
 /* ---- Botões flutuantes (Voltar à esquerda, Assistente à direita) ---- */
@@ -105,4 +106,83 @@
     background: #e0f2fe;
     color: #0369a1;
     border: 1px solid #bae6fd;
+}
+
+/* ---- Barra de navegação superior (views/ui.py -> render_navbar) ---- */
+/* Esconde a faixa nativa do Streamlit (menu e aviso "Running"): a barra ocupa o lugar dela */
+header[data-testid="stHeader"],
+div[data-testid="stDecoration"] {
+    display: none !important;
+}
+/* Conteúdo começa logo abaixo da barra (antes: 6rem reservados para a faixa do Streamlit) */
+div[data-testid="stAppViewBlockContainer"] {
+    padding-top: calc(var(--navbar-height) + 1.5rem) !important;
+}
+/* O bloco que contém a barra sai do fluxo: não soma espaçamento entre elementos */
+div[data-testid="element-container"]:has(.atlas-navbar) {
+    position: absolute;
+}
+.atlas-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    height: var(--navbar-height);
+    background: #ffffff;
+    padding: 0 5rem;            /* mesmas margens laterais do conteúdo (layout "wide") */
+}
+.atlas-navbar-inner {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 1.4rem;       /* alinha o texto com o título do banner (recuo de 2rem) */
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.atlas-navbar-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 100%;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-3) !important;
+    text-decoration: none !important;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+.atlas-navbar-item:hover {
+    color: var(--text) !important;
+    background: var(--bg-soft-2);
+}
+.atlas-navbar-item.is-active {
+    color: var(--navy) !important;
+    font-weight: 700;
+}
+.atlas-navbar-item.is-active:hover {
+    background: transparent;
+}
+/* Traço navy na base do item da página aberta */
+.atlas-navbar-item.is-active::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--navy);
+}
+.atlas-navbar-sep {
+    width: 1px;
+    height: 14px;
+    background: var(--border-2);
+}
+@media (max-width: 575px) {
+    .atlas-navbar { padding: 0 1rem; }
+    .atlas-navbar-inner { padding-left: 0; }
 }

@@ -1,0 +1,19 @@
+/* Estilos exclusivos da página Painel de Indicadores & BI (provisória) */
+.bi-placeholder {
+    margin-top: 2rem;
+    padding: 2.5rem 2rem;
+    border: 1px dashed var(--border-2);
+    border-radius: 12px;
+    background: var(--bg-soft);
+    text-align: center;
+}
+.bi-placeholder-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+}
+.bi-placeholder-text {
+    font-size: 14px;
+    color: var(--muted);
+}

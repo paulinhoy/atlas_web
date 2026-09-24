@@ -7,7 +7,7 @@ import html as html_mod
 import streamlit as st
 import pandas as pd
 from services import data_loader, map_service
-from views.ui import inject_css, render_back_button
+from views.ui import inject_css, render_back_button, render_navbar
 from services.formatters import (
     fmt_brl,
     fmt_decimal_br,
@@ -517,6 +517,7 @@ def render_tabela_obras(df_obras):
 def render(empreendimento_id: int | None):
     """Renderiza a página completa do Atlas; None indica um ID inválido vindo da URL."""
     inject_css("atlas")
+    render_navbar("home")  # a ficha faz parte do fluxo da Página Inicial
 
     df_emp = data_loader.get_empreendimentos()
 
