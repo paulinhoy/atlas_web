@@ -153,7 +153,9 @@
 
 /* ---- Inputs e dropdowns do Streamlit ---- */
 div[data-testid="stTextInput"] label,
-div[data-testid="stSelectbox"] label {
+div[data-testid="stSelectbox"] label,
+div[data-testid="stMultiSelect"] label,
+div[data-testid="stSlider"] label {
     font-size: 13px !important;
     font-weight: 700 !important;
     color: var(--text-3) !important;
@@ -162,7 +164,8 @@ div[data-testid="stSelectbox"] label {
     margin-bottom: 0.25rem !important;
 }
 div[data-testid="stTextInput"] input,
-div[data-testid="stSelectbox"] > div > div {
+div[data-testid="stSelectbox"] > div > div,
+div[data-testid="stMultiSelect"] > div > div {
     background-color: var(--bg-soft) !important;
     border: 1px solid var(--border-2) !important;
     border-radius: 8px !important;
@@ -175,7 +178,8 @@ div[data-testid="stTextInput"] input {
     padding: 0.48rem 0.8rem !important;
 }
 div[data-testid="stTextInput"] input:hover,
-div[data-testid="stSelectbox"] > div > div:hover {
+div[data-testid="stSelectbox"] > div > div:hover,
+div[data-testid="stMultiSelect"] > div > div:hover {
     background-color: #ffffff !important;
     border-color: var(--muted-2) !important;
 }
@@ -397,3 +401,42 @@ div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_rest
     line-height: 32px;
     font-weight: bold;
 }
+
+/* ---- Filtros de seleção múltipla e "Mais filtros" ---- */
+div[data-testid="stExpander"] details {
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    background: #ffffff;
+}
+div[data-testid="stExpander"] summary p {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: var(--navy) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* ---- Chips das colunas-lista da tabela (municípios, intervenções...) ---- */
+.home-atlas-table .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.home-atlas-table .chip {
+    display: inline-block;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    background: var(--bg-soft-2);
+    color: var(--text-3);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.home-atlas-table .chip-mais {
+    background: #ffffff;
+    color: var(--muted);
+    border-style: dashed;
+    cursor: help;
+}
+.home-atlas-table .nowrap { white-space: nowrap; }

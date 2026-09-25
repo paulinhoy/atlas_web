@@ -14,6 +14,8 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 4. [Persistência de Query Params na URL ao Voltar do Atlas para a Home](#caso-4-persistência-de-query-params-na-url-ao-voltar-do-atlas-para-a-home)
 5. [Desalinhamento Visual de Ordenação por IC devido a Limiares Setoriais de Impacto](#caso-5-desalinhamento-visual-de-ordenação-por-ic-devido-a-limiares-setoriais-de-impacto)
 6. [Incompatibilidade de `@st.dialog` e Seletores DOM no Streamlit 1.36.0](#caso-6-incompatibilidade-de-stdialog-e-seletores-dom-no-streamlit-1360)
+7. [`select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro](#caso-7-select_slider-de-faixa-perde-a-segunda-alça-e-faixa-completa-que-vira-filtro)
+8. [Prefixo de Arquivo do ETL Capturando o Arquivo Errado](#caso-8-prefixo-de-arquivo-do-etl-capturando-o-arquivo-errado)
 
 ---
 
@@ -189,6 +191,44 @@ Ao alternar entre as carteiras metodológicas (Cenário Otimizado ou Priorizaç�
 2. **Escopo estrito nos seletores CSS:**
    - Paginação restrita a blocos com 5 ou mais colunas: `div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button`.
    - Modal estilizado aceitando ambos os seletores: `div[data-testid="stModal"]` e `div[data-testid="stDialog"]`.
+
+---
+
+## Caso 7: `select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `views/home.py`, `.streamlit/config.toml`
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+1. Sliders de faixa (CAPEX, OPEX, IC) inicializados só por `st.session_state[chave] = (min, max)`, sem `value=`, quebravam no segundo rerun com `TypeError: 'float' object is not iterable`: o widget passou a devolver um número só.
+2. Com a faixa completa na Carteira Recomendada (IC 0,06–0,48), trocar para a de Análise (IC 0,04–0,50) escondia empreendimentos: a faixa antiga continuava válida nos novos degraus e passava a filtrar.
+
+### 🔍 Causa Raiz
+1. O `select_slider` decide se é faixa olhando **apenas o parâmetro `value`** (`_is_range_value(value)`), não o valor em `session_state`. Sem `value=`, é slider simples.
+2. Os limites do slider dependem da carteira; "faixa completa" de uma carteira não é a completa da outra.
+
+### ✅ Solução Adotada
+1. Passar sempre `value=(opcoes[0], opcoes[-1])` e manter o valor atual/da URL em `st.session_state`. Como o Streamlit avisa quando os dois coexistem, `.streamlit/config.toml` tem `[global] disableWidgetStateDuplicationWarning = true`.
+2. `_preparar_faixa` guarda a faixa completa da última carteira (`_filtro_<param>_padrao`); se o slider estava nela, passa para a faixa completa da nova carteira.
+3. Os filtros usam o valor **devolvido pelo widget**, não o que foi preparado antes dele.
+
+---
+
+## Caso 8: Prefixo de Arquivo do ETL Capturando o Arquivo Errado
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `scripts/process_data.py`
+* **Tecnologia:** `pandas`
+
+### 🛑 Contexto e Sintoma
+Ao chegar o novo `priorizacao_peltlp_vw_dadosgerais_plataformaonline_*.csv`, a regra antiga da tabela mestra (prefixo `priorizacao`, último em ordem alfabética) passaria a escolher esse arquivo no lugar de `priorizacao202609091431.csv`, sem nenhum aviso.
+
+### 🔍 Causa Raiz
+Prefixos curtos casam com arquivos de outras consultas; `_` vem depois dos dígitos na ordem alfabética, então o arquivo novo "vence".
+
+### ✅ Solução Adotada
+Cada destino usa um prefixo que identifica a consulta de forma única (ex.: `priorizacao_peltlp_vw_dadosgerais`). Ao incluir um arquivo novo em `data/raw/`, confira na saída do ETL (`[LIDO] arquivo -> destino`) se cada destino leu o arquivo esperado.
 
 ---
 

@@ -15,6 +15,7 @@ import streamlit as st
 # Parâmetros de navegação que não fazem parte do estado da Home
 PARAMS_NAVEGACAO = ("id", "page")
 _FLAG_SEMEADO = "_estado_url_semeado"
+SEPARADOR_LISTA = "|"  # filtros de seleção múltipla: ?setor=Ferroviário|Dutoviário
 
 
 def inicio_da_sessao() -> bool:
@@ -46,6 +47,34 @@ def semear_widget(chave: str, param: str, opcoes=None) -> None:
         valor = ler(param, opcoes)
         if valor is not None:
             st.session_state[chave] = valor
+
+
+def ler_lista(param: str, opcoes) -> list:
+    """Seleção múltipla gravada como 'A|B'; mantém só os itens que existem em `opcoes`."""
+    texto = ler(param) or ""
+    return [v for v in texto.split(SEPARADOR_LISTA) if v in opcoes]
+
+
+def ler_faixa(param: str, opcoes) -> tuple | None:
+    """Faixa de slider gravada como 'min:max'; None se ausente ou fora de `opcoes`."""
+    try:
+        faixa = tuple(float(v) for v in (ler(param) or "").split(":"))
+    except ValueError:
+        return None
+    if len(faixa) != 2 or not all(v in opcoes for v in faixa):
+        return None
+    return faixa
+
+
+def texto_lista(valores: list) -> str:
+    return SEPARADOR_LISTA.join(valores)
+
+
+def texto_faixa(faixa: tuple, padrao: tuple) -> str:
+    """'' (fora da URL) quando a faixa é a completa; senão 'min:max'."""
+    if tuple(faixa) == tuple(padrao):
+        return ""
+    return ":".join(str(int(v)) if float(v).is_integer() else str(v) for v in faixa)
 
 
 def gravar(valores: dict, padroes: dict) -> None:
