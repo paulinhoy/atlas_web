@@ -559,8 +559,13 @@ def _aplicar_filtros(df: pd.DataFrame, busca: str, selecoes: dict, faixas: dict,
 def render():
     """Função principal da tela Home."""
     inject_css("home")
-    barra_nav = st.empty()  # barra e botão do chatbot são preenchidos depois que o estado atual é gravado na URL
+    # Barra e botão do chatbot são redesenhados no fim, depois que o estado atual é gravado na URL.
+    # Já saem desenhados aqui (com os links da URL atual) para o espaço não ficar vazio durante o
+    # rerun: vazio, a página "dá um tranco" de 16px a cada clique (erros_solucoes.md, caso 12).
+    barra_nav = st.empty()
     botao_chatbot = st.empty()
+    render_navbar("home", barra_nav)
+    render_chatbot_button(botao_chatbot)
     render_header()
 
     # ── Carteira ativa (URL -> sessão no início; aceita o nome antigo "completa") ──

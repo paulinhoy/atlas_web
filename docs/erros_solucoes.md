@@ -19,6 +19,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 9. [`select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro](#caso-9-select_slider-de-faixa-perde-a-segunda-alça-e-faixa-completa-que-vira-filtro)
 10. [Prefixo de Arquivo do ETL Capturando o Arquivo Errado](#caso-10-prefixo-de-arquivo-do-etl-capturando-o-arquivo-errado)
 11. [Servidor com Python Antigo e CSS Novo Após Editar o Código](#caso-11-servidor-com-python-antigo-e-css-novo-após-editar-o-código)
+12. [Página "Dá um Tranco" a Cada Clique na Home (`st.empty` Vazio Durante o Rerun)](#caso-12-página-dá-um-tranco-a-cada-clique-na-home-stempty-vazio-durante-o-rerun)
 
 ---
 
@@ -290,6 +291,25 @@ O servidor foi iniciado antes da edição. Os módulos Python já importados (`v
 
 ### ✅ Solução Adotada
 **Reiniciar o Streamlit** depois de mudar arquivos `.py` antes de conferir o visual (o "Rerun" da página não basta para módulos importados). Se o visual parecer misturar versão antiga e nova, desconfie primeiro de servidor desatualizado.
+
+---
+
+## Caso 12: Página "Dá um Tranco" a Cada Clique na Home (`st.empty` Vazio Durante o Rerun)
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `views/home.py` (barra de navegação e botão do assistente)
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+Ao clicar no botão de limpar filtros (e em qualquer widget da Home), a página dava uma "flicada" para cima. Medindo no navegador: por ~150 ms a barra de navegação sumia, a página encolhia 16 px e a rolagem pulava de 381 para 365 e voltava.
+
+### 🔍 Causa Raiz
+A barra e o botão do assistente ficam em `st.empty()` criados no topo e preenchidos só no fim do script (os links precisam do estado já gravado na URL). A cada rerun o Streamlit troca o conteúdo antigo pelo placeholder **vazio** assim que passa por ele, e o espaço do elemento (16 px no fluxo da página) some até o fim do script.
+
+### ✅ Solução Adotada
+Desenhar a barra e o botão logo depois de criar os `st.empty()` (com os links da URL atual) e redesenhar no mesmo placeholder no fim, com os links atualizados. O espaço nunca fica vazio.
+
+**Regra geral:** placeholder preenchido tarde deve receber um conteúdo provisório do mesmo tamanho logo ao ser criado. Obs.: o `AppTest` registra as duas escritas no placeholder; confira o último elemento.
 
 ---
 
