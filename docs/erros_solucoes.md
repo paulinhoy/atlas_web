@@ -15,6 +15,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 5. [Desalinhamento Visual de Ordenação por IC devido a Limiares Setoriais de Impacto](#caso-5-desalinhamento-visual-de-ordenação-por-ic-devido-a-limiares-setoriais-de-impacto)
 6. [Incompatibilidade de `@st.dialog` e Seletores DOM no Streamlit 1.36.0](#caso-6-incompatibilidade-de-stdialog-e-seletores-dom-no-streamlit-1360)
 7. [Botão "Personalizar Colunas" sem Estilo (Seletor `button[key=...]`)](#caso-7-botão-personalizar-colunas-sem-estilo-seletor-buttonkey)
+8. [Barra de Rolagem Vertical na Barra de Navegação (`overflow-x: auto`)](#caso-8-barra-de-rolagem-vertical-na-barra-de-navegação-overflow-x-auto)
 
 ---
 
@@ -214,6 +215,23 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
 O modal não é afetado: no 1.36 ele é desenhado fora da linha (no fim da página, via portal do baseweb). As regras dos botões **dentro** do modal ainda usam `button[key=...]` e continuam sem efeito — mantidas de propósito, pois o visual atual do modal foi aprovado.
 
 **Regra geral:** para estilizar um widget nativo, ancore o seletor em uma classe HTML própria vizinha (via `:has(...)`) ou em `data-testid`; nunca em `key`.
+
+---
+
+## Caso 8: Barra de Rolagem Vertical na Barra de Navegação (`overflow-x: auto`)
+
+* **Data:** 24/09/2026
+* **Componentes Afetados:** `assets/css/base.css` (`.atlas-navbar-inner`)
+* **Tecnologia:** CSS (comportamento padrão dos navegadores)
+
+### 🛑 Contexto e Sintoma
+Apareceu uma barra de rolagem **vertical** no lado direito da barra de navegação superior, embora a regra pedisse só rolagem **horizontal** (`overflow-x: auto`, para telas estreitas).
+
+### 🔍 Causa Raiz
+Pela especificação do CSS, quando um eixo recebe `overflow` diferente de `visible`, o outro eixo deixa de ser `visible` e vira `auto`. O traço do item ativo fica 1px abaixo da faixa (`bottom: -1px`, para cobrir a linha cinza); esse 1px passou a contar como conteúdo "vazando" na vertical e o navegador desenhou a barra de rolagem.
+
+### ✅ Solução Adotada
+Remover o `overflow-x: auto` da `.atlas-navbar-inner` (os itens cabem na largura das telas em uso). Regra geral: ao usar `overflow-x`/`overflow-y`, lembre que o outro eixo muda junto; elementos posicionados para fora da caixa (traços, sombras, `::after`) passam a gerar rolagem.
 
 ---
 
