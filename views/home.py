@@ -618,14 +618,13 @@ def render():
         unsafe_allow_html=True,
     )
 
-    c_carteira, c_busca, c_limpar = st.columns([1.4, 4.2, 1.2], vertical_alignment="bottom")
+    c_carteira, c_busca = st.columns([1.4, 5.4], vertical_alignment="bottom")
     c_carteira.selectbox("Carteira", list(CARTEIRAS_HOME), key="filtro_carteira")
     busca = c_busca.text_input(
         "Buscar por Nome ou Código ID",
         placeholder="Ex: Ferrovia Centro-Atlântica, BR-381, 113...",
         key="busca_termo",
     ).strip()
-    c_limpar.button("Limpar filtros", key="btn_limpar_filtros", on_click=_limpar_filtros, use_container_width=True)
 
     for linha in (FILTROS_PRINCIPAIS[:4], FILTROS_PRINCIPAIS[4:]):
         for coluna_ui, (param, rotulo, _) in zip(st.columns(4), linha):
@@ -682,9 +681,10 @@ def render():
     estado_url.marcar_sessao_iniciada()
     render_chatbot_button(botao_chatbot)
 
-    # ── Cabeçalho da Tabela com Botão de Personalização Integrado ──
+    # ── Cabeçalho da Tabela: título | botão redondo "Limpar filtros" | "Personalizar Colunas" ──
+    # A ordem das colunas importa: o CSS identifica cada botão pela posição (home.css)
 
-    col_hdr_title, col_hdr_btn = st.columns([0.76, 0.24], vertical_alignment="bottom")
+    col_hdr_title, col_hdr_limpar, col_hdr_btn = st.columns([0.80, 0.045, 0.155], vertical_alignment="bottom")
     with col_hdr_title:
         st.markdown(
             f'<div class="carteira-header-title">'
@@ -692,6 +692,9 @@ def render():
             f'</div>',
             unsafe_allow_html=True,
         )
+    with col_hdr_limpar:
+        # O texto fica escondido pelo CSS (aparece só a vassoura); a dica aparece ao passar o mouse
+        st.button("Limpar filtros", key="btn_limpar_filtros", on_click=_limpar_filtros, help="Limpar filtros")
     with col_hdr_btn:
         if st.button(
             "Personalizar Colunas",

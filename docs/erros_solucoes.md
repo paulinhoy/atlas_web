@@ -17,6 +17,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 7. [Botão "Personalizar Colunas" sem Estilo (Seletor `button[key=...]`)](#caso-7-botão-personalizar-colunas-sem-estilo-seletor-buttonkey)
 9. [`select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro](#caso-9-select_slider-de-faixa-perde-a-segunda-alça-e-faixa-completa-que-vira-filtro)
 10. [Prefixo de Arquivo do ETL Capturando o Arquivo Errado](#caso-10-prefixo-de-arquivo-do-etl-capturando-o-arquivo-errado)
+11. [Servidor com Python Antigo e CSS Novo Após Editar o Código](#caso-11-servidor-com-python-antigo-e-css-novo-após-editar-o-código)
 
 ---
 
@@ -216,6 +217,7 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
 O modal não é afetado: no 1.36 ele é desenhado fora da linha (no fim da página, via portal do baseweb). As regras dos botões **dentro** do modal ainda usam `button[key=...]` e continuam sem efeito — mantidas de propósito, pois o visual atual do modal foi aprovado.
 
 **Regra geral:** para estilizar um widget nativo, ancore o seletor em uma classe HTML própria vizinha (via `:has(...)`) ou em `data-testid`; nunca em `key`.
+
 ---
 
 ## Caso 9: `select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro
@@ -253,6 +255,23 @@ Prefixos curtos casam com arquivos de outras consultas; `_` vem depois dos dígi
 
 ### ✅ Solução Adotada
 Cada destino usa um prefixo que identifica a consulta de forma única (ex.: `priorizacao_peltlp_vw_dadosgerais`). Ao incluir um arquivo novo em `data/raw/`, confira na saída do ETL (`[LIDO] arquivo -> destino`) se cada destino leu o arquivo esperado.
+
+---
+
+## Caso 11: Servidor com Python Antigo e CSS Novo Após Editar o Código
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `views/home.py`, `assets/css/home.css`
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+Depois de mover o "Limpar filtros" para a linha do título, o navegador mostrava o botão antigo ainda na linha de filtros e o "Personalizar Colunas" virado num círculo vazio, como se o estilo da vassoura tivesse caído no botão errado.
+
+### 🔍 Causa Raiz
+O servidor foi iniciado antes da edição. Os módulos Python já importados (`views/home.py`) continuaram na versão antiga, mas o CSS é relido do disco a cada execução (`inject_css`). Com o Python antigo a linha do título tinha 2 colunas, e a regra CSS da vassoura (`:nth-child(2)`) atingiu a coluna do "Personalizar Colunas".
+
+### ✅ Solução Adotada
+**Reiniciar o Streamlit** depois de mudar arquivos `.py` antes de conferir o visual (o "Rerun" da página não basta para módulos importados). Se o visual parecer misturar versão antiga e nova, desconfie primeiro de servidor desatualizado.
 
 ---
 

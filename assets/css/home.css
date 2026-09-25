@@ -269,7 +269,7 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
 }
 
 /* ---- Botão "Personalizar Colunas" ---- */
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stButton"] button {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button {
     min-width: 175px !important;
     max-width: 220px !important;
     width: auto !important;
@@ -292,7 +292,7 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     margin-bottom: 0px !important;
     transition: all 0.2s ease !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stButton"] button:hover {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button:hover {
     background: rgba(11, 37, 69, 0.92) !important;
     border-color: var(--navy) !important;
     color: #ffffff !important;
@@ -304,7 +304,7 @@ div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fech
     box-shadow: 0 4px 12px rgba(11, 37, 69, 0.35) !important;
     transform: translateY(-1px);
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stButton"] button p {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button p {
     white-space: nowrap !important;
     font-size: 13px !important;
     font-weight: 600 !important;
@@ -315,7 +315,7 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     gap: 7px !important;
 }
 /* Ícone de engrenagem em SVG monocromático (evita o emoji roxo do Windows) */
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stButton"] button p::before {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button p::before {
     content: "";
     display: inline-block;
     width: 14px;
@@ -440,3 +440,41 @@ div[data-testid="stExpander"] summary p {
     cursor: help;
 }
 .home-atlas-table .nowrap { white-space: nowrap; }
+
+/* ---- Botão redondo "Limpar filtros" (vassoura), à esquerda de "Personalizar Colunas" ---- */
+/* É a 2ª coluna da linha do título; o texto do botão fica escondido e só o ícone aparece */
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    margin-left: auto !important;
+    border-radius: 50% !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-2) !important;
+    color: var(--navy) !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button:hover {
+    background: var(--bg-soft-2) !important;
+    border-color: var(--navy) !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button p {
+    font-size: 0 !important;
+    line-height: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button p::before {
+    content: "";
+    width: 16px;
+    height: 16px;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m16 22-1-4'/%3E%3Cpath d='M19 13.99a1 1 0 0 0 1-1V12a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v.99a1 1 0 0 0 1 1'/%3E%3Cpath d='M5 14h14l1.973 6.767A1 1 0 0 1 20 22H4a1 1 0 0 1-.973-1.233z'/%3E%3Cpath d='m8 22 1-4'/%3E%3C/svg%3E") no-repeat center / contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m16 22-1-4'/%3E%3Cpath d='M19 13.99a1 1 0 0 0 1-1V12a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v.99a1 1 0 0 0 1 1'/%3E%3Cpath d='M5 14h14l1.973 6.767A1 1 0 0 1 20 22H4a1 1 0 0 1-.973-1.233z'/%3E%3Cpath d='m8 22 1-4'/%3E%3C/svg%3E") no-repeat center / contain;
+}
