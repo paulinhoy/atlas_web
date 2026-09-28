@@ -1,19 +1,110 @@
-/* Estilos exclusivos da página Painel de Indicadores & BI (provisória) */
-.bi-placeholder {
-    margin-top: 2rem;
-    padding: 2.5rem 2rem;
-    border: 1px dashed var(--border-2);
+/* Estilos exclusivos da página Painel de Indicadores & BI (views/bi.py) */
+
+/* ---- Cabeçalho ---- */
+.bi-header {
+    background: var(--grad-header);
     border-radius: 12px;
-    background: var(--bg-soft);
-    text-align: center;
+    padding: 1.1rem 1.4rem;
+    margin-bottom: 1rem;
 }
-.bi-placeholder-title {
-    font-size: 20px;
+.bi-header-title {
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: 700;
+}
+.bi-header-sub {
+    color: var(--pelt-teal);
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+/* ---- Números-resumo ---- */
+.bi-kpi {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    margin: 0.4rem 0 0.8rem 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.bi-kpi-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }
+.bi-kpi-value { font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0; }
+.bi-kpi-sub { font-size: 12px; color: var(--muted-2); }
+
+/* ---- Títulos de seção ---- */
+.bi-section-title {
+    font-size: 18px;
     font-weight: 700;
     color: var(--navy);
-    margin-bottom: 6px;
+    margin: 1.2rem 0 0.2rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid var(--navy);
 }
-.bi-placeholder-text {
-    font-size: 14px;
-    color: var(--muted);
+.bi-section-sub {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-bottom: 0.6rem;
 }
+
+/* ---- Tabelas (estrutura comum em base.css: .atlas-table) ---- */
+.bi-table {
+    margin-bottom: 0.6rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    border-radius: 6px;
+}
+.bi-table thead th { font-size: 13px; padding: 8px 10px; white-space: normal; }
+.bi-table tbody td { padding: 6px 10px; font-size: 13px; }
+.bi-table tbody tr:hover { background: #eef2f7; }
+.bi-table .tl { text-align: left; }
+.bi-table .tr { text-align: right; font-family: var(--font-mono); }
+.bi-table .tc { text-align: center; }
+
+.bi-emp-link { color: var(--navy); font-weight: 600; text-decoration: none; }
+.bi-emp-link:hover { color: var(--blue-accent); text-decoration: underline; }
+
+/* ---- Badges de impacto (mesmas cores da Home) ---- */
+.bi-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.bi-badge-alto { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.bi-badge-medio { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.bi-badge-baixo { background: var(--bg-soft-2); color: var(--text-3); border: 1px solid var(--border-2); }
+
+/* ---- Posição no grupo: cor pela faixa ---- */
+.rk { display: inline-block; padding: 1px 8px; border-radius: 10px; font-weight: 600; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+.rk-topo { background: var(--navy); color: #ffffff; }
+.rk-bom { background: #dbeafe; color: #1e3a8a; }
+.rk-meio { background: var(--bg-soft-2); color: var(--text-3); }
+.rk-fim { background: #ffffff; color: var(--muted-2); border: 1px solid var(--border); }
+.bi-cel-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.bi-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.2rem 0 0.8rem 0; }
+.bi-legenda-txt { font-size: 12px; color: var(--muted); }
+
+/* ---- Chips de destaque ---- */
+.bi-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.bi-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--bg-soft-2);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 11px;
+}
+.bi-chip b { color: var(--navy); }
+.bi-chip-mais { background: #ffffff; color: var(--muted); }
+
+/* ---- Cartão do empreendimento (perfil) ---- */
+.bi-perfil-card {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--navy);
+    border-radius: 8px;
+    background: var(--bg-soft);
+    padding: 0.7rem 1rem;
+    margin: 0.4rem 0 0.8rem 0;
+}
+.bi-perfil-nome { font-size: 16px; }
+.bi-perfil-meta { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+
+/* ---- Faixa com os modelos de execução acima da matriz ---- */
+.bi-zonas { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--text-2); margin: 0.2rem 0 0.2rem 0; }
+.bi-zonas b { color: var(--navy); }
