@@ -56,8 +56,6 @@ def _fmt_metrica(metrica_id: str, valor) -> str:
         return "-"
     if metrica_id == "tirm":
         return fmt_pct_br(valor * 100, 2)
-    if metrica_id == "capex_km":
-        return f"{fmt_brl_compacto(valor)}/km"
     return fmt_decimal_br(valor, 4)
 
 
@@ -104,11 +102,12 @@ def _titulo(texto: str, subtitulo: str = "") -> None:
 
 def _render_kpis(df: pd.DataFrame) -> None:
     presente = int((df["momento"] == "Presente").sum())
+    alto = int((df["impacto_avaliado_3_pond_cenario"] == "Alto impacto").sum())
     cards = [
         ("Empreendimentos", fmt_int_br(len(df)), "no setor escolhido"),
-        ("Presente | Futuro", f"{fmt_int_br(presente)} | {fmt_int_br(len(df) - presente)}", "contratados ou paralisados | demais"),
+        ("Presente | Futuro", f"{fmt_int_br(presente)} | {fmt_int_br(len(df) - presente)}", "Contratado | Planejado"),
         ("CAPEX", fmt_brl_compacto(df["capex"].sum()), "soma do setor"),
-        ("Com TIRM", fmt_int_br(df["tirm"].notna().sum()), "entram na matriz Impacto × Viabilidade"),
+        ("Alto Impacto", fmt_int_br(alto), f"{fmt_pct_br(alto / len(df) * 100 if len(df) else 0)} do setor"),
     ]
     for col, (titulo, valor, sub) in zip(st.columns(len(cards)), cards):
         col.markdown(
@@ -133,8 +132,7 @@ def _render_destaques(carteira: str, setor: str, df: pd.DataFrame) -> None:
     )
     c1, c2, c3, c4 = st.columns([1.3, 1.3, 2.2, 0.8])
     metrica_id = c1.selectbox("Métrica", list(bi.METRICAS), format_func=lambda m: bi.METRICAS[m].rotulo, key="bi_metrica")
-    recortes = bi.recortes_da_metrica(metrica_id)
-    recorte_id = c2.selectbox("Recorte", recortes, format_func=lambda r: bi.RECORTES[r][0], key=f"bi_recorte_{metrica_id}")
+    recorte_id = c2.selectbox("Recorte", list(bi.RECORTES), format_func=lambda r: bi.RECORTES[r][0], key="bi_recorte")
     ranking = _ranking(carteira, setor, metrica_id, recorte_id)
     if ranking.empty:
         st.info("Nenhum empreendimento deste setor tem valor para essa métrica.")
@@ -164,7 +162,8 @@ def _render_destaques(carteira: str, setor: str, df: pd.DataFrame) -> None:
     if fora:
         st.caption(f"{fmt_int_br(fora)} empreendimento(s) do setor sem valor nesta métrica ficaram fora do ranking.")
 
-    _render_destaques_escondidos(carteira, setor, df)
+    # Em reformulação: só o título por enquanto (o código segue em _render_destaques_escondidos)
+    _titulo("Destaques fora do topo do IC")
 
 
 def _contagem_sem_nota(df: pd.DataFrame, metrica_id: str) -> int:
@@ -264,7 +263,8 @@ def _render_perfil(carteira: str, setor: str, df: pd.DataFrame, empreendimento_i
 
 
 def _render_aba_perfil(carteira: str, setor: str, df: pd.DataFrame) -> None:
-    _titulo("Em que o empreendimento vai bem", "Posição do empreendimento em cada métrica, comparado com os pares de cada recorte.")
+    _titulo("Avaliação específica do empreendimento",
+            "Posição do empreendimento em cada métrica, em comparação com os empreendimentos do mesmo recorte.")
     nomes = df.set_index("id_empreendimento")["nome_empreendimento"]
     eid = st.selectbox("Empreendimento", nomes.index.tolist(), key="bi_perfil_emp",
                        format_func=lambda i: f"{nomes[i]} (ID {i})")
@@ -371,10 +371,10 @@ def _render_eficiencia(carteira: str, setor: str, df: pd.DataFrame) -> None:
                              on_select="rerun", key="bi_eficiencia")
 
     f = g[g["fronteira"]].sort_values("capex")
-    cab = [("Empreendimento", "tl"), ("CAPEX", "tr"), ("Índice (IC)", "tr"), ("CAPEX por km", "tr"),
+    cab = [("Empreendimento", "tl"), ("CAPEX", "tr"), ("Índice (IC)", "tr"),
            ("Posição no setor (IC)", "tc"), ("Momento", "tc")]
     linhas_tab = [[_link_emp(r), fmt_brl_compacto(r["capex"]), fmt_decimal_br(r["ic_3_pond"], 4),
-                   _fmt_metrica("capex_km", r["capex_km"]), _fmt_posicao(r["pos_ic_setor"], r["total_setor"]), r["momento"]]
+                   _fmt_posicao(r["pos_ic_setor"], r["total_setor"]), r["momento"]]
                   for _, r in f.iterrows()]
     st.markdown(_tabela(cab, linhas_tab), unsafe_allow_html=True)
     sem_capex = int((df["capex"] <= 0).sum())
@@ -389,23 +389,33 @@ def _render_eficiencia(carteira: str, setor: str, df: pd.DataFrame) -> None:
 
 # ── Aba 5: Composição ───────────────────────────────────────────────────────
 
+def _fmt_capex_grupo(qtd, capex, opex) -> str:
+    """CAPEX do grupo; "-" quando há empreendimentos mas CAPEX e OPEX somam zero (sem modelagem financeira)."""
+    if qtd > 0 and capex == 0 and opex == 0:
+        return "-"
+    return fmt_brl_compacto(capex)
+
+
 def _render_composicao(df: pd.DataFrame) -> None:
-    _titulo("Presente × Futuro", "Presente: contratado (em execução ou não iniciado) ou paralisado. Futuro: concepção, estudo, "
+    _titulo("Presente × Futuro", "Análise sob a ótica do CAPEX: quantidade de empreendimentos e investimento (CAPEX) "
+            "por intervenção principal. Presente: contratado (em execução ou não iniciado) ou paralisado. Futuro: concepção, estudo, "
             "projeto, análise prévia ou em contratação.")
     for coluna, rotulo in (("momento", None), ("esfera_acao", "Esfera")):
         if rotulo:
             _titulo(rotulo)
         valores = sorted(df[coluna].dropna().unique(), key=lambda v: (v != "Presente", v))
         qtd = pd.crosstab(df["intervencao_principal"], df[coluna]).reindex(columns=valores, fill_value=0)
-        capex = df.pivot_table(index="intervencao_principal", columns=coluna, values="capex", aggfunc="sum",
-                               fill_value=0).reindex(columns=valores, fill_value=0)
+        capex, opex = (df.pivot_table(index="intervencao_principal", columns=coluna, values=v, aggfunc="sum",
+                                      fill_value=0).reindex(columns=valores, fill_value=0) for v in ("capex", "opex"))
         ordem = qtd.sum(axis=1).sort_values(ascending=False).index
         cab = [("Intervenção principal", "tl")] + [(f"{v} — qtd", "tr") for v in valores] + [(f"{v} — CAPEX", "tr") for v in valores]
         linhas = [[html_mod.escape(str(i))] + [fmt_int_br(qtd.loc[i, v]) for v in valores]
-                  + [fmt_brl_compacto(capex.loc[i, v]) for v in valores] for i in ordem]
+                  + [_fmt_capex_grupo(qtd.loc[i, v], capex.loc[i, v], opex.loc[i, v]) for v in valores] for i in ordem]
         linhas.append(["<b>Total</b>"] + [f"<b>{fmt_int_br(qtd[v].sum())}</b>" for v in valores]
-                      + [f"<b>{fmt_brl_compacto(capex[v].sum())}</b>" for v in valores])
+                      + [f"<b>{_fmt_capex_grupo(qtd[v].sum(), capex[v].sum(), opex[v].sum())}</b>" for v in valores])
         st.markdown(_tabela(cab, linhas), unsafe_allow_html=True)
+    st.caption('"-" no CAPEX: CAPEX e OPEX zerados ao mesmo tempo, ou seja, não foi possível fazer a modelagem '
+               "financeira completa desses empreendimentos nos estudos.")
 
 
 # ── Página ──────────────────────────────────────────────────────────────────
@@ -447,8 +457,8 @@ def render():
     df = _dados(carteira, setor)
     _render_kpis(df)
 
-    abas = st.tabs(["Destaques por recorte", "Perfil do empreendimento", "Impacto × Viabilidade",
-                    "Eficiência do CAPEX", "Presente × Futuro"])
+    # Aba "Eficiência do CAPEX" (_render_eficiencia) oculta por enquanto
+    abas = st.tabs(["Destaques por recorte", "Perfil do empreendimento", "Impacto × Viabilidade", "Presente × Futuro"])
     with abas[0]:
         _render_destaques(carteira, setor, df)
     with abas[1]:
@@ -456,6 +466,4 @@ def render():
     with abas[2]:
         _render_matriz(carteira, setor, df)
     with abas[3]:
-        _render_eficiencia(carteira, setor, df)
-    with abas[4]:
         _render_composicao(df)

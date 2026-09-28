@@ -36,7 +36,6 @@ class Metrica:
     coluna: str
     maior_melhor: bool = True
     zero_conta: bool = True  # False: nota zero = "não pontuou" e fica fora do ranking
-    so_intervencao: bool = False  # True: só compara empreendimentos da mesma intervenção principal
 
 
 METRICAS = {
@@ -47,7 +46,6 @@ METRICAS = {
     "comercial": Metrica("Dimensão Comercial", "dimensao_comercial", zero_conta=False),
     "financeira": Metrica("Dimensão Financeira", "dimensao_financeira", zero_conta=False),
     "tirm": Metrica("TIRM", "tirm"),
-    "capex_km": Metrica("CAPEX por km", "capex_km", maior_melhor=False, so_intervencao=True),
 }
 
 # Recortes: id -> (rótulo, coluna). "regiao" é coluna-lista: o empreendimento entra em cada região que toca
@@ -77,8 +75,6 @@ def preparar(df: pd.DataFrame) -> pd.DataFrame:
     df["regioes_mg"] = df["regioes_intermediarias"].map(
         lambda regs: [r for r in regs if r in REGIOES_MG] if regs is not None and not isinstance(regs, float) else []
     )
-    valido = (df["capex"] > 0) & (df["extensao_km"] > 0)
-    df["capex_km"] = (df["capex"] / df["extensao_km"]).where(valido)
     # Posição geral no setor pelo IC (referência para achar destaques "escondidos")
     df["pos_ic_setor"] = df.groupby("setor")["ic_3_pond"].rank(ascending=False, method="first").astype(int)
     df["total_setor"] = df.groupby("setor")["ic_3_pond"].transform("size")
@@ -91,11 +87,6 @@ def _concorrentes(df: pd.DataFrame, metrica: Metrica) -> pd.DataFrame:
     if not metrica.zero_conta:
         ok &= df[metrica.coluna] > 0
     return df[ok]
-
-
-def recortes_da_metrica(metrica_id: str) -> list:
-    """Recortes em que a métrica pode ser comparada (CAPEX por km só dentro da mesma intervenção)."""
-    return ["intervencao"] if METRICAS[metrica_id].so_intervencao else list(RECORTES)
 
 
 def ranking(df: pd.DataFrame, metrica_id: str, recorte_id: str) -> pd.DataFrame:
@@ -126,8 +117,6 @@ def destaques(df: pd.DataFrame, recortes=None, metricas=None) -> pd.DataFrame:
     partes = []
     for recorte_id in recortes or RECORTES:
         for metrica_id in metricas or METRICAS:
-            if recorte_id not in recortes_da_metrica(metrica_id):
-                continue
             r = ranking(df, metrica_id, recorte_id)
             r = r[(r["total"] >= MIN_GRUPO) & (r["posicao"] <= r["total"].map(limite_destaque))]
             partes.append(r[["id_empreendimento", "grupo", "posicao", "total"]].assign(metrica=metrica_id, recorte=recorte_id))
@@ -141,8 +130,6 @@ def perfil(df: pd.DataFrame, empreendimento_id: int) -> pd.DataFrame:
     linhas = []
     for recorte_id in RECORTES:
         for metrica_id, metrica in METRICAS.items():
-            if recorte_id not in recortes_da_metrica(metrica_id):
-                continue
             r = ranking(df, metrica_id, recorte_id)
             r = r[r["id_empreendimento"] == empreendimento_id]
             for _, row in r.iterrows():

@@ -40,7 +40,7 @@ app.py  (roteia pela URL)
    ├── views/home.py     Home: KPIs, filtros, tabela da carteira
    ├── views/atlas.py    Ficha do empreendimento (+ services/map_service.py)
    ├── views/chatbot.py  Assistente virtual (lógica em services/chatbot_service.py)
-   └── views/bi.py       Painel de Indicadores & BI (provisório: "em construção")
+   └── views/bi.py       Painel de Indicadores & BI (protótipo; cálculos em services/bi_service.py)
 ```
 
 O app **nunca acessa o banco**: tudo é lido dos arquivos `.parquet`.
@@ -58,11 +58,12 @@ atlas_web/
 │   ├── home.py             Home
 │   ├── atlas.py            Ficha do empreendimento
 │   ├── chatbot.py          Tela do assistente virtual
-│   ├── bi.py               Painel de Indicadores & BI (provisório)
+│   ├── bi.py               Painel de Indicadores & BI (protótipo em validação)
 │   ├── ui.py               Carregador de CSS e componentes comuns (barra de navegação, botão Voltar)
 │   └── estado_url.py       Filtros/paginação/colunas da Home guardados na URL
 ├── services/
 │   ├── data_loader.py      Leitura dos parquets, cache e regras de precedência
+│   ├── bi_service.py       Cálculos do BI: rankings por recorte, perfil, fronteira de eficiência
 │   ├── formatters.py       Formatação brasileira (R$, %, milhar, datas)
 │   ├── map_service.py      Mapa Folium da ficha
 │   ├── chatbot_service.py  Lógica do chatbot (LangChain) — em desenvolvimento
@@ -155,7 +156,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 | `?` (vazio) | Home |
 | `?id=1042` | Ficha do empreendimento 1042 (ID inválido → mensagem de "não encontrado") |
 | `?page=chatbot` | Assistente virtual |
-| `?page=bi` | Painel de Indicadores & BI (provisório, "em construção") |
+| `?page=bi` | Painel de Indicadores & BI (protótipo; `carteira` na URL é a mesma da Home) |
 
 - **A URL é a fonte da verdade.** Links internos são relativos (começam com `?`).
 - **Barra de navegação superior** (todas as telas, `render_navbar` em `views/ui.py`): Página Inicial, Painel de Indicadores & BI e Assistente Virtual, com destaque na tela aberta (na ficha, destaca Página Inicial). Substitui a faixa nativa do Streamlit (menu ⋮), que fica escondida.
@@ -164,6 +165,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 - **Regiões intermediárias:** a Home mostra (filtro e coluna) só as 13 regiões de MG (`REGIOES_INTERMEDIARIAS_MG` em `views/home.py`); regiões de estados vizinhos que aparecem nos dados são descartadas na exibição, sem alterar o parquet.
 - **Ficha:** cabeçalho, metadados + mapa (mesma altura, 520px), e as tabelas Resultados da Priorização, Dados Financeiros, Alocação 2055 e Detalhamento das Obras.
 - **Mapa (`services/map_service.py`):** Folium com base OpenStreetMap (sem chave de API), traçado linear e pontos do empreendimento, enquadramento automático; aviso quando não há geometria. A legenda QGIS está preservada em `render_legenda_qgis()` (desativada).
+- **Painel de Indicadores & BI (protótipo em validação):** seletores de carteira (padrão Recomendada) e setor (padrão Rodoviário). Números-resumo do setor: Empreendimentos, Presente | Futuro (Contratado | Planejado), CAPEX e Alto Impacto. Cada empreendimento é comparado com os pares do mesmo setor em cada recorte (setor inteiro, intervenção principal, região intermediária de MG, Presente × Futuro, esfera) nas métricas IC, 5 dimensões e TIRM; desempate pelo IC; nota zero numa dimensão = não pontuou (fica fora do ranking). Abas: Destaques por recorte, Perfil do empreendimento, Impacto × Viabilidade (X = TIRM, cortes 0% e 11,2%: Execução pública | PPP | Concessão comum; Y = IC; cor = classe de impacto) e Presente × Futuro (Presente = Contratado - execução não iniciada, Contratado - em execução, Paralisado; o resto é Futuro; CAPEX "-" quando CAPEX e OPEX do grupo somam zero = sem modelagem financeira completa).
 - **Visual:** todo o CSS em `assets/css/`, com cores centralizadas — ver `docs/frontend.md`.
 
 ---
@@ -222,3 +224,9 @@ Links internos são relativos (começam com `?`), por isso o app funciona igual 
 - Algumas regras CSS dependem de detalhes internos do Streamlit 1.36 (ver `docs/frontend.md`, seção 8). Atualizar o Streamlit exige revisão visual.
 - Legenda do mapa e camadas socioambientais adicionais: planejadas, ainda não ativas.
 - Logos institucionais existem em `logos/`, mas não são exibidos.
+- **Painel de BI (protótipo — pendências registradas em 28/09/2026):**
+  - *Estado na URL:* só a `carteira` vai para a URL. Setor, métrica, recorte, grupo e aba ficam na sessão e se perdem ao recarregar ou ao abrir uma ficha. O botão "Voltar" da ficha leva para a Home, não de volta ao BI. O BI usa a mesma marca de "sessão iniciada" da Home (`estado_url.marcar_sessao_iniciada`).
+  - *Dependência da Home:* `views/bi.py` importa `CARTEIRAS_HOME` de `views/home.py` e repete a lista das regiões de MG (`REGIOES_MG` em `bi_service.py`, igual a `REGIOES_INTERMEDIARIAS_MG` da Home). Centralizar (ex.: em `data_loader`) antes de publicar.
+  - *Região intermediária:* um empreendimento que passa por várias regiões conta inteiro em cada uma. Aguardando a tabela de pertencimento (`id_empreendimento`, tamanho do empreendimento, RGI, tamanho na RGI) para ponderar.
+  - *Retirado/oculto até nova definição:* métrica CAPEX por km (removida), aba "Eficiência do CAPEX" (`_render_eficiencia`, oculta) e a lista "Destaques fora do topo do IC" (`_render_destaques_escondidos`, só o título aparece; ideia a reformular).
+  - *Gráficos:* clique só funciona em gráfico Altair de camada única no Streamlit 1.36 (`erros_solucoes.md`, caso 13).

@@ -52,11 +52,13 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
     border-radius: 6px;
 }
-.bi-table thead th { font-size: 13px; padding: 8px 10px; white-space: normal; }
+/* Cabeçalho igual ao da Home (fonte do sistema, não monoespaçada), só um pouco menor que os 16px dela */
+.bi-table thead th { font-size: 14px; padding: 0.7rem 0.85rem; letter-spacing: 0.25px; border: none; white-space: normal; }
 .bi-table tbody td { padding: 6px 10px; font-size: 13px; }
 .bi-table tbody tr:hover { background: #eef2f7; }
 .bi-table .tl { text-align: left; }
-.bi-table .tr { text-align: right; font-family: var(--font-mono); }
+.bi-table .tr { text-align: right; }
+.bi-table tbody td.tr { font-family: var(--font-mono); }
 .bi-table .tc { text-align: center; }
 
 .bi-emp-link { color: var(--navy); font-weight: 600; text-decoration: none; }
