@@ -12,6 +12,7 @@ Aplicação Streamlit que exibe os resultados do estudo do PELTMG (carteira prio
 - O responsável é cientista de dados (conhece Python), mas **não trabalha com HTML/CSS**: explique essa parte em linguagem simples, com exemplos curtos de código.
 - Para mudanças não triviais, **apresente o problema com um exemplo prático e um plano, e espere aprovação** antes de alterar código.
 - **Commit e push somente com aprovação explícita.** Trabalhe em branch própria (`feat/`, `fix/`, `refactor/`, `docs/`) criada a partir da `main`.
+- **Antes de criar a branch, rode `git log main..staging`.** Se a `staging` tiver commits que a `main` não tem (ajustes visuais ainda em avaliação costumam estar só lá), pergunte ao responsável se a branch deve partir da `staging`. Nunca deixe uma tarefa desfazer algo que já existe na `staging`.
 
 ## Regras fixas
 - Use sempre o `.venv` (`.venv/Scripts/python.exe`): Streamlit **1.36.0** é versão fixa. O Python global da máquina tem outra versão e não tem as dependências.

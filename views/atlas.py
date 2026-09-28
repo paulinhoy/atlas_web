@@ -137,7 +137,7 @@ def render_legenda_qgis():
 
 def render_tabela_priorizacao(row):
     """Tabela 1 — Resultados da Priorização (com resolução hierárquica e badge da fonte)."""
-    # Garante que as notas venham da resolução hierárquica: Recomendado -> Otimizado -> Geral
+    # Garante que as notas venham da resolução hierárquica: Recomendada -> Otimizada -> de Análise
     emp_id = row.get("id_empreendimento")
     if "fonte_dimensoes" not in row and emp_id is not None:
         resolved = data_loader.get_empreendimento_resolvido(emp_id)
@@ -152,7 +152,7 @@ def render_tabela_priorizacao(row):
     ic = fmt_decimal_br(row.get("ic_3_pond"), 5)
     impacto = html_mod.escape(str(row.get("impacto_avaliado_3_pond_cenario") or "-"))
 
-    fonte = html_mod.escape(str(row.get("fonte_dimensoes") or "Priorização Geral"))
+    fonte = html_mod.escape(str(row.get("fonte_dimensoes") or "Carteira de Análise"))
     badge_html = f'<span class="fonte-badge">Fonte: {fonte}</span>'
 
     st.markdown(

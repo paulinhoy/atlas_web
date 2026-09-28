@@ -59,10 +59,10 @@ As ferramentas conectam a LLM aos DataFrames em memória (`services/data_loader.
 
 | # | Ferramenta | Parâmetros | Fonte de Dados | Descrição / Retorno |
 |:---|:---|:---|:---|:---|
-| **1** | `buscar_empreendimento` | `id_empreendimento: int` | `empreendimentos_priorizacao.parquet` | Ficha técnica resumida (nome, setor, esfera, status, natureza, vocação, IC e impacto). |
-| **2** | `listar_empreendimentos` | `setor: str`, `esfera: str`, `impacto: str`, `limite: int` (máx 20) | `empreendimentos_priorizacao.parquet` | Filtra e lista projetos da carteira priorizada por critérios combinados. |
+| **1** | `buscar_empreendimento` | `id_empreendimento: int` | `carteiras.parquet` (carteira de Análise) | Ficha técnica resumida (nome, setor, esfera, status, natureza, vocação, IC e impacto). |
+| **2** | `listar_empreendimentos` | `setor: str`, `esfera: str`, `impacto: str`, `limite: int` (máx 20) | `carteiras.parquet` (carteira de Análise) | Filtra e lista projetos da carteira priorizada por critérios combinados. |
 | **3** | `consultar_financeiro` | `id_empreendimento: int` | `dados_financeiro.parquet` | CAPEX atualizado, OPEX atualizado, Valor Total, Receita Total e Mês Base de atualização. |
-| **4** | `contar_empreendimentos` | `agrupar_por: str` (`setor`, `esfera` ou `impacto`) | `empreendimentos_priorizacao.parquet` | Distribuição estatística com quantidades absolutas e percentuais da base (~1.682 projetos). |
+| **4** | `contar_empreendimentos` | `agrupar_por: str` (`setor`, `esfera` ou `impacto`) | `carteiras.parquet` (carteira de Análise) | Distribuição estatística com quantidades absolutas e percentuais da base (~1.682 projetos). |
 | **5** | `listar_obras` | `id_empreendimento: int`, `limite: int` (máx 30) | `obras_priorizacao.parquet` | Detalhamento das obras vinculadas: tipo de intervenção, infraestrutura, extensão em km e valor estimado. |
 
 ---

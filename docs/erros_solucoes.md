@@ -16,6 +16,10 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 6. [Incompatibilidade de `@st.dialog` e Seletores DOM no Streamlit 1.36.0](#caso-6-incompatibilidade-de-stdialog-e-seletores-dom-no-streamlit-1360)
 7. [Botão "Personalizar Colunas" sem Estilo (Seletor `button[key=...]`)](#caso-7-botão-personalizar-colunas-sem-estilo-seletor-buttonkey)
 8. [Barra de Rolagem Vertical na Barra de Navegação (`overflow-x: auto`)](#caso-8-barra-de-rolagem-vertical-na-barra-de-navegação-overflow-x-auto)
+9. [`select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro](#caso-9-select_slider-de-faixa-perde-a-segunda-alça-e-faixa-completa-que-vira-filtro)
+10. [Prefixo de Arquivo do ETL Capturando o Arquivo Errado](#caso-10-prefixo-de-arquivo-do-etl-capturando-o-arquivo-errado)
+11. [Servidor com Python Antigo e CSS Novo Após Editar o Código](#caso-11-servidor-com-python-antigo-e-css-novo-após-editar-o-código)
+12. [Página "Dá um Tranco" a Cada Clique na Home (`st.empty` Vazio Durante o Rerun)](#caso-12-página-dá-um-tranco-a-cada-clique-na-home-stempty-vazio-durante-o-rerun)
 
 ---
 
@@ -232,6 +236,80 @@ Pela especificação do CSS, quando um eixo recebe `overflow` diferente de `visi
 
 ### ✅ Solução Adotada
 Remover o `overflow-x: auto` da `.atlas-navbar-inner` (os itens cabem na largura das telas em uso). Regra geral: ao usar `overflow-x`/`overflow-y`, lembre que o outro eixo muda junto; elementos posicionados para fora da caixa (traços, sombras, `::after`) passam a gerar rolagem.
+
+---
+
+## Caso 9: `select_slider` de Faixa Perde a Segunda Alça e Faixa "Completa" que Vira Filtro
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `views/home.py`, `.streamlit/config.toml`
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+1. Sliders de faixa (CAPEX, OPEX, IC) inicializados só por `st.session_state[chave] = (min, max)`, sem `value=`, quebravam no segundo rerun com `TypeError: 'float' object is not iterable`: o widget passou a devolver um número só.
+2. Com a faixa completa na Carteira Recomendada (IC 0,06–0,48), trocar para a de Análise (IC 0,04–0,50) escondia empreendimentos: a faixa antiga continuava válida nos novos degraus e passava a filtrar.
+
+### 🔍 Causa Raiz
+1. O `select_slider` decide se é faixa olhando **apenas o parâmetro `value`** (`_is_range_value(value)`), não o valor em `session_state`. Sem `value=`, é slider simples.
+2. Os limites do slider dependem da carteira; "faixa completa" de uma carteira não é a completa da outra.
+
+### ✅ Solução Adotada
+1. Passar sempre `value=(opcoes[0], opcoes[-1])` e manter o valor atual/da URL em `st.session_state`. Como o Streamlit avisa quando os dois coexistem, `.streamlit/config.toml` tem `[global] disableWidgetStateDuplicationWarning = true`.
+2. `_preparar_faixa` guarda a faixa completa da última carteira (`_filtro_<param>_padrao`); se o slider estava nela, passa para a faixa completa da nova carteira.
+3. Os filtros usam o valor **devolvido pelo widget**, não o que foi preparado antes dele.
+
+---
+
+## Caso 10: Prefixo de Arquivo do ETL Capturando o Arquivo Errado
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `scripts/process_data.py`
+* **Tecnologia:** `pandas`
+
+### 🛑 Contexto e Sintoma
+Ao chegar o novo `priorizacao_peltlp_vw_dadosgerais_plataformaonline_*.csv`, a regra antiga da tabela mestra (prefixo `priorizacao`, último em ordem alfabética) passaria a escolher esse arquivo no lugar de `priorizacao202609091431.csv`, sem nenhum aviso.
+
+### 🔍 Causa Raiz
+Prefixos curtos casam com arquivos de outras consultas; `_` vem depois dos dígitos na ordem alfabética, então o arquivo novo "vence".
+
+### ✅ Solução Adotada
+Cada destino usa um prefixo que identifica a consulta de forma única (ex.: `priorizacao_peltlp_vw_dadosgerais`). Ao incluir um arquivo novo em `data/raw/`, confira na saída do ETL (`[LIDO] arquivo -> destino`) se cada destino leu o arquivo esperado.
+
+---
+
+## Caso 11: Servidor com Python Antigo e CSS Novo Após Editar o Código
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `views/home.py`, `assets/css/home.css`
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+Depois de mover o "Limpar filtros" para a linha do título, o navegador mostrava o botão antigo ainda na linha de filtros e o "Personalizar Colunas" virado num círculo vazio, como se o estilo da vassoura tivesse caído no botão errado.
+
+### 🔍 Causa Raiz
+O servidor foi iniciado antes da edição. Os módulos Python já importados (`views/home.py`) continuaram na versão antiga, mas o CSS é relido do disco a cada execução (`inject_css`). Com o Python antigo a linha do título tinha 2 colunas, e a regra CSS da vassoura (`:nth-child(2)`) atingiu a coluna do "Personalizar Colunas".
+
+### ✅ Solução Adotada
+**Reiniciar o Streamlit** depois de mudar arquivos `.py` antes de conferir o visual (o "Rerun" da página não basta para módulos importados). Se o visual parecer misturar versão antiga e nova, desconfie primeiro de servidor desatualizado.
+
+---
+
+## Caso 12: Página "Dá um Tranco" a Cada Clique na Home (`st.empty` Vazio Durante o Rerun)
+
+* **Data:** 25/09/2026
+* **Componentes Afetados:** `views/home.py` (barra de navegação e botão do assistente)
+* **Tecnologia:** `streamlit==1.36.0`
+
+### 🛑 Contexto e Sintoma
+Ao clicar no botão de limpar filtros (e em qualquer widget da Home), a página dava uma "flicada" para cima. Medindo no navegador: por ~150 ms a barra de navegação sumia, a página encolhia 16 px e a rolagem pulava de 381 para 365 e voltava.
+
+### 🔍 Causa Raiz
+A barra e o botão do assistente ficam em `st.empty()` criados no topo e preenchidos só no fim do script (os links precisam do estado já gravado na URL). A cada rerun o Streamlit troca o conteúdo antigo pelo placeholder **vazio** assim que passa por ele, e o espaço do elemento (16 px no fluxo da página) some até o fim do script.
+
+### ✅ Solução Adotada
+Desenhar a barra e o botão logo depois de criar os `st.empty()` (com os links da URL atual) e redesenhar no mesmo placeholder no fim, com os links atualizados. O espaço nunca fica vazio.
+
+**Regra geral:** placeholder preenchido tarde deve receber um conteúdo provisório do mesmo tamanho logo ao ser criado. Obs.: o `AppTest` registra as duas escritas no placeholder; confira o último elemento.
 
 ---
 

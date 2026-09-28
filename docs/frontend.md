@@ -200,9 +200,11 @@ Uma entrada em `AVAILABLE_COLUMNS` (`views/home.py`). Ela aparece automaticament
     "render": lambda r: fmt_pct_br(r.get("tirm")),   # r = linha do DataFrame
 },
 ```
-- Importe o formatador usado no topo de `home.py` (hoje só `fmt_int_br` e `fmt_bilhoes_br` são importados).
+- Importe o formatador usado no topo de `home.py`. Para valores em R$ use `fmt_brl_compacto` (`R$ 8,4 mi`).
+- Atalhos para colunas simples: `_col_texto(rótulo, coluna)`, `_col_valor(rótulo, render)` (número à direita) e `_col_chips(rótulo, coluna)` (colunas-lista).
 - Para exibir por padrão, inclua o id em `DEFAULT_ACTIVE_COLUMNS`.
-- A coluna precisa existir em `empreendimentos_priorizacao.parquet`. Dados de outro parquet exigem merge antes de renderizar.
+- A coluna precisa existir em `carteiras.parquet`. Dados de outro parquet exigem merge antes de renderizar.
+- **Colunas-lista** (municípios, regiões, intervenções, tipos de infraestrutura) aparecem como chips cinza: até 3 itens e um chip `+N`; passar o mouse no `+N` mostra os demais. Classes `.chips`, `.chip`, `.chip-mais` em `home.css`; o limite é `CHIPS_VISIVEIS`.
 - Texto vindo dos dados **sempre** passa por `html_mod.escape(...)` (ou por um formatador de `services/formatters.py`).
 
 ### 5.5 Adicionar/alterar um badge colorido
@@ -238,13 +240,16 @@ Links recarregam a página e zeram a sessão; a URL sobrevive. `views/estado_url
 - **Toda execução:** `estado_url.gravar(valores, padroes)` escreve o estado na URL sem recarregar; valores iguais ao padrão ficam fora (URL limpa).
 - **Links:** `link_empreendimento(id)`, `link_chatbot()`, `link_home()` montam o `href` com o estado atual.
 
-Parâmetros atuais: `carteira` (recomendada/otimizada/completa), `q` (busca), `setor`, `esfera`, `classificacao`, `viabilidade`, `origem`, `vocacao`, `pg`, `itens`, `cols` (ids separados por vírgula).
-Exemplo: `?id=1042&carteira=completa&setor=Rodoviário&q=BR&pg=2`.
+Parâmetros atuais: `carteira` (recomendada/otimizada/analise; `completa` ainda é aceito), `q` (busca), filtros de seleção múltipla com itens separados por `|` (`setor`, `status`, `origem`, `esfera`, `impacto`, `viabilidade`, `vocacao`, `intervencao`, `natureza`, `municipio`, `regiao`, `infraestrutura`), faixas `min:max` (`capex`, `opex`, `ic`), `pg`, `itens`, `cols` (ids separados por vírgula).
+Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&capex=10000000:1000000000&pg=2`.
 
-**Para incluir um filtro novo na Home:**
-1. Antes do widget: `estado_url.semear_widget("filtro_novo", "novo", opcoes)` (sem `opcoes` para campos de texto livre).
-2. Inclua `"novo": filtro_novo` no dicionário de `estado_url.gravar(...)` e o valor padrão em `padroes`.
-3. Inclua o filtro na tupla `assinatura` (para a listagem voltar à página 1 quando ele mudar).
+**Para incluir um filtro novo na Home:** acrescente uma linha `(parâmetro na URL, rótulo, coluna)` em `FILTROS_PRINCIPAIS` (sempre visível) ou `FILTROS_MAIS` (dentro de "Mais filtros") em `views/home.py`. Opções, URL, "Limpar filtros", volta à página 1 e a filtragem saem dessa lista. Se a coluna for uma lista, inclua-a também em `COLUNAS_LISTA`. Slider de faixa: `FILTROS_FAIXA` + os degraus em `opcoes_faixa`.
+
+**Como os filtros funcionam:**
+- Seleção múltipla vazia = todos. As opções vêm da carteira ativa; ao trocar de carteira, itens que não existem mais são descartados.
+- Filtro de coluna-lista (ex.: município) mostra o empreendimento se **qualquer** item dele estiver selecionado.
+- CAPEX e OPEX usam degraus fixos (0, 1 mi, 5 mi, 10 mi, ..., 1 tri) até o primeiro que cobre o máximo da carteira, porque a maioria dos valores é pequena. IC usa passos de 0,01. Slider na faixa completa = sem filtro; a faixa completa acompanha a carteira.
+- "Mais filtros" começa fechado, a não ser que o link já traga algum desses filtros.
 
 A troca de qualquer filtro volta a paginação para a página 1.
 
@@ -319,4 +324,5 @@ Compare as declarações CSS efetivas antes/depois por seletor (resolvendo `var(
 | **Barra de navegação e ordem de execução** | Na Home, a barra é desenhada num `st.empty()` preenchido **depois** de `estado_url.gravar(...)`; senão os links levariam os filtros da execução anterior. O mesmo vale para o botão flutuante do Assistente. |
 | **Faixa nativa do Streamlit escondida** | `base.css` esconde `header[data-testid="stHeader"]` (menu ⋮, "Running…") e troca o `padding-top` de `stAppViewBlockContainer`. Ao atualizar o Streamlit, confira esses seletores. |
 | **Cache após atualizar dados** | Os parquets ficam em cache; após trocar os arquivos em `data/processed/`, reinicie o servidor. |
-| **Contagens fixas nos rótulos** | `"Carteira Recomendada (1.044)"` etc. em `views/home.py` são texto fixo — atualize na carga anual. |
+| **Botões da linha do título da tabela** | A linha tem 3 colunas: título, botão redondo "Limpar filtros" (vassoura) e "Personalizar Colunas". O CSS reconhece cada botão pela **posição** da coluna (`:nth-child(2)` e `:last-child`), porque o Streamlit não põe a `key` no HTML. Mudou a ordem das colunas em `home.py`? Ajuste `home.css`. |
+| **`select_slider` de faixa** | Só vira faixa (duas alças) se `value=` receber uma tupla; o estado vindo da URL entra por `st.session_state`. Por isso `disableWidgetStateDuplicationWarning = true` em `.streamlit/config.toml` (ver `erros_solucoes.md`, caso 9). |
