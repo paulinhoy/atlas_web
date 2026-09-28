@@ -313,6 +313,28 @@ Desenhar a barra e o botão logo depois de criar os `st.empty()` (com os links d
 
 ---
 
+## Caso 13: Clique em Gráfico Altair Quebra com "Selections are not yet supported for multi-view charts"
+
+* **Data:** 28/09/2026
+* **Componentes Afetados:** `views/bi.py` (matriz Impacto × Viabilidade e gráfico de eficiência)
+* **Tecnologia:** Streamlit 1.36.0 + Altair 5.5
+
+### 🛑 Contexto e Sintoma
+A página de BI quebrava ao desenhar a matriz com `st.altair_chart(..., on_select="rerun")`. O gráfico era a soma de camadas (`linhas + textos + pontos`) para mostrar as linhas de corte da TIRM e os nomes das zonas.
+
+### 🔍 Causa Raiz
+No Streamlit 1.36 a seleção (clique) só funciona em gráfico de **uma única camada**. Qualquer composição (`+`, `|`, `&`, `layer`) com `on_select` levanta `StreamlitAPIException`.
+
+### ✅ Solução Adotada
+Manter um gráfico só de pontos e desenhar as referências de outro jeito:
+```python
+# as linhas de corte viram a grade do eixo X (só nos valores 0 e 11,2)
+x=alt.X("tirm_pct:Q", axis=alt.Axis(values=[0, 11.2], grid=True, gridDash=[6, 4], gridColor=COR_NAVY))
+```
+Os nomes das zonas ficam num texto HTML acima do gráfico (`.bi-zonas`). Sem clique, camadas voltam a ser permitidas.
+
+---
+
 ## 📝 Modelo de Registro para Novos Casos
 
 Sempre que documentar um novo erro, utilize o padrão abaixo:
