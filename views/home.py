@@ -223,9 +223,13 @@ AVAILABLE_COLUMNS = {
 DEFAULT_ACTIVE_COLUMNS = [
     "id",
     "nome",
+    "status",
     "setor",
+    "natureza",
     "origem_ajustada",
     "esfera",
+    "capex",
+    "opex",
     "tirm",
     "ic",
     "impacto",
@@ -448,12 +452,12 @@ FILTROS_PRINCIPAIS = [
     ("esfera", "Esfera", "esfera_acao"),
     ("impacto", "Impacto", "impacto_avaliado_3_pond_cenario"),
     ("viabilidade", "Viabilidade", "viabilidade"),
-    ("vocacao", "Vocação", "vocacao"),
+    ("natureza", "Natureza", "natureza_empreendimento"),
     ("intervencao", "Intervenção Principal", "intervencao_principal"),
 ]
 # Seleção múltipla dentro de "Mais filtros"
 FILTROS_MAIS = [
-    ("natureza", "Natureza", "natureza_empreendimento"),
+    ("vocacao", "Vocação", "vocacao"),
     ("municipio", "Município", "municipios"),
     ("regiao", "Região Intermediária", "regioes_intermediarias"),
     ("infraestrutura", "Tipo de Infraestrutura", "tipos_infraestruturas"),
@@ -467,6 +471,14 @@ FILTROS_FAIXA = [
 
 # Colunas cujo valor é uma lista: o filtro casa se QUALQUER item estiver selecionado
 COLUNAS_LISTA = {"intervencoes", "tipos_infraestruturas", "municipios", "regioes_intermediarias"}
+
+# Regiões intermediárias exibidas (as 13 de MG); regiões de outros estados vizinhos ficam de fora
+# do filtro e da coluna da tabela
+REGIOES_INTERMEDIARIAS_MG = {
+    "Barbacena", "Belo Horizonte", "Divinópolis", "Governador Valadares", "Ipatinga",
+    "Juiz de Fora", "Montes Claros", "Patos de Minas", "Pouso Alegre", "Teófilo Otoni",
+    "Uberaba", "Uberlândia", "Varginha",
+}
 
 # Degraus dos sliders de R$: a maioria dos valores é pequena, uma escala linear os esmagaria no início
 DEGRAUS_REAIS = [0.0, 1e6, 5e6, 1e7, 5e7, 1e8, 5e8, 1e9, 5e9, 1e10, 5e10, 1e11, 5e11, 1e12]
@@ -588,6 +600,10 @@ def render():
         render_navbar("home", barra_nav)
         render_chatbot_button(botao_chatbot)
         return
+
+    df_emp["regioes_intermediarias"] = df_emp["regioes_intermediarias"].map(
+        lambda regioes: [r for r in regioes if r in REGIOES_INTERMEDIARIAS_MG]
+    )
 
     # Renderiza KPIs específicos da carteira ativa
     render_kpis(df_emp)
