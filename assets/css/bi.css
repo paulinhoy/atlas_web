@@ -83,20 +83,6 @@
 .bi-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.2rem 0 0.8rem 0; }
 .bi-legenda-txt { font-size: 12px; color: var(--muted); }
 
-/* ---- Chips de destaque ---- */
-.bi-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.bi-chip {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: var(--bg-soft-2);
-    border: 1px solid var(--border);
-    color: var(--text-2);
-    font-size: 11px;
-}
-.bi-chip b { color: var(--navy); }
-.bi-chip-mais { background: #ffffff; color: var(--muted); }
-
 /* ---- Cartão do empreendimento (perfil) ---- */
 .bi-perfil-card {
     border: 1px solid var(--border);
@@ -108,7 +94,3 @@
 }
 .bi-perfil-nome { font-size: 16px; }
 .bi-perfil-meta { font-size: 13px; color: var(--text-3); margin-top: 4px; }
-
-/* ---- Faixa com os modelos de execução acima da matriz ---- */
-.bi-zonas { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--text-2); margin: 0.2rem 0 0.2rem 0; }
-.bi-zonas b { color: var(--navy); }

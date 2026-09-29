@@ -2,7 +2,7 @@
 Cálculos do Painel de Indicadores & BI (só pandas; a tela fica em views/bi.py).
 
 Ideia central: comparar cada empreendimento com os seus pares (mesmo setor e mesmo recorte:
-intervenção principal, região, momento, esfera) em várias métricas. Assim aparecem empreendimentos
+setor inteiro, intervenção principal, região) em várias métricas. Assim aparecem empreendimentos
 que vão bem num recorte específico mesmo sem estar no topo do IC geral.
 """
 
@@ -24,9 +24,8 @@ REGIOES_MG = {
     "Uberaba", "Uberlândia", "Varginha",
 }
 
-# Destaque = estar entre os TOP_PCT% melhores do grupo (no mínimo o 1º), em grupos com pelo menos MIN_GRUPO
+# Topo do grupo = estar entre os TOP_PCT% melhores (no mínimo o 1º); usado na cor da posição
 TOP_PCT = 10
-MIN_GRUPO = 5
 
 
 @dataclass(frozen=True)
@@ -52,8 +51,6 @@ RECORTES = {
     "setor": ("Setor inteiro", "setor"),
     "intervencao": ("Intervenção principal", "intervencao_principal"),
     "regiao": ("Região intermediária", "regioes_mg"),
-    "momento": ("Presente × Futuro", "momento"),
-    "esfera": ("Esfera", "esfera_acao"),
 }
 
 
@@ -61,8 +58,6 @@ def preparar(df: pd.DataFrame) -> pd.DataFrame:
     """Acrescenta as colunas derivadas usadas no painel (sem alterar o DataFrame recebido)."""
     df = df.copy()
     df["momento"] = df["descr_status_empreendimento"].map(lambda s: "Presente" if s in STATUS_PRESENTE else "Futuro")
-    # Investimento total = CAPEX + OPEX; vazio quando o empreendimento não tem nenhum dos dois
-    df["valor_total"] = (df["capex"].fillna(0) + df["opex"].fillna(0)).where(df["capex"].notna() | df["opex"].notna())
     df["regioes_mg"] = df["regioes_intermediarias"].map(
         lambda regs: [r for r in regs if r in REGIOES_MG] if regs is not None and not isinstance(regs, float) else []
     )
@@ -81,7 +76,8 @@ def _concorrentes(df: pd.DataFrame, metrica: Metrica) -> pd.DataFrame:
 
 
 def ranking(df: pd.DataFrame, metrica_id: str, recorte_id: str) -> pd.DataFrame:
-    """Posição de cada empreendimento dentro do seu grupo no recorte.
+    """Posição de cada empreendimento dentro do seu grupo no recorte, sempre entre pares do mesmo setor
+    (com "Todos os setores", cada setor é ranqueado à parte).
     Colunas novas: grupo, posicao, total, top_pct (posição em % do grupo; 1 = melhor 1%).
     Desempate pelo IC (maior primeiro)."""
     metrica = METRICAS[metrica_id]
@@ -89,10 +85,10 @@ def ranking(df: pd.DataFrame, metrica_id: str, recorte_id: str) -> pd.DataFrame:
     base = _concorrentes(df, metrica)
     base = base.assign(grupo=base[coluna_grupo]).explode("grupo").dropna(subset=["grupo"])
     base = base.sort_values(
-        ["grupo", metrica.coluna, "ic_3_pond"], ascending=[True, not metrica.maior_melhor, False]
+        ["setor", "grupo", metrica.coluna, "ic_3_pond"], ascending=[True, True, not metrica.maior_melhor, False]
     )
-    base["posicao"] = base.groupby("grupo").cumcount() + 1
-    base["total"] = base.groupby("grupo")["grupo"].transform("size")
+    base["posicao"] = base.groupby(["setor", "grupo"]).cumcount() + 1
+    base["total"] = base.groupby(["setor", "grupo"])["grupo"].transform("size")
     base["top_pct"] = (base["posicao"] / base["total"] * 100).map(math.ceil)
     return base
 
@@ -100,20 +96,6 @@ def ranking(df: pd.DataFrame, metrica_id: str, recorte_id: str) -> pd.DataFrame:
 def limite_destaque(total: int) -> int:
     """Quantas posições contam como destaque num grupo de `total` empreendimentos."""
     return max(1, math.floor(total * TOP_PCT / 100))
-
-
-def destaques(df: pd.DataFrame, recortes=None, metricas=None) -> pd.DataFrame:
-    """Todas as combinações (métrica × recorte × grupo) em que o empreendimento está no topo do grupo.
-    Uma linha por destaque: id_empreendimento, metrica, recorte, grupo, posicao, total."""
-    partes = []
-    for recorte_id in recortes or RECORTES:
-        for metrica_id in metricas or METRICAS:
-            r = ranking(df, metrica_id, recorte_id)
-            r = r[(r["total"] >= MIN_GRUPO) & (r["posicao"] <= r["total"].map(limite_destaque))]
-            partes.append(r[["id_empreendimento", "grupo", "posicao", "total"]].assign(metrica=metrica_id, recorte=recorte_id))
-    if not partes:
-        return pd.DataFrame(columns=["id_empreendimento", "grupo", "posicao", "total", "metrica", "recorte"])
-    return pd.concat(partes, ignore_index=True)
 
 
 def perfil(df: pd.DataFrame, empreendimento_id: int) -> pd.DataFrame:

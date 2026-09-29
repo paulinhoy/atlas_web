@@ -201,6 +201,11 @@ AVAILABLE_COLUMNS = {
     "capex": _col_valor("CAPEX", lambda r: fmt_brl_compacto(r.get("capex"))),
     "opex": _col_valor("OPEX", lambda r: fmt_brl_compacto(r.get("opex"))),
     "valor_total": _col_valor("Valor Total", lambda r: fmt_brl_compacto(r.get("valor_total"))),
+    "dim_estrategica": _col_valor("Dimensão Estratégica", lambda r: _fmt_ic(r.get("dimensao_estrategica"))),
+    "dim_socioeconomica": _col_valor("Dimensão Socioeconômica", lambda r: _fmt_ic(r.get("dimensao_socioeconomica_pond"))),
+    "dim_gerencial": _col_valor("Dimensão Gerencial", lambda r: _fmt_ic(r.get("dimensao_gerencial"))),
+    "dim_comercial": _col_valor("Dimensão Comercial", lambda r: _fmt_ic(r.get("dimensao_comercial"))),
+    "dim_financeira": _col_valor("Dimensão Financeira", lambda r: _fmt_ic(r.get("dimensao_financeira"))),
     "extensao": _col_valor("Extensão (km)", lambda r: fmt_decimal_br_2(r.get("extensao_km"))),
     "periodo": _col_valor("Período", _fmt_periodo),
     "fonte_financiamento": _col_texto("Financiamento", "fonte_financiamento"),
@@ -457,15 +462,13 @@ FILTROS_PRINCIPAIS = [
 ]
 # Seleção múltipla dentro de "Mais filtros"
 FILTROS_MAIS = [
-    ("vocacao", "Vocação", "vocacao"),
     ("municipio", "Município", "municipios"),
     ("regiao", "Região Intermediária", "regioes_intermediarias"),
-    ("infraestrutura", "Tipo de Infraestrutura", "tipos_infraestruturas"),
 ]
 # Sliders de faixa dentro de "Mais filtros"; os limites acompanham a carteira ativa
 FILTROS_FAIXA = [
-    ("capex", "CAPEX", "capex"),
-    ("opex", "OPEX", "opex"),
+    ("total", "Valor Total", "valor_total"),
+    ("tirm", "TIRM", "tirm"),
     ("ic", "Índice (IC)", "ic_3_pond"),
 ]
 
@@ -506,8 +509,21 @@ def _degraus_ic(serie: pd.Series) -> list:
     return [round(v / 100, 2) for v in range(inicio, max(fim, inicio + 1) + 1)]
 
 
+def _degraus_tirm(serie: pd.Series) -> list:
+    """Passos de 1 ponto percentual (TIRM em fração) cobrindo a menor e a maior TIRM da carteira."""
+    serie = serie.dropna()
+    if serie.empty:
+        return [0.0, 0.01]
+    inicio, fim = math.floor(serie.min() * 100), math.ceil(serie.max() * 100)
+    return [round(v / 100, 2) for v in range(inicio, max(fim, inicio + 1) + 1)]
+
+
 def _fmt_ic_faixa(val) -> str:
     return f"{val:.2f}".replace(".", ",")
+
+
+# Rótulo dos degraus de cada slider de faixa
+FORMATO_FAIXA = {"total": fmt_brl_compacto, "tirm": lambda v: fmt_pct_br(v * 100, 0), "ic": _fmt_ic_faixa}
 
 
 def _preparar_lista(param: str, opcoes: list) -> list:
@@ -611,8 +627,8 @@ def render():
     # ── Estado dos filtros (antes dos widgets: opções dependem da carteira) ──
     opcoes_lista = {param: _opcoes(df_emp, coluna) for param, _, coluna in FILTROS_PRINCIPAIS + FILTROS_MAIS}
     opcoes_faixa = {
-        "capex": _degraus_reais(df_emp["capex"].max()),
-        "opex": _degraus_reais(df_emp["opex"].max()),
+        "total": _degraus_reais(df_emp["valor_total"].max()),
+        "tirm": _degraus_tirm(df_emp["tirm"]),
         "ic": _degraus_ic(df_emp["ic_3_pond"]),
     }
     selecoes = {param: _preparar_lista(param, opcoes) for param, opcoes in opcoes_lista.items()}
@@ -654,7 +670,7 @@ def render():
             coluna_ui.multiselect(rotulo, opcoes_lista[param], key=f"filtro_{param}", placeholder="Todos")
 
     with st.expander("Mais filtros", expanded=st.session_state["_home_mais_filtros_aberto"]):
-        for coluna_ui, (param, rotulo, _) in zip(st.columns(4), FILTROS_MAIS):
+        for coluna_ui, (param, rotulo, _) in zip(st.columns(len(FILTROS_MAIS)), FILTROS_MAIS):
             coluna_ui.multiselect(rotulo, opcoes_lista[param], key=f"filtro_{param}", placeholder="Todos")
         for coluna_ui, (param, rotulo, _) in zip(st.columns(3), FILTROS_FAIXA):
             opcoes = opcoes_faixa[param]
@@ -664,7 +680,7 @@ def render():
                 options=opcoes,
                 value=(opcoes[0], opcoes[-1]),
                 key=f"filtro_{param}",
-                format_func=_fmt_ic_faixa if param == "ic" else fmt_brl_compacto,
+                format_func=FORMATO_FAIXA[param],
             )
 
     df_filtrado = _aplicar_filtros(df_emp, busca, selecoes, faixas, opcoes_faixa).reset_index(drop=True)

@@ -240,10 +240,10 @@ Links recarregam a página e zeram a sessão; a URL sobrevive. `views/estado_url
 - **Toda execução:** `estado_url.gravar(valores, padroes)` escreve o estado na URL sem recarregar; valores iguais ao padrão ficam fora (URL limpa).
 - **Links:** `link_empreendimento(id)`, `link_chatbot()`, `link_home()` montam o `href` com o estado atual.
 
-Parâmetros atuais: `carteira` (recomendada/otimizada/analise; `completa` ainda é aceito), `q` (busca), filtros de seleção múltipla com itens separados por `|` (`setor`, `status`, `origem`, `esfera`, `impacto`, `viabilidade`, `vocacao`, `intervencao`, `natureza`, `municipio`, `regiao`, `infraestrutura`), faixas `min:max` (`capex`, `opex`, `ic`), `pg`, `itens`, `cols` (ids separados por vírgula).
-Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&capex=10000000:1000000000&pg=2`.
+Parâmetros atuais: `carteira` (recomendada/otimizada/analise; `completa` ainda é aceito), `q` (busca), filtros de seleção múltipla com itens separados por `|` (`setor`, `status`, `origem`, `esfera`, `impacto`, `viabilidade`, `intervencao`, `natureza`, `municipio`, `regiao`), faixas `min:max` (`total` = Valor Total, `tirm` em fração, `ic`), `pg`, `itens`, `cols` (ids separados por vírgula).
+Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&total=10000000:1000000000&pg=2`.
 
-**Para incluir um filtro novo na Home:** acrescente uma linha `(parâmetro na URL, rótulo, coluna)` em `FILTROS_PRINCIPAIS` (sempre visível) ou `FILTROS_MAIS` (dentro de "Mais filtros") em `views/home.py`. Opções, URL, "Limpar filtros", volta à página 1 e a filtragem saem dessa lista. Se a coluna for uma lista, inclua-a também em `COLUNAS_LISTA`. Slider de faixa: `FILTROS_FAIXA` + os degraus em `opcoes_faixa`.
+**Para incluir um filtro novo na Home:** acrescente uma linha `(parâmetro na URL, rótulo, coluna)` em `FILTROS_PRINCIPAIS` (sempre visível) ou `FILTROS_MAIS` (dentro de "Mais filtros") em `views/home.py`. Opções, URL, "Limpar filtros", volta à página 1 e a filtragem saem dessa lista. Se a coluna for uma lista, inclua-a também em `COLUNAS_LISTA`. Slider de faixa: `FILTROS_FAIXA` + os degraus em `opcoes_faixa` + o rótulo em `FORMATO_FAIXA`.
 
 **Como os filtros funcionam:**
 - Seleção múltipla vazia = todos. As opções vêm da carteira ativa; ao trocar de carteira, itens que não existem mais são descartados.

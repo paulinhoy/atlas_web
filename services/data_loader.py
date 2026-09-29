@@ -80,6 +80,8 @@ def get_empreendimentos(carteira: str = None) -> pd.DataFrame:
     if carteira:
         df = df[df["carteira"] == slug_carteira(carteira)]
 
+    # Valor Total = CAPEX + OPEX; vazio quando o empreendimento não tem nenhum dos dois
+    df = df.assign(valor_total=(df["capex"].fillna(0) + df["opex"].fillna(0)).where(df["capex"].notna() | df["opex"].notna()))
     return df.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
 
 

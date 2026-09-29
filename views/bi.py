@@ -16,9 +16,7 @@ from views import estado_url
 from views.home import CARTEIRAS_HOME
 from views.ui import inject_css, render_navbar
 
-SETOR_PADRAO = "Rodoviário"
-TOP_IC_REFERENCIA = 0.25  # "fora do topo" = abaixo dos 25% melhores do setor pelo IC
-TAMANHOS_RANKING = [10, 20, 50]
+TODOS_SETORES = "Todos os setores"
 
 # Cores dos gráficos (configuração do Altair, que não lê o CSS da página); mesmas dos badges da Home
 CORES_IMPACTO = {"Alto impacto": "#166534", "Médio impacto": "#d97706", "Baixo impacto": "#94a3b8"}
@@ -31,17 +29,9 @@ COR_CINZA = "#cbd5e1"
 @st.cache_data(show_spinner=False)
 def _dados(carteira: str, setor: str) -> pd.DataFrame:
     df = bi.preparar(data_loader.get_empreendimentos(carteira))
+    if setor == TODOS_SETORES:
+        return df
     return df[df["setor"] == setor].reset_index(drop=True)
-
-
-@st.cache_data(show_spinner=False)
-def _destaques(carteira: str, setor: str) -> pd.DataFrame:
-    return bi.destaques(_dados(carteira, setor))
-
-
-@st.cache_data(show_spinner=False)
-def _ranking(carteira: str, setor: str, metrica_id: str, recorte_id: str) -> pd.DataFrame:
-    return bi.ranking(_dados(carteira, setor), metrica_id, recorte_id)
 
 
 @st.cache_data(show_spinner=False)
@@ -104,10 +94,10 @@ def _render_kpis(df: pd.DataFrame) -> None:
     presente = int((df["momento"] == "Presente").sum())
     alto = int((df["impacto_avaliado_3_pond_cenario"] == "Alto impacto").sum())
     cards = [
-        ("Empreendimentos", fmt_int_br(len(df)), "no setor escolhido"),
+        ("Empreendimentos", fmt_int_br(len(df)), "na seleção"),
         ("Presente | Futuro", f"{fmt_int_br(presente)} | {fmt_int_br(len(df) - presente)}", "Contratado | Planejado"),
-        ("CAPEX", fmt_brl_compacto(df["capex"].sum()), "soma do setor"),
-        ("Alto Impacto", fmt_int_br(alto), f"{fmt_pct_br(alto / len(df) * 100 if len(df) else 0)} do setor"),
+        ("CAPEX", fmt_brl_compacto(df["capex"].sum()), "soma da seleção"),
+        ("Alto Impacto", fmt_int_br(alto), f"{fmt_pct_br(alto / len(df) * 100 if len(df) else 0)} da seleção"),
     ]
     for col, (titulo, valor, sub) in zip(st.columns(len(cards)), cards):
         col.markdown(
@@ -117,103 +107,7 @@ def _render_kpis(df: pd.DataFrame) -> None:
         )
 
 
-# ── Aba 1: Destaques por recorte ────────────────────────────────────────────
-
-def _opcoes_grupo(ranking: pd.DataFrame) -> list:
-    """Grupos do recorte, do maior para o menor."""
-    return ranking.groupby("grupo").size().sort_values(ascending=False).index.tolist()
-
-
-def _render_destaques(carteira: str, setor: str, df: pd.DataFrame) -> None:
-    _titulo(
-        "Os melhores de cada grupo",
-        "Escolha a métrica e o recorte. A coluna <b>Posição no setor (IC)</b> mostra onde o empreendimento "
-        "fica no ranking geral: muitos vão bem num recorte sem estar no topo do IC.",
-    )
-    c1, c2, c3, c4 = st.columns([1.3, 1.3, 2.2, 0.8])
-    metrica_id = c1.selectbox("Métrica", list(bi.METRICAS), format_func=lambda m: bi.METRICAS[m].rotulo, key="bi_metrica")
-    recorte_id = c2.selectbox("Recorte", list(bi.RECORTES), format_func=lambda r: bi.RECORTES[r][0], key="bi_recorte")
-    ranking = _ranking(carteira, setor, metrica_id, recorte_id)
-    if ranking.empty:
-        st.info("Nenhum empreendimento deste setor tem valor para essa métrica.")
-        return
-    tamanhos = ranking.groupby("grupo").size()
-    grupo = c3.selectbox(
-        "Grupo", _opcoes_grupo(ranking), key=f"bi_grupo_{metrica_id}_{recorte_id}",
-        format_func=lambda g: f"{g} ({fmt_int_br(tamanhos[g])})",
-    )
-    n = c4.selectbox("Mostrar", TAMANHOS_RANKING, key="bi_top_n")
-
-    metrica = bi.METRICAS[metrica_id]
-    top = ranking[ranking["grupo"] == grupo].head(n)
-    cab = [("Posição", "tc"), ("Empreendimento", "tl"), (metrica.rotulo, "tr"), ("Índice (IC)", "tr"),
-           ("Posição no setor (IC)", "tc"), ("Momento", "tc"), ("Impacto", "tc")]
-    linhas = [[
-        f'<span class="{_classe_posicao(r.posicao, r.total)}">{fmt_int_br(r.posicao)}º</span>',
-        _link_emp(r),
-        _fmt_metrica(metrica_id, r[metrica.coluna]),
-        fmt_decimal_br(r["ic_3_pond"], 4),
-        _fmt_posicao(r["pos_ic_setor"], r["total_setor"]),
-        r["momento"],
-        _badge_impacto(r["impacto_avaliado_3_pond_cenario"]),
-    ] for _, r in top.iterrows()]
-    st.markdown(_tabela(cab, linhas), unsafe_allow_html=True)
-    fora = _contagem_sem_nota(df, metrica_id)
-    if fora:
-        st.caption(f"{fmt_int_br(fora)} empreendimento(s) do setor sem valor nesta métrica ficaram fora do ranking.")
-
-    # Em reformulação: só o título por enquanto (o código segue em _render_destaques_escondidos)
-    _titulo("Destaques fora do topo do IC")
-
-
-def _contagem_sem_nota(df: pd.DataFrame, metrica_id: str) -> int:
-    metrica = bi.METRICAS[metrica_id]
-    valores = df[metrica.coluna]
-    sem = valores.isna() | ((valores <= 0) if not metrica.zero_conta else False)
-    return int(sem.sum())
-
-
-def _texto_destaque(d) -> str:
-    grupo = "" if d.recorte == "setor" else f" · {html_mod.escape(str(d.grupo))}"
-    return (f'<span class="bi-chip"><b>{_fmt_posicao(d.posicao, d.total)}</b> · '
-            f'{html_mod.escape(bi.METRICAS[d.metrica].rotulo)}{grupo}</span>')
-
-
-def _render_destaques_escondidos(carteira: str, setor: str, df: pd.DataFrame) -> None:
-    _titulo(
-        "Destaques fora do topo do IC",
-        f"Empreendimentos que <b>não</b> estão entre os {fmt_int_br(TOP_IC_REFERENCIA * 100)}% melhores do setor pelo IC, "
-        f"mas estão entre os {bi.TOP_PCT}% melhores de algum grupo (grupos com {bi.MIN_GRUPO} ou mais empreendimentos). "
-        "Ordenados pela quantidade de destaques.",
-    )
-    d = _destaques(carteira, setor)
-    ref = df.set_index("id_empreendimento")
-    fora_topo = ref.index[ref["pos_ic_setor"] > ref["total_setor"] * TOP_IC_REFERENCIA]
-    d = d[d["id_empreendimento"].isin(fora_topo) & (d["metrica"] != "ic")]
-    if d.empty:
-        st.info("Nenhum destaque fora do topo do IC neste setor.")
-        return
-    filtro = st.multiselect(
-        "Considerar só estas métricas (vazio = todas)", [m for m in bi.METRICAS if m != "ic"],
-        format_func=lambda m: bi.METRICAS[m].rotulo, key="bi_filtro_escondidos",
-    )
-    if filtro:
-        d = d[d["metrica"].isin(filtro)]
-    d = d.sort_values(["posicao", "total"], ascending=[True, False])
-    resumo = d.groupby("id_empreendimento").size().sort_values(ascending=False).head(30)
-    cab = [("Empreendimento", "tl"), ("Posição no setor (IC)", "tc"), ("Destaques", "tl")]
-    linhas = []
-    for eid, qtd in resumo.items():
-        r = ref.loc[eid]
-        chips = "".join(_texto_destaque(x) for x in d[d["id_empreendimento"] == eid].head(4).itertuples())
-        extra = f'<span class="bi-chip bi-chip-mais">+{qtd - 4}</span>' if qtd > 4 else ""
-        linhas.append([_link_emp({"id_empreendimento": eid, "nome_empreendimento": r["nome_empreendimento"]}),
-                       _fmt_posicao(r["pos_ic_setor"], r["total_setor"]), f'<div class="bi-chips">{chips}{extra}</div>'])
-    st.markdown(_tabela(cab, linhas), unsafe_allow_html=True)
-    st.caption(f"{fmt_int_br(d['id_empreendimento'].nunique())} empreendimento(s) nessa situação; a tabela mostra até 30.")
-
-
-# ── Aba 2: Perfil do empreendimento ─────────────────────────────────────────
+# ── Aba 1: Perfil do empreendimento ─────────────────────────────────────────
 
 def _render_perfil(carteira: str, setor: str, df: pd.DataFrame, empreendimento_id: int) -> None:
     r = df[df["id_empreendimento"] == empreendimento_id]
@@ -224,7 +118,7 @@ def _render_perfil(carteira: str, setor: str, df: pd.DataFrame, empreendimento_i
         f'<div class="bi-perfil-card"><div class="bi-perfil-nome">{_link_emp(r)}</div>'
         f'<div class="bi-perfil-meta">{html_mod.escape(str(r["intervencao_principal"]))} · {r["momento"]} '
         f'({html_mod.escape(str(r["descr_status_empreendimento"]))}) · {html_mod.escape(str(r["esfera_acao"]))} · '
-        f'CAPEX {fmt_brl_compacto(r["capex"])} · TIRM {_fmt_metrica("tirm", r["tirm"])} · '
+        f'Investimento total {fmt_brl_compacto(r["valor_total"])} · TIRM {_fmt_metrica("tirm", r["tirm"])} · '
         f'IC {fmt_decimal_br(r["ic_3_pond"], 4)} — {_fmt_posicao(r["pos_ic_setor"], r["total_setor"])} no setor</div></div>',
         unsafe_allow_html=True,
     )
@@ -270,7 +164,7 @@ def _render_aba_perfil(carteira: str, setor: str, df: pd.DataFrame) -> None:
     _render_perfil(carteira, setor, df, int(eid))
 
 
-# ── Aba 3: Matriz Impacto × Viabilidade ─────────────────────────────────────
+# ── Aba 2: Matriz Impacto × Viabilidade ─────────────────────────────────────
 
 def _selecionado(evento, nome: str) -> int | None:
     pontos = (evento.selection.get(nome) if evento and evento.selection else None) or []
@@ -282,6 +176,7 @@ EIXOS_Y = [
     ("ic", "ic_3_pond", "Índice (IC) — impacto", "Impacto (IC) × Viabilidade"),
     ("invest", "valor_total", "Investimento total (CAPEX + OPEX) — escala logarítmica", "Investimento total × Viabilidade"),
     ("socio", "dimensao_socioeconomica_pond", "Dimensão socioeconômica — nota", "Dimensão socioeconômica × Viabilidade"),
+    ("estrat", "dimensao_estrategica", "Dimensão estratégica — nota", "Dimensão estratégica × Viabilidade"),
 ]
 
 
@@ -308,8 +203,9 @@ def _grafico_matriz(carteira: str, setor: str, df: pd.DataFrame, m: pd.DataFrame
     tooltip = [alt.Tooltip("nome_empreendimento:N", title="Empreendimento"),
                alt.Tooltip("tirm_pct:Q", title="TIRM (%)", format=".2f"),
                alt.Tooltip("ic_3_pond:Q", title="IC", format=".4f")]
-    if chave == "socio":
-        tooltip.append(alt.Tooltip(f"{coluna}:Q", title="Nota socioeconômica", format=".4f"))
+    notas = {"socio": "Nota socioeconômica", "estrat": "Nota estratégica"}
+    if chave in notas:
+        tooltip.append(alt.Tooltip(f"{coluna}:Q", title=notas[chave], format=".4f"))
     tooltip.append(alt.Tooltip("valor_total_txt:N", title="Valor total"))
 
     pontos = alt.Chart(m).mark_circle(size=90, stroke="white", strokeWidth=0.8).encode(
@@ -336,7 +232,7 @@ def _render_matriz(carteira: str, setor: str, df: pd.DataFrame) -> None:
     _titulo(
         "Matriz Impacto × Viabilidade",
         "Eixo X: TIRM (viabilidade), com linhas tracejadas em 0% e 11,2%. Eixo Y à sua escolha: Índice (IC), "
-        "investimento total (CAPEX + OPEX, escala logarítmica) ou nota da dimensão socioeconômica. Só aparecem "
+        "investimento total (CAPEX + OPEX, escala logarítmica) ou nota da dimensão socioeconômica ou da estratégica. Só aparecem "
         "empreendimentos com TIRM. <b>Clique num ponto</b> para ver o perfil dele.",
     )
     m = df[df["tirm"].notna()].copy()
@@ -346,7 +242,8 @@ def _render_matriz(carteira: str, setor: str, df: pd.DataFrame) -> None:
     m["tirm_pct"] = m["tirm"] * 100
     m["valor_total_txt"] = m["valor_total"].map(fmt_brl_compacto)
     rotulos = {chave: rot for chave, _, rot, _ in EIXOS_Y}
-    nomes_curtos = {"ic": "Índice (IC)", "invest": "Investimento total", "socio": "Dimensão socioeconômica"}
+    nomes_curtos = {"ic": "Índice (IC)", "invest": "Investimento total", "socio": "Dimensão socioeconômica",
+                    "estrat": "Dimensão estratégica"}
     escolha = st.radio("Eixo Y", list(rotulos), format_func=nomes_curtos.get, horizontal=True, key="bi_matriz_eixo_y")
     chave, coluna, titulo_y, titulo = next(e for e in EIXOS_Y if e[0] == escolha)
     _grafico_matriz(carteira, setor, df, m, chave, coluna, titulo_y, titulo)
@@ -406,7 +303,7 @@ def _render_eficiencia(carteira: str, setor: str, df: pd.DataFrame) -> None:
         _render_perfil(carteira, setor, df, eid)
 
 
-# ── Aba 5: Composição ───────────────────────────────────────────────────────
+# ── Aba 3: Presente × Futuro (composição por esfera) ────────────────────────
 
 def _fmt_capex_grupo(qtd, capex, opex) -> str:
     """CAPEX do grupo; "-" quando há empreendimentos mas CAPEX e OPEX somam zero (sem modelagem financeira)."""
@@ -416,23 +313,20 @@ def _fmt_capex_grupo(qtd, capex, opex) -> str:
 
 
 def _render_composicao(df: pd.DataFrame) -> None:
-    _titulo("Presente × Futuro", "Análise sob a ótica do CAPEX: quantidade de empreendimentos e investimento (CAPEX) "
-            "por intervenção principal. Presente: contratado (em execução ou não iniciado) ou paralisado. Futuro: concepção, estudo, "
-            "projeto, análise prévia ou em contratação.")
-    for coluna, rotulo in (("momento", None), ("esfera_acao", "Esfera")):
-        if rotulo:
-            _titulo(rotulo)
-        valores = sorted(df[coluna].dropna().unique(), key=lambda v: (v != "Presente", v))
-        qtd = pd.crosstab(df["intervencao_principal"], df[coluna]).reindex(columns=valores, fill_value=0)
-        capex, opex = (df.pivot_table(index="intervencao_principal", columns=coluna, values=v, aggfunc="sum",
-                                      fill_value=0).reindex(columns=valores, fill_value=0) for v in ("capex", "opex"))
-        ordem = qtd.sum(axis=1).sort_values(ascending=False).index
-        cab = [("Intervenção principal", "tl")] + [(f"{v}", "tr") for v in valores] + [(f"{v} — CAPEX", "tr") for v in valores]
-        linhas = [[html_mod.escape(str(i))] + [fmt_int_br(qtd.loc[i, v]) for v in valores]
-                  + [_fmt_capex_grupo(qtd.loc[i, v], capex.loc[i, v], opex.loc[i, v]) for v in valores] for i in ordem]
-        linhas.append(["<b>Total</b>"] + [f"<b>{fmt_int_br(qtd[v].sum())}</b>" for v in valores]
-                      + [f"<b>{_fmt_capex_grupo(qtd[v].sum(), capex[v].sum(), opex[v].sum())}</b>" for v in valores])
-        st.markdown(_tabela(cab, linhas, "bi-table-pf"), unsafe_allow_html=True)
+    _titulo("Intervenção principal por esfera", "Quantidade de empreendimentos e investimento (CAPEX) por "
+            "intervenção principal, separados pela esfera.")
+    coluna = "esfera_acao"
+    valores = sorted(df[coluna].dropna().unique())
+    qtd = pd.crosstab(df["intervencao_principal"], df[coluna]).reindex(columns=valores, fill_value=0)
+    capex, opex = (df.pivot_table(index="intervencao_principal", columns=coluna, values=v, aggfunc="sum",
+                                  fill_value=0).reindex(columns=valores, fill_value=0) for v in ("capex", "opex"))
+    ordem = qtd.sum(axis=1).sort_values(ascending=False).index
+    cab = [("Intervenção principal", "tl")] + [(v, "tr") for v in valores] + [(f"{v} — CAPEX", "tr") for v in valores]
+    linhas = [[html_mod.escape(str(i))] + [fmt_int_br(qtd.loc[i, v]) for v in valores]
+              + [_fmt_capex_grupo(qtd.loc[i, v], capex.loc[i, v], opex.loc[i, v]) for v in valores] for i in ordem]
+    linhas.append(["<b>Total</b>"] + [f"<b>{fmt_int_br(qtd[v].sum())}</b>" for v in valores]
+                  + [f"<b>{_fmt_capex_grupo(qtd[v].sum(), capex[v].sum(), opex[v].sum())}</b>" for v in valores])
+    st.markdown(_tabela(cab, linhas, "bi-table-pf"), unsafe_allow_html=True)
     st.caption('"-" no CAPEX: CAPEX e OPEX zerados ao mesmo tempo, ou seja, não foi possível fazer a modelagem '
                "financeira completa desses empreendimentos nos estudos.")
 
@@ -467,9 +361,9 @@ def render():
     if todos.empty:
         st.warning("Nenhum dado encontrado em `data/processed/carteiras.parquet`.")
         return
-    setores = todos["setor"].value_counts().index.tolist()
+    setores = [TODOS_SETORES] + todos["setor"].value_counts().index.tolist()
     if st.session_state.get("bi_setor") not in setores:
-        st.session_state["bi_setor"] = SETOR_PADRAO if SETOR_PADRAO in setores else setores[0]
+        st.session_state["bi_setor"] = TODOS_SETORES
     c2.selectbox("Setor", setores, key="bi_setor")
     setor = st.session_state["bi_setor"]
 
@@ -477,12 +371,10 @@ def render():
     _render_kpis(df)
 
     # Aba "Eficiência do CAPEX" (_render_eficiencia) oculta por enquanto
-    abas = st.tabs(["Destaques por recorte", "Perfil do empreendimento", "Impacto × Viabilidade", "Presente × Futuro"])
+    abas = st.tabs(["Perfil do empreendimento", "Impacto × Viabilidade", "Presente × Futuro"])
     with abas[0]:
-        _render_destaques(carteira, setor, df)
-    with abas[1]:
         _render_aba_perfil(carteira, setor, df)
-    with abas[2]:
+    with abas[1]:
         _render_matriz(carteira, setor, df)
-    with abas[3]:
+    with abas[2]:
         _render_composicao(df)
