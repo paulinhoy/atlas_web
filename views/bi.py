@@ -312,20 +312,15 @@ def _render_matriz(carteira: str, setor: str, df: pd.DataFrame) -> None:
                  alt.Tooltip("capex_txt:N", title="CAPEX"),
                  alt.Tooltip("modelo:N", title="Modelo sugerido")],
     ).add_params(ponto)
-    st.markdown(
-        '<div class="bi-zonas"><span><b>Execução pública</b>: TIRM abaixo de 0%</span>'
-        '<span><b>PPP</b>: de 0% a 11,2%</span><span><b>Concessão comum</b>: a partir de 11,2%</span></div>',
-        unsafe_allow_html=True,
-    )
+
     grafico = pontos.properties(height=480)
     evento = st.altair_chart(grafico, use_container_width=True, on_select="rerun", key="bi_matriz")
 
     contagem = pd.crosstab(m["impacto_avaliado_3_pond_cenario"], m["modelo"]).reindex(
         index=list(CORES_IMPACTO), columns=bi.MODELOS, fill_value=0)
-    cab = [("Impacto", "tl")] + [(mod, "tc") for mod in bi.MODELOS]
-    linhas_tab = [[_badge_impacto(imp)] + [fmt_int_br(v) for v in contagem.loc[imp]] for imp in contagem.index]
-    st.markdown(_tabela(cab, linhas_tab), unsafe_allow_html=True)
-    st.caption(f"{fmt_int_br(len(m))} de {fmt_int_br(len(df))} empreendimentos do setor têm TIRM.")
+    #cab = [("Impacto", "tl")] + [(mod, "tc") for mod in bi.MODELOS]
+    #linhas_tab = [[_badge_impacto(imp)] + [fmt_int_br(v) for v in contagem.loc[imp]] for imp in contagem.index]
+    #st.markdown(_tabela(cab, linhas_tab), unsafe_allow_html=True)
 
     eid = _selecionado(evento, "ponto")
     if eid is not None:
