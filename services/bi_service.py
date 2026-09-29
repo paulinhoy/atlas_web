@@ -13,10 +13,9 @@ import pandas as pd
 # Presente = já contratado ou iniciado; o restante do ciclo é Futuro
 STATUS_PRESENTE = {"Contratado - execução não iniciada", "Contratado - em execução", "Paralisado"}
 
-# Cortes da TIRM (fração) que separam os modelos de execução — mesmos da classificação de viabilidade
+# Cortes da TIRM (fração) usados como linhas de referência na matriz Impacto × Viabilidade
 CORTE_PPP = 0.0
 CORTE_CONCESSAO = 0.112
-MODELOS = ["Execução pública", "PPP", "Concessão comum"]
 
 # Regiões intermediárias de MG (as demais, de estados vizinhos, ficam fora do recorte por região)
 REGIOES_MG = {
@@ -58,20 +57,12 @@ RECORTES = {
 }
 
 
-def modelo_execucao(tirm) -> str | None:
-    """Modelo sugerido pela TIRM: < 0 Execução pública | 0 a 11,2% PPP | >= 11,2% Concessão comum."""
-    if pd.isna(tirm):
-        return None
-    if tirm < CORTE_PPP:
-        return "Execução pública"
-    return "Concessão comum" if tirm >= CORTE_CONCESSAO else "PPP"
-
-
 def preparar(df: pd.DataFrame) -> pd.DataFrame:
     """Acrescenta as colunas derivadas usadas no painel (sem alterar o DataFrame recebido)."""
     df = df.copy()
     df["momento"] = df["descr_status_empreendimento"].map(lambda s: "Presente" if s in STATUS_PRESENTE else "Futuro")
-    df["modelo"] = df["tirm"].map(modelo_execucao)
+    # Investimento total = CAPEX + OPEX; vazio quando o empreendimento não tem nenhum dos dois
+    df["valor_total"] = (df["capex"].fillna(0) + df["opex"].fillna(0)).where(df["capex"].notna() | df["opex"].notna())
     df["regioes_mg"] = df["regioes_intermediarias"].map(
         lambda regs: [r for r in regs if r in REGIOES_MG] if regs is not None and not isinstance(regs, float) else []
     )

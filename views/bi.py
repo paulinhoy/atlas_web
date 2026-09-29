@@ -85,12 +85,12 @@ def _badge_impacto(valor) -> str:
     return f'<span class="bi-badge {classe}">{html_mod.escape(texto)}</span>'
 
 
-def _tabela(cabecalhos: list, linhas: list) -> str:
+def _tabela(cabecalhos: list, linhas: list, classe: str = "") -> str:
     """Tabela HTML no padrão do Atlas. `cabecalhos`: lista de (rótulo, classe de alinhamento)."""
     ths = "".join(f'<th class="{cls}">{html_mod.escape(rot)}</th>' for rot, cls in cabecalhos)
     trs = "".join("<tr>" + "".join(f'<td class="{cls}">{cel}</td>' for cel, (_, cls) in zip(linha, cabecalhos)) + "</tr>"
                   for linha in linhas)
-    return f'<table class="atlas-table bi-table"><thead><tr>{ths}</tr></thead><tbody>{trs}</tbody></table>'
+    return f'<table class="atlas-table bi-table {classe}"><thead><tr>{ths}</tr></thead><tbody>{trs}</tbody></table>'
 
 
 def _titulo(texto: str, subtitulo: str = "") -> None:
@@ -220,12 +220,11 @@ def _render_perfil(carteira: str, setor: str, df: pd.DataFrame, empreendimento_i
     if r.empty:
         return
     r = r.iloc[0]
-    modelo = "sem TIRM" if pd.isna(r["modelo"]) else r["modelo"]
     st.markdown(
         f'<div class="bi-perfil-card"><div class="bi-perfil-nome">{_link_emp(r)}</div>'
         f'<div class="bi-perfil-meta">{html_mod.escape(str(r["intervencao_principal"]))} · {r["momento"]} '
         f'({html_mod.escape(str(r["descr_status_empreendimento"]))}) · {html_mod.escape(str(r["esfera_acao"]))} · '
-        f'CAPEX {fmt_brl_compacto(r["capex"])} · TIRM {_fmt_metrica("tirm", r["tirm"])} ({modelo}) · '
+        f'CAPEX {fmt_brl_compacto(r["capex"])} · TIRM {_fmt_metrica("tirm", r["tirm"])} · '
         f'IC {fmt_decimal_br(r["ic_3_pond"], 4)} — {_fmt_posicao(r["pos_ic_setor"], r["total_setor"])} no setor</div></div>',
         unsafe_allow_html=True,
     )
@@ -278,54 +277,79 @@ def _selecionado(evento, nome: str) -> int | None:
     return int(pontos[0]["id_empreendimento"]) if pontos else None
 
 
+# Eixos Y da matriz: (chave, coluna, título do eixo, título do gráfico)
+EIXOS_Y = [
+    ("ic", "ic_3_pond", "Índice (IC) — impacto", "Impacto (IC) × Viabilidade"),
+    ("invest", "valor_total", "Investimento total (CAPEX + OPEX) — escala logarítmica", "Investimento total × Viabilidade"),
+    ("socio", "dimensao_socioeconomica_pond", "Dimensão socioeconômica — nota", "Dimensão socioeconômica × Viabilidade"),
+]
+
+
+def _grafico_matriz(carteira: str, setor: str, df: pd.DataFrame, m: pd.DataFrame,
+                    chave: str, coluna: str, titulo_y: str, titulo: str) -> None:
+    """Gráfico da matriz: X = TIRM (igual em todos), Y = `coluna`. Clique no ponto abre o perfil."""
+    m = m[m[coluna].notna()]
+    if chave == "invest":
+        m = m[m[coluna] > 0]  # escala logarítmica não comporta zero
+    if m.empty:
+        st.info("Nenhum empreendimento deste setor tem esse valor calculado.")
+        return
+    x_min, x_max = min(m["tirm_pct"].min(), -2) - 1, max(m["tirm_pct"].max(), 13) + 1
+    y_max = m[coluna].max() * (1.5 if chave == "invest" else 1.12)
+
+    ponto = alt.selection_point(name="ponto", fields=["id_empreendimento"])
+    cortes = [bi.CORTE_PPP * 100, bi.CORTE_CONCESSAO * 100]
+    escala_x = alt.Scale(domain=[x_min, x_max], nice=False)
+    escala_y = (alt.Scale(type="log", domain=[m[coluna].min() / 1.5, y_max], nice=False) if chave == "invest"
+                else alt.Scale(domain=[0, y_max], nice=False))
+    eixo_y = (alt.Axis(labelExpr="datum.value >= 1e9 ? replace(format(datum.value / 1e9, '.1f'), '.', ',') + ' Bi'"
+                                 " : replace(format(datum.value / 1e6, '.0f'), '.', ',') + ' Mi'")
+              if chave == "invest" else alt.Axis())
+    tooltip = [alt.Tooltip("nome_empreendimento:N", title="Empreendimento"),
+               alt.Tooltip("tirm_pct:Q", title="TIRM (%)", format=".2f"),
+               alt.Tooltip("ic_3_pond:Q", title="IC", format=".4f")]
+    if chave == "socio":
+        tooltip.append(alt.Tooltip(f"{coluna}:Q", title="Nota socioeconômica", format=".4f"))
+    tooltip.append(alt.Tooltip("valor_total_txt:N", title="Valor total"))
+
+    pontos = alt.Chart(m).mark_circle(size=90, stroke="white", strokeWidth=0.8).encode(
+        # Streamlit 1.36 não aceita clique em gráfico de camadas: as linhas de corte são a grade do eixo X
+        x=alt.X("tirm_pct:Q", title="TIRM (%) — viabilidade", scale=escala_x,
+                axis=alt.Axis(values=cortes, grid=True, gridColor=COR_NAVY, gridDash=[6, 4], gridWidth=1.5,
+                              labelExpr="replace(format(datum.value, '.1f'), '.', ',') + '%'")),
+        y=alt.Y(f"{coluna}:Q", title=titulo_y, scale=escala_y, axis=eixo_y),
+        color=alt.Color("impacto_avaliado_3_pond_cenario:N", title="Impacto",
+                        scale=alt.Scale(domain=list(CORES_IMPACTO), range=list(CORES_IMPACTO.values()))),
+        opacity=alt.condition(ponto, alt.value(0.9), alt.value(0.25)),
+        tooltip=tooltip,
+    ).add_params(ponto)
+
+    evento = st.altair_chart(pontos.properties(height=480), use_container_width=True,
+                             on_select="rerun", key=f"bi_matriz_{chave}")  # chave por eixo: cada gráfico guarda a sua seleção
+    eid = _selecionado(evento, "ponto")
+    if eid is not None:
+        _titulo("Empreendimento selecionado")
+        _render_perfil(carteira, setor, df, eid)
+
+
 def _render_matriz(carteira: str, setor: str, df: pd.DataFrame) -> None:
     _titulo(
         "Matriz Impacto × Viabilidade",
-        "Eixo X: TIRM (viabilidade). Eixo Y: Índice (IC). As linhas tracejadas em 0% e 11,2% separam o modelo de execução "
-        "sugerido. Só aparecem empreendimentos com TIRM. <b>Clique num ponto</b> para ver o perfil dele.",
+        "Eixo X: TIRM (viabilidade), com linhas tracejadas em 0% e 11,2%. Eixo Y à sua escolha: Índice (IC), "
+        "investimento total (CAPEX + OPEX, escala logarítmica) ou nota da dimensão socioeconômica. Só aparecem "
+        "empreendimentos com TIRM. <b>Clique num ponto</b> para ver o perfil dele.",
     )
     m = df[df["tirm"].notna()].copy()
     if m.empty:
         st.info("Nenhum empreendimento deste setor tem TIRM calculada.")
         return
     m["tirm_pct"] = m["tirm"] * 100
-    m["capex_txt"] = m["capex"].map(fmt_brl_compacto)
-    x_min, x_max = min(m["tirm_pct"].min(), -2) - 1, max(m["tirm_pct"].max(), 13) + 1
-    y_max = m["ic_3_pond"].max() * 1.12
-
-    ponto = alt.selection_point(name="ponto", fields=["id_empreendimento"])
-    cortes = [bi.CORTE_PPP * 100, bi.CORTE_CONCESSAO * 100]
-    escala_x = alt.Scale(domain=[x_min, x_max], nice=False)
-    escala_y = alt.Scale(domain=[0, y_max], nice=False)
-    pontos = alt.Chart(m).mark_circle(size=90, stroke="white", strokeWidth=0.8).encode(
-        # Streamlit 1.36 não aceita clique em gráfico de camadas: as linhas de corte são a grade do eixo X
-        x=alt.X("tirm_pct:Q", title="TIRM (%) — viabilidade", scale=escala_x,
-                axis=alt.Axis(values=cortes, grid=True, gridColor=COR_NAVY, gridDash=[6, 4], gridWidth=1.5,
-                              labelExpr="replace(format(datum.value, '.1f'), '.', ',') + '%'")),
-        y=alt.Y("ic_3_pond:Q", title="Índice (IC) — impacto", scale=escala_y),
-        color=alt.Color("impacto_avaliado_3_pond_cenario:N", title="Impacto",
-                        scale=alt.Scale(domain=list(CORES_IMPACTO), range=list(CORES_IMPACTO.values()))),
-        opacity=alt.condition(ponto, alt.value(0.9), alt.value(0.25)),
-        tooltip=[alt.Tooltip("nome_empreendimento:N", title="Empreendimento"),
-                 alt.Tooltip("tirm_pct:Q", title="TIRM (%)", format=".2f"),
-                 alt.Tooltip("ic_3_pond:Q", title="IC", format=".4f"),
-                 alt.Tooltip("capex_txt:N", title="CAPEX"),
-                 alt.Tooltip("modelo:N", title="Modelo sugerido")],
-    ).add_params(ponto)
-
-    grafico = pontos.properties(height=480)
-    evento = st.altair_chart(grafico, use_container_width=True, on_select="rerun", key="bi_matriz")
-
-    contagem = pd.crosstab(m["impacto_avaliado_3_pond_cenario"], m["modelo"]).reindex(
-        index=list(CORES_IMPACTO), columns=bi.MODELOS, fill_value=0)
-    #cab = [("Impacto", "tl")] + [(mod, "tc") for mod in bi.MODELOS]
-    #linhas_tab = [[_badge_impacto(imp)] + [fmt_int_br(v) for v in contagem.loc[imp]] for imp in contagem.index]
-    #st.markdown(_tabela(cab, linhas_tab), unsafe_allow_html=True)
-
-    eid = _selecionado(evento, "ponto")
-    if eid is not None:
-        _titulo("Empreendimento selecionado")
-        _render_perfil(carteira, setor, df, eid)
+    m["valor_total_txt"] = m["valor_total"].map(fmt_brl_compacto)
+    rotulos = {chave: rot for chave, _, rot, _ in EIXOS_Y}
+    nomes_curtos = {"ic": "Índice (IC)", "invest": "Investimento total", "socio": "Dimensão socioeconômica"}
+    escolha = st.radio("Eixo Y", list(rotulos), format_func=nomes_curtos.get, horizontal=True, key="bi_matriz_eixo_y")
+    chave, coluna, titulo_y, titulo = next(e for e in EIXOS_Y if e[0] == escolha)
+    _grafico_matriz(carteira, setor, df, m, chave, coluna, titulo_y, titulo)
 
 
 # ── Aba 4: Eficiência do CAPEX ──────────────────────────────────────────────
@@ -403,12 +427,12 @@ def _render_composicao(df: pd.DataFrame) -> None:
         capex, opex = (df.pivot_table(index="intervencao_principal", columns=coluna, values=v, aggfunc="sum",
                                       fill_value=0).reindex(columns=valores, fill_value=0) for v in ("capex", "opex"))
         ordem = qtd.sum(axis=1).sort_values(ascending=False).index
-        cab = [("Intervenção principal", "tl")] + [(f"{v} — qtd", "tr") for v in valores] + [(f"{v} — CAPEX", "tr") for v in valores]
+        cab = [("Intervenção principal", "tl")] + [(f"{v}", "tr") for v in valores] + [(f"{v} — CAPEX", "tr") for v in valores]
         linhas = [[html_mod.escape(str(i))] + [fmt_int_br(qtd.loc[i, v]) for v in valores]
                   + [_fmt_capex_grupo(qtd.loc[i, v], capex.loc[i, v], opex.loc[i, v]) for v in valores] for i in ordem]
         linhas.append(["<b>Total</b>"] + [f"<b>{fmt_int_br(qtd[v].sum())}</b>" for v in valores]
                       + [f"<b>{_fmt_capex_grupo(qtd[v].sum(), capex[v].sum(), opex[v].sum())}</b>" for v in valores])
-        st.markdown(_tabela(cab, linhas), unsafe_allow_html=True)
+        st.markdown(_tabela(cab, linhas, "bi-table-pf"), unsafe_allow_html=True)
     st.caption('"-" no CAPEX: CAPEX e OPEX zerados ao mesmo tempo, ou seja, não foi possível fazer a modelagem '
                "financeira completa desses empreendimentos nos estudos.")
 

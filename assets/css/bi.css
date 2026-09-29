@@ -54,6 +54,8 @@
 }
 /* Cabeçalho igual ao da Home (fonte do sistema, não monoespaçada), só um pouco menor que os 16px dela */
 .bi-table thead th { font-size: 14px; padding: 0.7rem 0.85rem; letter-spacing: 0.25px; border: none; white-space: normal; }
+/* Presente × Futuro: cabeçalho com a mesma fonte da tabela da Home (16px, sem quebra de linha) */
+.bi-table-pf thead th { font-size: 16px; white-space: nowrap; }
 .bi-table tbody td { padding: 6px 10px; font-size: 13px; }
 .bi-table tbody tr:hover { background: #eef2f7; }
 .bi-table .tl { text-align: left; }
