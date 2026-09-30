@@ -1,6 +1,6 @@
 # =============================================================================
 # Configurações de Produção e Segurança — Atlas Web (PELTMG / CODEMGE)
-# Streamlit 1.36.0
+# Streamlit 1.51.0
 # =============================================================================
 
 [server]
@@ -34,3 +34,8 @@ backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f8fafc"
 textColor = "#0f172a"
 font = "sans serif"
+
+[global]
+# A Home inicializa filtros (sliders de faixa) com o valor da URL via st.session_state e informa a
+# faixa completa em value=; sem isto o Streamlit exibe um aviso amarelo de "valor duplicado".
+disableWidgetStateDuplicationWarning = true

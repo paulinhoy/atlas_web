@@ -19,24 +19,26 @@ Guia de referência para quem (pessoa ou agente) for mexer na interface. Leia an
 
 | Item | Valor |
 |---|---|
-| Versão do Streamlit | **1.36.0** (fixada em `requirements.txt`) |
+| Versão do Streamlit | **1.51.0** (fixada em `requirements.txt`, que tem as versões exatas de todos os pacotes) |
+| Criar o ambiente | `uv venv -p 3.12 .venv` e `uv pip install -r requirements.txt` |
 | Ambiente virtual | `.venv/` na raiz. **Use sempre** `.venv/Scripts/python.exe` (Windows) |
 | Rodar o app | `.venv/Scripts/python.exe -m streamlit run app.py` |
 
-⚠️ O Python global da máquina de desenvolvimento pode ter outra versão do Streamlit (ex.: 1.52) e **não tem** `folium`. Rodar fora do `.venv` quebra o mapa e **muda o visual**, porque parte do CSS depende da estrutura interna do Streamlit 1.36 (ver seção 8).
+⚠️ O Python global da máquina de desenvolvimento pode ter outra versão do Streamlit (ex.: 1.52) e **não tem** `folium`. Rodar fora do `.venv` quebra o mapa e **muda o visual**, porque parte do CSS depende da estrutura interna do Streamlit 1.51 (ver seção 8).
 
 ---
 
 ## 3. Mapa dos arquivos de UI
 
 ```
-app.py                      Roteamento pela URL (?id=123 → ficha; ?page=chatbot → chatbot; vazio → Home)
+app.py                      Roteamento pela URL (?id=123 → ficha; ?page=chatbot → chatbot; ?page=bi → BI; vazio → Home)
 views/
-├── ui.py                   inject_css()/read_css() + componentes comuns (render_back_button)
+├── ui.py                   inject_css()/read_css() + componentes comuns (render_navbar, render_back_button)
 ├── estado_url.py           Estado da Home (filtros, página, colunas) guardado na URL — ver seção 5.9
 ├── home.py                 Tela inicial: KPIs, filtros, tabela, paginação, modal de colunas
 ├── atlas.py                Ficha do empreendimento: cabeçalho, metadados, mapa, 4 tabelas
-└── chatbot.py              Tela do assistente virtual (a lógica fica em services/chatbot_service.py)
+├── chatbot.py              Tela do assistente virtual (a lógica fica em services/chatbot_service.py)
+└── bi.py                   Painel de Indicadores & BI (provisório: "em construção")
 services/
 ├── map_service.py          Mapa Folium da ficha + aviso "sem geometria"
 ├── formatters.py           Formatação brasileira (R$, %, milhar, datas) — use sempre na UI
@@ -46,6 +48,7 @@ assets/css/
 ├── home.css                Estilos exclusivos da Home
 ├── atlas.css               Estilos exclusivos da Ficha (inclui o aviso do mapa)
 ├── chatbot.css             Estilos exclusivos do chatbot (cabeçalho, balões, campo de digitação)
+├── bi.css                  Estilos da página de BI (hoje só o aviso "em construção")
 └── sortable_modal.css      Estilos do componente de arrastar colunas (roda dentro de um iframe)
 ```
 
@@ -100,8 +103,9 @@ Definidos no topo de `assets/css/base.css`. **Use sempre `var(--nome)` em vez de
 | `--border` / `--border-2` | `#e2e8f0` / `#cbd5e1` | Bordas |
 | `--bg-soft` / `--bg-soft-2` | `#f8fafc` / `#f1f5f9` | Fundos claros, linhas zebradas |
 | `--grad-header`, `--grad-header-hover` | degradês navy | Cabeçalhos e botões flutuantes |
-| `--grad-button`, `--grad-button-hover` | degradês navy | Botões de ação (Personalizar colunas, Salvar) |
+| `--grad-button`, `--grad-button-hover` | degradês navy | Botões de ação (Salvar do modal). O botão "Personalizar Colunas" usa navy sólido a 80% (`rgba(11, 37, 69, 0.8)`) |
 | `--font-mono` | pilha monoespaçada | Números (índice IC, valores) |
+| `--navbar-height` | `42px` | Altura da barra de navegação; o topo do conteúdo é calculado a partir dela |
 
 O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.toml` e usa os mesmos valores (`primaryColor = "#0b2545"`).
 
@@ -110,6 +114,7 @@ O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.t
 **`base.css` (todas as páginas)**
 | Classe | O que é |
 |---|---|
+| `.atlas-navbar`, `.atlas-navbar-inner`, `.atlas-navbar-item` (`.is-active`), `.atlas-navbar-sep` | Barra de navegação superior fixa; também esconde a faixa nativa do Streamlit (`stHeader`) e ajusta o topo do conteúdo |
 | `.atlas-floating-back-btn` / `.atlas-floating-chat-btn` | Botões flutuantes "Voltar" (esquerda) e "Assistente Virtual" (direita); `.back-arrow` é a seta do Voltar |
 | `.home-atlas-table`, `.atlas-table` | Estrutura comum das tabelas (cabeçalho navy, zebra, alinhamento) |
 | `.font-mono` (dentro das tabelas) | Números em fonte monoespaçada |
@@ -128,6 +133,7 @@ O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.t
 | `.divider-light`, `.divider-navy` | Linhas separadoras |
 | `.pagination-info`, `.pagination-size-label`, `.pagination-ellipsis` | Textos da paginação |
 | `.modal-hint` | Texto de instrução do modal de colunas |
+| `div[data-testid="stDialog"] div[role="dialog"]` | Largura do modal "Personalizar Colunas": 760px (o `width="large"` do Streamlit ocupa a largura toda e deixa o modal muito alongado) |
 | Seletores `div[data-testid=...]` | Estilização de widgets nativos do Streamlit (inputs, selects, botões da paginação e do modal) |
 
 **`atlas.css`**
@@ -174,15 +180,16 @@ Se a cor também aparece em widgets nativos, ajuste `primaryColor` em `.streamli
 Exceção aceita: as larguras de coluna (`th_style`) em `AVAILABLE_COLUMNS` ficam no Python, porque fazem parte da configuração da coluna.
 
 ### 5.3 Criar uma página (view) nova
-1. Crie `views/minha_view.py` com uma função `render()` que começa com `inject_css("minha_view")`.
+1. Crie `views/minha_view.py` com uma função `render()` que começa com `inject_css("minha_view")` e `render_navbar("minha_view")`.
 2. Crie `assets/css/minha_view.css` (pode começar vazio — cores, tabelas e botões flutuantes já vêm do `base.css`).
 3. Registre a rota em `app.py` (hoje é um `if/elif` sobre `st.query_params`):
    ```python
    elif page == "minha_view":
        minha_view.render()
    ```
-4. Para voltar à Home, chame `render_back_button()` de `views/ui.py` — ele já devolve os filtros da Home (seção 5.9). Nunca use `href="?"` fixo: isso apaga os filtros do usuário.
-5. Reaproveite `.atlas-table` para tabelas simples e `.section-title` para títulos (se a página não carregar `atlas.css`, mova essas classes para `base.css`).
+4. Para aparecer na barra de navegação, acrescente uma linha em `NAV_ITENS` (`views/ui.py`) e crie o link em `views/estado_url.py` (ex.: `def link_minha_view(): return _link(page="minha_view")`).
+5. Para voltar à Home, chame `render_back_button()` de `views/ui.py` — ele já devolve os filtros da Home (seção 5.9). Nunca use `href="?"` fixo: isso apaga os filtros do usuário.
+6. Reaproveite `.atlas-table` para tabelas simples e `.section-title` para títulos (se a página não carregar `atlas.css`, mova essas classes para `base.css`).
 
 ### 5.4 Adicionar uma coluna na tabela da Home
 Uma entrada em `AVAILABLE_COLUMNS` (`views/home.py`). Ela aparece automaticamente no modal "Personalizar Colunas":
@@ -195,9 +202,11 @@ Uma entrada em `AVAILABLE_COLUMNS` (`views/home.py`). Ela aparece automaticament
     "render": lambda r: fmt_pct_br(r.get("tirm")),   # r = linha do DataFrame
 },
 ```
-- Importe o formatador usado no topo de `home.py` (hoje só `fmt_int_br` e `fmt_bilhoes_br` são importados).
+- Importe o formatador usado no topo de `home.py`. Para valores em R$ use `fmt_brl_compacto` (`R$ 8,4 mi`).
+- Atalhos para colunas simples: `_col_texto(rótulo, coluna)`, `_col_valor(rótulo, render)` (número à direita) e `_col_chips(rótulo, coluna)` (colunas-lista).
 - Para exibir por padrão, inclua o id em `DEFAULT_ACTIVE_COLUMNS`.
-- A coluna precisa existir em `empreendimentos_priorizacao.parquet`. Dados de outro parquet exigem merge antes de renderizar.
+- A coluna precisa existir em `carteiras.parquet`. Dados de outro parquet exigem merge antes de renderizar.
+- **Colunas-lista** (municípios, regiões, intervenções, tipos de infraestrutura) aparecem como chips cinza: até 3 itens e um chip `+N`; passar o mouse no `+N` mostra os demais. Classes `.chips`, `.chip`, `.chip-mais` em `home.css`; o limite é `CHIPS_VISIVEIS`.
 - Texto vindo dos dados **sempre** passa por `html_mod.escape(...)` (ou por um formatador de `services/formatters.py`).
 
 ### 5.5 Adicionar/alterar um badge colorido
@@ -233,13 +242,19 @@ Links recarregam a página e zeram a sessão; a URL sobrevive. `views/estado_url
 - **Toda execução:** `estado_url.gravar(valores, padroes)` escreve o estado na URL sem recarregar; valores iguais ao padrão ficam fora (URL limpa).
 - **Links:** `link_empreendimento(id)`, `link_chatbot()`, `link_home()` montam o `href` com o estado atual.
 
-Parâmetros atuais: `carteira` (recomendada/otimizada/completa), `q` (busca), `setor`, `esfera`, `classificacao`, `viabilidade`, `origem`, `vocacao`, `pg`, `itens`, `cols` (ids separados por vírgula).
-Exemplo: `?id=1042&carteira=completa&setor=Rodoviário&q=BR&pg=2`.
+Parâmetros atuais: `carteira` (recomendada/otimizada/analise; `completa` ainda é aceito), `q` (busca), filtros de seleção múltipla com itens separados por `|` (`setor`, `status`, `origem`, `esfera`, `impacto`, `viabilidade`, `intervencao`, `natureza`, `municipio`, `regiao`), faixas `min:max` (`total` = Valor Total, `tirm` em fração, `ic`), ordenação da tabela (`ordem` = id da coluna, `sentido` = `asc`/`desc`; ausentes = IC decrescente), `pg`, `itens`, `cols` (ids separados por vírgula).
+Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&total=10000000:1000000000&pg=2`.
 
-**Para incluir um filtro novo na Home:**
-1. Antes do widget: `estado_url.semear_widget("filtro_novo", "novo", opcoes)` (sem `opcoes` para campos de texto livre).
-2. Inclua `"novo": filtro_novo` no dicionário de `estado_url.gravar(...)` e o valor padrão em `padroes`.
-3. Inclua o filtro na tupla `assinatura` (para a listagem voltar à página 1 quando ele mudar).
+**Para incluir um filtro novo na Home:** acrescente uma linha `(parâmetro na URL, rótulo, coluna)` em `FILTROS_PRINCIPAIS` (sempre visível) ou `FILTROS_MAIS` (dentro de "Mais filtros") em `views/home.py`. Opções, URL, "Limpar filtros", volta à página 1 e a filtragem saem dessa lista. Se a coluna for uma lista, inclua-a também em `COLUNAS_LISTA`. Slider de faixa: `FILTROS_FAIXA` + os degraus em `opcoes_faixa` + o rótulo em `FORMATO_FAIXA`.
+
+**Ordenação pelo cabeçalho (Home):** a tabela é exibida por um **componente v2** (`_tabela_home` em `views/home.py`), montado direto na página (sem iframe, com o CSS da página). O HTML é o mesmo de antes; os títulos ordenáveis levam `data-ordem="<coluna>"` e um script curto (`_JS_TABELA`) avisa o Python do clique (`setTriggerValue`). O callback `_ao_ordenar` avança o ciclo, guarda a ordem em `st.session_state["home_ordem"]` e volta para a página 1 — **sem recarregar a página nem perder a rolagem**. A ordem vai para a URL (`ordem`/`sentido`) e é lida dela ao abrir o link. Ciclo de cliques: primeiro sentido → oposto → padrão (IC decrescente). Valores começam pelo maior; textos e Período, pelo A→Z/mais antigo; Impacto e Viabilidade pela classe (Alto → Médio → Baixo). Vazios ficam sempre no fim, e empates mantêm a ordem do IC. Para tornar uma coluna ordenável (ou mudar o primeiro sentido), edite `ORDENACAO`. A setinha ▼/▲ marca a coluna ativa; ↕ aparece só ao passar o mouse (`home.css`).
+
+**Como os filtros funcionam:**
+- Seleção múltipla vazia = todos. As opções vêm da carteira ativa; ao trocar de carteira, itens que não existem mais são descartados.
+- Filtro de coluna-lista (ex.: município) mostra o empreendimento se **qualquer** item dele estiver selecionado.
+- CAPEX e OPEX usam degraus fixos (0, 1 mi, 5 mi, 10 mi, ..., 1 tri) até o primeiro que cobre o máximo da carteira, porque a maioria dos valores é pequena. IC usa passos de 0,01. Slider na faixa completa = sem filtro; a faixa completa acompanha a carteira.
+- "Mais filtros" começa fechado, a não ser que o link já traga algum desses filtros.
+- Com a lista de um filtro aberta, clicar de novo na caixa ou na setinha fecha a lista (o Streamlit, sozinho, só fecha com clique fora). Quem faz isso é um script curto (`_JS_FILTROS`) instalado por outro componente v2, `_filtros_toggle`, que não desenha nada (`.st-key-filtros_toggle` fica escondido em `home.css`). Ver `erros_solucoes.md`, caso 16.
 
 A troca de qualquer filtro volta a paginação para a página 1.
 
@@ -266,7 +281,13 @@ O Streamlit renderiza as páginas em memória com `AppTest`. Salve como script t
 
 ```python
 # smoke_ui.py — rode com: PYTHONPATH=. .venv/Scripts/python.exe smoke_ui.py
+import streamlit as st
+import views.home as home_view
 from streamlit.testing.v1 import AppTest
+
+# O AppTest (1.51) não monta componentes v2 (erros_solucoes.md, caso 15): no teste a tabela vira st.markdown
+home_view._tabela_home = lambda data, **kw: st.markdown(data, unsafe_allow_html=True)
+home_view._filtros_toggle = lambda **kw: None   # script dos filtros (só existe no navegador)
 
 def run(params=None):
     at = AppTest.from_file("app.py", default_timeout=120)
@@ -282,6 +303,9 @@ assert not home.exception
 home.button(key="btn_pg_2").click().run()                   # paginação
 assert not home.exception
 
+for params in [{"page": "bi"}, {"page": "chatbot"}]:     # barra de navegação nas outras telas
+    assert not run(params).exception
+
 for eid in ["1938", "726", "1042", "721", "1886", "707"]:  # um por setor + um sem geometria
     at = run({"id": eid})
     assert not at.exception, (eid, at.exception)
@@ -291,7 +315,7 @@ print("OK")
 O AppTest pega erros de Python e confirma o conteúdo gerado, **mas não mostra o visual**.
 
 ### 7.2 Conferência visual (obrigatória para mudanças de estilo)
-Rode o app pelo `.venv` e confira no navegador: Home (KPIs, filtros, tabela, paginação, modal "Personalizar Colunas") e uma ficha com mapa e outra sem geometria.
+Rode o app pelo `.venv` e confira no navegador: barra de navegação (destaque da tela aberta), Home (KPIs, filtros, tabela, paginação, modal "Personalizar Colunas") e uma ficha com mapa e outra sem geometria.
 
 ### 7.3 Refatorações que prometem "visual idêntico"
 Compare as declarações CSS efetivas antes/depois por seletor (resolvendo `var(--…)`), e o HTML gerado pelas funções de renderização contra a versão anterior (`git show main:views/home.py`). Foi assim que a centralização do CSS foi validada.
@@ -302,11 +326,14 @@ Compare as declarações CSS efetivas antes/depois por seletor (resolvendo `var(
 
 | Problema | Detalhe |
 |---|---|
-| **Seletores dependentes da versão do Streamlit** | A paginação usa `data-testid="column"` (1.36) e o alinhamento do mapa usa `data-testid="stColumn"` (1.37+). Com 1.36, as regras do mapa não se aplicam. Atualizar o Streamlit exige revisar todos os seletores `div[data-testid=...]`. |
-| **`button[key="..."]` não funciona** | O Streamlit não coloca o atributo `key` no HTML do botão. As regras do botão "Personalizar Colunas" e dos botões do modal provavelmente não têm efeito. Preservadas por ora; remover/corrigir só com conferência visual. |
-| **`onclick` em HTML é descartado** | `st.markdown` não executa JavaScript inline (ex.: `<tr onclick=...>` na tabela). Só links `<a href>` funcionam. |
+| **Seletores dependentes da versão do Streamlit** | O CSS usa nomes internos (`data-testid`) do Streamlit 1.51: `stColumn`, `stElementContainer`, `stMainBlockContainer`, `stDialog`, `stChatMessageAvatarUser`/`Assistant` etc. Eles mudam entre versões (na migração 1.36 → 1.51, quatro mudaram: `erros_solucoes.md`, caso 14). Atualizar o Streamlit exige revisar todos os seletores `[data-testid=...]` e conferir as telas. |
+| **`button[key="..."]` não funciona** | O Streamlit não coloca o atributo `key` no HTML do botão. O botão "Personalizar Colunas" é estilizado pela linha do título (`div[data-testid="stHorizontalBlock"]:has(.carteira-header-title)`). As regras `key` dos botões **dentro** do modal seguem sem efeito — mantidas porque o visual atual do modal está aprovado. Ver `docs/erros_solucoes.md`, caso 7. |
+| **`onclick` em HTML é descartado** | `st.markdown` não executa JavaScript inline. Para reagir a cliques sem recarregar a página, use um componente v2 com `isolate_styles=False`, como a tabela da Home (seção 5). |
 | **Navegar reinicia a sessão** | Links `<a href>` recarregam a página e zeram o `st.session_state`. Por isso o estado da Home vive na URL (`views/estado_url.py`). O que ainda se perde ao navegar: o histórico de conversa do chatbot. |
 | **Valor fora das opções derruba o selectbox** | Colocar em `st.session_state` um valor que não está nas `options` do selectbox gera `"... is not in iterable"` e a página quebra. Todo valor vindo da URL passa por `estado_url.ler(..., opcoes)`. |
 | **Iframes não herdam CSS** | Componentes como `streamlit-sortables` e o mapa Folium rodam em iframe: o CSS da página e os tokens não chegam lá dentro. Por isso `sortable_modal.css` é passado via `custom_style=read_css("sortable_modal")` e usa cores literais. |
+| **Barra de navegação e ordem de execução** | Na Home, a barra é desenhada num `st.empty()` preenchido **depois** de `estado_url.gravar(...)`; senão os links levariam os filtros da execução anterior. O mesmo vale para o botão flutuante do Assistente. |
+| **Faixa nativa do Streamlit escondida** | `base.css` esconde `header[data-testid="stHeader"]` (menu ⋮, "Running…") e troca o `padding-top` de `stAppViewBlockContainer`. Ao atualizar o Streamlit, confira esses seletores. |
 | **Cache após atualizar dados** | Os parquets ficam em cache; após trocar os arquivos em `data/processed/`, reinicie o servidor. |
-| **Contagens fixas nos rótulos** | `"Carteira Recomendada (1.044)"` etc. em `views/home.py` são texto fixo — atualize na carga anual. |
+| **Botões da linha do título da tabela** | A linha tem 3 colunas: título, botão redondo "Limpar filtros" (vassoura) e "Personalizar Colunas". O CSS reconhece cada botão pela **posição** da coluna (`:nth-child(2)` e `:last-child`), porque o Streamlit não põe a `key` no HTML. Mudou a ordem das colunas em `home.py`? Ajuste `home.css`. |
+| **`select_slider` de faixa** | Só vira faixa (duas alças) se `value=` receber uma tupla; o estado vindo da URL entra por `st.session_state`. Por isso `disableWidgetStateDuplicationWarning = true` em `.streamlit/config.toml` (ver `erros_solucoes.md`, caso 9). |

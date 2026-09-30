@@ -39,7 +39,8 @@ data/processed/*.parquet                    ← dados prontos para o app (fora d
 app.py  (roteia pela URL)
    ├── views/home.py     Home: KPIs, filtros, tabela da carteira
    ├── views/atlas.py    Ficha do empreendimento (+ services/map_service.py)
-   └── views/chatbot.py  Assistente virtual (lógica em services/chatbot_service.py)
+   ├── views/chatbot.py  Assistente virtual (lógica em services/chatbot_service.py)
+   └── views/bi.py       Painel de Indicadores & BI (protótipo; cálculos em services/bi_service.py)
 ```
 
 O app **nunca acessa o banco**: tudo é lido dos arquivos `.parquet`.
@@ -50,17 +51,19 @@ O app **nunca acessa o banco**: tudo é lido dos arquivos `.parquet`.
 
 ```
 atlas_web/
-├── app.py                  Roteador: ?page=chatbot → chatbot | ?id=N → ficha | vazio → Home
-├── requirements.txt        Dependências (streamlit==1.36.0 fixo)
+├── app.py                  Roteador: ?page=chatbot → chatbot | ?page=bi → BI | ?id=N → ficha | vazio → Home
+├── requirements.txt        Versões exatas de todos os pacotes (streamlit==1.51.0); instalar com uv
 ├── .streamlit/config.toml  Servidor (porta, XSRF/CORS, telemetria) e tema claro institucional
 ├── views/
 │   ├── home.py             Home
 │   ├── atlas.py            Ficha do empreendimento
 │   ├── chatbot.py          Tela do assistente virtual
-│   ├── ui.py               Carregador de CSS e componentes comuns (botão Voltar)
+│   ├── bi.py               Painel de Indicadores & BI (protótipo em validação)
+│   ├── ui.py               Carregador de CSS e componentes comuns (barra de navegação, botão Voltar)
 │   └── estado_url.py       Filtros/paginação/colunas da Home guardados na URL
 ├── services/
 │   ├── data_loader.py      Leitura dos parquets, cache e regras de precedência
+│   ├── bi_service.py       Cálculos do BI: rankings por recorte, perfil, fronteira de eficiência
 │   ├── formatters.py       Formatação brasileira (R$, %, milhar, datas)
 │   ├── map_service.py      Mapa Folium da ficha
 │   ├── chatbot_service.py  Lógica do chatbot (LangChain) — em desenvolvimento
@@ -86,7 +89,7 @@ O ETL escolhe, para cada destino, o arquivo de `data/raw/` cujo nome começa com
 
 | Prefixo(s) em `data/raw/` | Parquet gerado | Chaves | Conteúdo |
 |---|---|---|---|
-| `priorizacao`, `mvw_8_calcula_impacto` | `empreendimentos_priorizacao` | `id_empreendimento`, `fonte_priorizacao` | Tabela mestra: metadados e notas de priorização nas 3 carteiras |
+| `cenario_recomendado_2_vw_dadosgerais` (Recomendada), `cenario_recomendado_1_vw_dadosgerais` (Otimizada), `priorizacao_peltlp_vw_dadosgerais` (de Análise) + `natureza_empreendimento_legado` | `carteiras` | `id_empreendimento`, `carteira` | Tabela mestra: metadados, notas, IC, CAPEX/OPEX/TIRM e listas (municípios, regiões, intervenções, tipos de infraestrutura) de cada carteira |
 | `vw_empreendimento_custo_economico_lp` | `dados_financeiro` | `id_empreendimento` | Custo Econômico LP: CAPEX, OPEX, receita, mês base |
 | `resumo_financeiro` | `resumo_financeiro` | `id_empreendimento`, `id_cenario` | Resumo financeiro por cenário (o app usa 7 e 10): CAPEX, OPEX, receita e TIRM CODEMGE |
 | `alocacao_total`, `tbl_alocacaoempreendimento` | `alocacao_empreendimento` | `id_empreendimento`, `id_cenario` | Alocação de fluxos 2055 por cenário |
@@ -97,13 +100,15 @@ O ETL escolhe, para cada destino, o arquivo de `data/raw/` cujo nome começa com
 | `demanda_ferro_passageiro` | `demanda_pax_ferro_ano` | `id_empreendimento` | Demanda de passageiros — ferroviário |
 | `mvw_empreendimento_geo` (JSON) | `empreendimento_geo` | `id_empreendimento` | Geometrias WKT: `geom_linha` e `geom_ponto` |
 
-Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por carteira), N obras, N custos por obra/cenário e N linhas de alocação/demanda por cenário.
+Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por carteira; a Recomendada e a Otimizada estão contidas na de Análise), N obras, N custos por obra/cenário e N linhas de alocação/demanda por cenário.
 
 ### 4.2 Regras do ETL (`scripts/process_data.py`)
 1. **Encoding:** os CSVs exportados são UTF-8 e são lidos como UTF-8 (`utf-8-sig`); Latin-1 só é usado se o arquivo não for UTF-8. **Não existe correção de acentuação em tempo de execução.** Se o ETL imprimir `[AVISO] ... possivel acentuacao corrompida`, o problema está na exportação — corrija na origem, não no texto.
 2. **Tipo do ID:** `id_empreendimento` é gravado como inteiro que aceita vazio (`Int64`) em todas as tabelas. O app compara o ID diretamente, sem conversões.
 3. **Custo das obras:** `valor_calculado` = soma dos custos da obra em cada cenário, adotando o **cenário mais caro**; se não houver custo, usa `valor_global` da obra.
 4. **`resumo_financeiro`:** duplicatas de (`id_empreendimento`, `id_cenario`) são removidas.
+5. **`carteiras`:** os 3 CSVs da view `vw_dadosgerais_plataformaonline` (um por schema) viram uma tabela com a coluna `carteira` (`recomendada`, `otimizada`, `analise`). As colunas em formato de array do PostgreSQL (`{Araporã,Prata}`) viram listas Python: `intervencoes`, `tipos_infraestruturas`, `municipios`, `regioes_intermediarias`.
+6. **Natureza e grupo de modelagem (provisório):** a view ainda não traz `natureza_empreendimento` nem `id_grupo_modelagem`, usados na tabela de Alocação da ficha. A natureza vem de `data/raw/natureza_empreendimento_legado.csv` (id → natureza, extraído da tabela antiga `mvw_8_calcula_impacto_3_pond_cenario` em 25/09/2026; a natureza não mudou) e o `id_grupo_modelagem` é deduzido do nome do grupo (`ID_GRUPO_MODELAGEM` em `process_data.py`). O ETL avisa se algum empreendimento ficar sem natureza ou se surgir um grupo desconhecido. **Não apague o CSV legado** enquanto a view não for revisada (seção 10).
 
 ### 4.3 Leitura e cache (`services/data_loader.py`)
 - Parquets pequenos: `@st.cache_data` — cada chamada recebe uma cópia; um usuário não altera o dado de outro.
@@ -115,17 +120,17 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 
 ## 5. Regras de negócio
 
-1. **Carteiras (coluna `fonte_priorizacao`):**
-   | Carteira | Valor em `fonte_priorizacao` | Empreendimentos (base atual) | Na URL |
+1. **Carteiras (coluna `carteira` de `carteiras.parquet`):**
+   | Carteira (nome na tela) | Schema de origem | Empreendimentos (base 25/09/2026) | Na URL |
    |---|---|---|---|
-   | Recomendada (padrão da Home) | `cenario recomendado` | 1.044 | `carteira=recomendada` |
-   | Otimizada | `cenario otimizado` | 1.059 | `carteira=otimizada` |
-   | Completa | `priorizacao geral` | 1.682 | `carteira=completa` |
+   | Recomendada (padrão da Home) | `cenario_recomendado_2` | 1.044 | `carteira=recomendada` |
+   | Otimizada | `cenario_recomendado_1` | 1.058 | `carteira=otimizada` |
+   | De análise | `priorizacao_peltlp` | 1.682 | `carteira=analise` (o antigo `completa` continua aceito) |
 
    A carteira escolhida na Home define KPIs, opções dos filtros, tabela, índice (IC) e impacto exibidos. A listagem é ordenada por `ic_3_pond` decrescente.
-2. **Notas da ficha (Resultados da Priorização):** vêm da carteira **Recomendada**; se o empreendimento não estiver nela, da **Otimizada**; senão, da **Completa** (`get_empreendimento_resolvido`). Dimensões vazias são completadas pela próxima fonte. Um badge mostra a fonte usada.
+2. **Notas da ficha (Resultados da Priorização):** vêm da carteira **Recomendada**; se o empreendimento não estiver nela, da **Otimizada**; senão, da **de Análise** (`get_empreendimento_resolvido`). Dimensões vazias são completadas pela próxima fonte. Um badge mostra a fonte usada.
 3. **Dados financeiros da ficha:** CAPEX, OPEX, receita e TIRM vêm do **cenário 10 (Recomendado)** do `resumo_financeiro`; senão do **cenário 7 (Otimizado)**; senão do **Custo Econômico LP** (`dados_financeiro`) com a TIRM da priorização (`get_dados_financeiro_resolvido`). Valor Total = CAPEX + OPEX. O mês base vem sempre do Custo Econômico LP. Um badge mostra a fonte usada.
-4. **Card "Investimento Total" da Home:** soma do `capex_empreendimento_atualizado` do **Custo Econômico LP** dos empreendimentos da carteira ativa, em bilhões arredondados (ex.: `R$ 460 Bi`), subtexto fixo "CAPEX".
+4. **KPIs da Home** (dependem só da carteira, não dos filtros): Empreendimentos, **Alta Viabilidade** (`viabilidade == "Alta viabilidade"`), **Alto Impacto** e **Investimento Total** = soma do `capex` da própria carteira, em bilhões arredondados (ex.: `R$ 530 Bi`).
 5. **Alocação 2055 (ficha):** mostra os cenários **1 a 4, 7 (Otimizado) e 10 (Recomendado)**. A fonte e as colunas dependem do setor:
    | Setor (`id_setor`) | Condição | Fonte | Colunas |
    |---|---|---|---|
@@ -151,12 +156,16 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 | `?` (vazio) | Home |
 | `?id=1042` | Ficha do empreendimento 1042 (ID inválido → mensagem de "não encontrado") |
 | `?page=chatbot` | Assistente virtual |
+| `?page=bi` | Painel de Indicadores & BI (protótipo; `carteira` na URL é a mesma da Home) |
 
 - **A URL é a fonte da verdade.** Links internos são relativos (começam com `?`).
+- **Barra de navegação superior** (todas as telas, `render_navbar` em `views/ui.py`): Página Inicial, Painel de Indicadores & BI e Assistente Virtual, com destaque na tela aberta (na ficha, destaca Página Inicial). Substitui a faixa nativa do Streamlit (menu ⋮), que fica escondida.
 - **Estado da Home na URL:** carteira, busca, filtros, página, itens por página e colunas vão para a URL (`views/estado_url.py`), e os links da tabela, do chatbot e dos botões "Voltar" os carregam. Assim, abrir uma ficha e voltar não perde os filtros, e o link pode ser compartilhado. Detalhes e como incluir um filtro novo: `docs/frontend.md`, seção 5.9.
-- **Home:** 4 KPIs, 8 controles de filtro (busca, setor, esfera, carteira, classificação, viabilidade, origem, vocação), tabela paginada com colunas configuráveis (modal de arrastar), botão flutuante do assistente.
+- **Home:** 4 KPIs; filtros com carteira, busca e 8 filtros de seleção múltipla sempre visíveis (setor, status, origem, esfera, impacto, viabilidade, natureza, intervenção principal) e a seção recolhida **"Mais filtros"** (município, região intermediária e sliders de Valor Total = CAPEX + OPEX, TIRM e IC); botão redondo "Limpar filtros" (vassoura) ao lado de "Personalizar Colunas"; tabela paginada e ordenável pelo cabeçalho (clique: primeiro sentido → oposto → volta ao padrão IC decrescente; ordem na URL) com colunas configuráveis (modal de arrastar; padrão: ID, Nome, Status, Setor, Natureza, Origem, Esfera, CAPEX, OPEX, TIRM, Índice, Impacto; entre as ocultas, Valor Total e as notas das 5 dimensões), botão flutuante do assistente.
+- **Regiões intermediárias:** a Home mostra (filtro e coluna) só as 13 regiões de MG (`REGIOES_INTERMEDIARIAS_MG` em `views/home.py`); regiões de estados vizinhos que aparecem nos dados são descartadas na exibição, sem alterar o parquet.
 - **Ficha:** cabeçalho, metadados + mapa (mesma altura, 520px), e as tabelas Resultados da Priorização, Dados Financeiros, Alocação 2055 e Detalhamento das Obras.
 - **Mapa (`services/map_service.py`):** Folium com base OpenStreetMap (sem chave de API), traçado linear e pontos do empreendimento, enquadramento automático; aviso quando não há geometria. A legenda QGIS está preservada em `render_legenda_qgis()` (desativada).
+- **Painel de Indicadores & BI (protótipo em validação):** seletores de carteira (padrão Recomendada) e setor (padrão "Todos os setores"). Números-resumo da seleção: Empreendimentos, Presente | Futuro (Contratado | Planejado), CAPEX e Alto Impacto. Cada empreendimento é comparado com os pares do mesmo setor (mesmo com "Todos os setores", cada setor é ranqueado à parte) em cada recorte (setor inteiro, intervenção principal, região intermediária de MG) nas métricas IC, 5 dimensões e TIRM; desempate pelo IC; nota zero numa dimensão = não pontuou (fica fora do ranking). Abas: Perfil do empreendimento (cartão com investimento total = CAPEX + OPEX), Impacto × Viabilidade (X = TIRM com linhas de referência em 0% e 11,2%; seletor do eixo Y: IC, investimento total = CAPEX + OPEX (escala logarítmica) ou nota da dimensão socioeconômica ou da estratégica; cor = classe de impacto; sem classificação de modelo de execução) e Panorama de Investimentos (só a tabela de intervenção principal por esfera: quantidade e CAPEX. Presente, usado nos números-resumo e no cartão = Contratado - execução não iniciada, Contratado - em execução, Paralisado; o resto é Futuro; CAPEX "-" quando CAPEX e OPEX do grupo somam zero = sem modelagem financeira completa).
 - **Visual:** todo o CSS em `assets/css/`, com cores centralizadas — ver `docs/frontend.md`.
 
 ---
@@ -165,7 +174,8 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 
 - **Tudo roda no computador do responsável.** Servidores (inclusive produção) **não estão ao alcance dos agentes**: não há acesso, comandos de deploy ou configuração de servidor a fazer por aqui. A publicação no servidor é feita pelo responsável.
 - **Rodar localmente:** `.venv/Scripts/python.exe -m streamlit run app.py` → `http://localhost:8501`.
-- **Sempre use o `.venv`**: ele tem o Streamlit **1.36.0**, versão fixa exigida pelo servidor de hospedagem. O Python global da máquina pode ter outra versão, o que quebra o mapa e muda o visual.
+- **Sempre use o `.venv`**: Python 3.12 e Streamlit **1.51.0** (versão fixa), instalados com `uv pip install -r requirements.txt`; o servidor (Ubuntu 20.04) usa o mesmo arquivo. O Python global da máquina pode ter outra versão, o que quebra o mapa e muda o visual.
+- **Mudar versões:** o `requirements.txt` é o único arquivo de dependências e fixa a versão exata de tudo (os pacotes principais são os marcados com `# via -r requirements.txt`). Para trocar a versão de um pacote, edite a linha dele, reinstale no `.venv` com `uv pip install -r requirements.txt` e confira se o uv não acusa conflito; se a troca puxar dependências novas, ajuste as linhas delas também. Troca de versão do Streamlit (ou de outro pacote de tela) exige revisão visual (`docs/frontend.md`, seção 8).
 - Não há dependências fora do `requirements.txt`.
 
 | Branch | Papel |
@@ -202,15 +212,22 @@ Links internos são relativos (começam com `?`), por isso o app funciona igual 
 2. Copiar os arquivos para `data/raw/` mantendo os prefixos dos nomes (seção 4.1).
 3. Rodar `.venv/Scripts/python.exe scripts/process_data.py` e conferir: todos os arquivos `[LIDO]`/`[SALVO]`, **nenhum `[AVISO]`** de acentuação, contagens de linhas plausíveis.
 4. Se as geometrias mudaram: `.venv/Scripts/python.exe scripts/process_geo.py`.
-5. **Atualizar as contagens escritas à mão** nos nomes das carteiras em `views/home.py` (`"Carteira Recomendada (1.044)"` etc.) e na tabela da seção 5 deste documento.
+5. Conferir o aviso do ETL sobre natureza/grupo de modelagem (seção 4.2, item 6) e atualizar as contagens da tabela da seção 5 deste documento.
 6. Reiniciar o Streamlit e conferir a Home nas 3 carteiras e algumas fichas de setores diferentes.
 
 ---
 
 ## 10. Pendências e limitações conhecidas
 
-- Contagens das carteiras fixas no texto (seção 9, passo 5).
+- **Revisar a view `vw_dadosgerais_plataformaonline`** para incluir `natureza_empreendimento` e `id_grupo_modelagem`. Hoje eles vêm de um CSV legado e de um dicionário no ETL (seção 4.2, item 6). Depois disso, remover `natureza_empreendimento_legado.csv` e `ID_GRUPO_MODELAGEM`.
+- `data/processed/empreendimentos_priorizacao.parquet` (tabela antiga) não é mais usado pelo app nem gerado pelo ETL; pode ser apagado.
 - O histórico de conversa do chatbot se perde ao navegar para outra tela.
-- Algumas regras CSS dependem de detalhes internos do Streamlit 1.36 (ver `docs/frontend.md`, seção 8). Atualizar o Streamlit exige revisão visual.
+- Algumas regras CSS dependem de detalhes internos do Streamlit 1.51 (ver `docs/frontend.md`, seção 8). Atualizar o Streamlit exige revisão visual.
 - Legenda do mapa e camadas socioambientais adicionais: planejadas, ainda não ativas.
 - Logos institucionais existem em `logos/`, mas não são exibidos.
+- **Painel de BI (protótipo — pendências registradas em 28/09/2026):**
+  - *Estado na URL:* só a `carteira` vai para a URL. Setor, eixo da matriz, empreendimento do perfil e aba ficam na sessão e se perdem ao recarregar ou ao abrir uma ficha. O botão "Voltar" da ficha leva para a Home, não de volta ao BI. O BI usa a mesma marca de "sessão iniciada" da Home (`estado_url.marcar_sessao_iniciada`).
+  - *Dependência da Home:* `views/bi.py` importa `CARTEIRAS_HOME` de `views/home.py` e repete a lista das regiões de MG (`REGIOES_MG` em `bi_service.py`, igual a `REGIOES_INTERMEDIARIAS_MG` da Home). Centralizar (ex.: em `data_loader`) antes de publicar.
+  - *Região intermediária:* um empreendimento que passa por várias regiões conta inteiro em cada uma. Aguardando a tabela de pertencimento (`id_empreendimento`, tamanho do empreendimento, RGI, tamanho na RGI) para ponderar.
+  - *Retirado/oculto até nova definição:* métrica CAPEX por km (removida), aba "Eficiência do CAPEX" (`_render_eficiencia`, oculta). A aba "Destaques por recorte" e a lista "Destaques fora do topo do IC" foram apagadas em 29/09/2026.
+  - *Gráficos:* clique só funcionava em gráfico Altair de camada única no Streamlit 1.36 (`erros_solucoes.md`, caso 13); a matriz ainda usa a solução de contorno — reavaliar no 1.51.

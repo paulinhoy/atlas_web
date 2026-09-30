@@ -21,7 +21,7 @@
     font-size: 24px;
     color: #d1e3f8;
     margin-top: 0.3rem;
-    font-weight: 300;
+    font-weight: 400;  /* 300 só existe a partir do Streamlit 1.37; 400 mantém o visual aprovado */
     line-height: 1.3;
 }
 
@@ -40,9 +40,8 @@
 }
 
 /* ---- Avatares ocultos ---- */
-div[data-testid="stChatMessageAvatar"],
-div[data-testid="chatAvatarIcon-user"],
-div[data-testid="chatAvatarIcon-assistant"] {
+[data-testid="stChatMessageAvatarUser"],
+[data-testid="stChatMessageAvatarAssistant"] {
     display: none !important;
 }
 
@@ -74,7 +73,7 @@ div[data-testid="stChatMessageContent"] p:not(:last-child) {
 }
 
 /* Balão do usuário: à direita */
-div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) {
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
     margin-left: auto !important;
     margin-right: 0 !important;
     width: fit-content !important;
@@ -86,15 +85,15 @@ div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) {
     border: none !important;
     text-align: left !important;
 }
-div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) p,
-div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) span,
-div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) strong,
-div[data-testid="stChatMessage"]:has(div[data-testid*="user"]) em {
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) p,
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) span,
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) strong,
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) em {
     color: #ffffff !important;
 }
 
 /* Balão do assistente: à esquerda, tons claros da paleta PELT */
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) {
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
     margin-right: 0 !important;
     margin-left: 0 !important;
     width: 100% !important;
@@ -107,15 +106,15 @@ div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) {
     box-shadow: 0 2px 8px rgba(155, 160, 191, 0.12) !important;
     text-align: left !important;
 }
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) p,
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) span,
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) strong,
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) em {
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) p,
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) span,
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) strong,
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) em {
     color: var(--navy) !important;
 }
 
 /* Tabelas nas respostas do assistente */
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) table {
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) table {
     font-size: 12px !important;
     border-collapse: collapse !important;
     width: 100% !important;
@@ -124,14 +123,14 @@ div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) table {
     overflow: hidden !important;
     background: #ffffff !important;
 }
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) th {
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) th {
     font-size: 14px !important;
     font-weight: 600 !important;
     background: var(--navy) !important;
     color: #ffffff !important;
     padding: 6px 10px !important;
 }
-div[data-testid="stChatMessage"]:has(div[data-testid*="assistant"]) td {
+div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) td {
     font-size: 12px !important;
     padding: 6px 10px !important;
     border-bottom: 1px solid var(--border) !important;

@@ -54,91 +54,63 @@ def filtrar_por_empreendimento(df: pd.DataFrame, empreendimento_id: int) -> pd.D
     return df[df["id_empreendimento"] == empreendimento_id]
 
 
+# Carteiras na ordem de precedência da ficha: slug -> nome exibido
+CARTEIRAS = {
+    "recomendada": "Carteira Recomendada",
+    "otimizada": "Carteira Otimizada",
+    "analise": "Carteira de Análise",
+}
+# Nomes antigos ainda aceitos (links salvos e chatbot usam "completa")
+_ALIAS_CARTEIRA = {"completa": "analise", "geral": "analise", "otimizado": "otimizada", "recomendado": "recomendada"}
+
+
+def slug_carteira(texto: str) -> str:
+    """Normaliza o nome da carteira para o slug atual ('completa' -> 'analise')."""
+    slug = str(texto).strip().lower()
+    return _ALIAS_CARTEIRA.get(slug, slug)
+
+
 def get_empreendimentos(carteira: str = None) -> pd.DataFrame:
-    """Retorna os empreendimentos priorizados, opcionalmente filtrados por carteira.
-    
-    Opções de carteira:
-        - 'completa' ou 'priorizacao geral' -> Carteira Completa (todos os ~1.682 empreendimentos)
-        - 'otimizada' ou 'cenario otimizado' -> Carteira Otimizada (~1.059 empreendimentos)
-        - 'recomendada' ou 'cenario recomendado' -> Carteira Recomendada (~1.044 empreendimentos)
-        - None -> Retorna a base completa com todas as fontes
-    """
-    df = load_parquet("empreendimentos_priorizacao")
+    """Empreendimentos de uma carteira ('recomendada', 'otimizada' ou 'analise'), ordenados pelo IC.
+    Sem carteira, devolve as três juntas (coluna 'carteira')."""
+    df = load_parquet("carteiras")
     if df.empty:
         return df
 
-    if carteira and "fonte_priorizacao" in df.columns:
-        c_norm = str(carteira).strip().lower()
-        if c_norm in ("completa", "priorizacao geral", "geral"):
-            df = df[df["fonte_priorizacao"] == "priorizacao geral"]
-        elif c_norm in ("otimizada", "cenario otimizado", "otimizado"):
-            df = df[df["fonte_priorizacao"] == "cenario otimizado"]
-        elif c_norm in ("recomendada", "cenario recomendado", "recomendado"):
-            df = df[df["fonte_priorizacao"] == "cenario recomendado"]
-        else:
-            df = df[df["fonte_priorizacao"].str.lower() == c_norm]
+    if carteira:
+        df = df[df["carteira"] == slug_carteira(carteira)]
 
-    if "ic_3_pond" in df.columns:
-        return df.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
-    return df
+    # Valor Total = CAPEX + OPEX; vazio quando o empreendimento não tem nenhum dos dois
+    df = df.assign(valor_total=(df["capex"].fillna(0) + df["opex"].fillna(0)).where(df["capex"].notna() | df["opex"].notna()))
+    return df.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
 
 
 def get_empreendimento_resolvido(empreendimento_id) -> pd.Series | None:
-    """Retorna o registro do empreendimento com notas das dimensões resolvidas pela regra:
-    1. Nota no Cenário Recomendado (se existir)
-    2. Se não tiver, nota no Cenário Otimizado
-    3. Se não tiver, nota na Priorização Geral
-    
-    Retorna uma pd.Series com os dados e a chave 'fonte_dimensoes' identificando a origem das notas.
-    """
-    df_all = load_parquet("empreendimentos_priorizacao")
-    if df_all.empty:
-        return None
-
-    matches = filtrar_por_empreendimento(df_all, empreendimento_id)
-
+    """Registro do empreendimento na primeira carteira em que aparece:
+    Recomendada -> Otimizada -> de Análise. Notas vazias são completadas pela carteira seguinte.
+    A chave 'fonte_dimensoes' identifica a carteira usada."""
+    matches = filtrar_por_empreendimento(load_parquet("carteiras"), empreendimento_id)
     if matches.empty:
         return None
 
-    p_rec = matches[matches["fonte_priorizacao"] == "cenario recomendado"]
-    p_otim = matches[matches["fonte_priorizacao"] == "cenario otimizado"]
-    p_geral = matches[matches["fonte_priorizacao"] == "priorizacao geral"]
+    por_carteira = [matches[matches["carteira"] == slug] for slug in CARTEIRAS]
+    por_carteira = [p.iloc[0] for p in por_carteira if not p.empty]
 
-    if not p_rec.empty:
-        base = p_rec.iloc[0].copy()
-        fonte_dimensoes = "Cenário Recomendado"
-    elif not p_otim.empty:
-        base = p_otim.iloc[0].copy()
-        fonte_dimensoes = "Cenário Otimizado"
-    elif not p_geral.empty:
-        base = p_geral.iloc[0].copy()
-        fonte_dimensoes = "Priorização Geral"
-    else:
-        base = matches.iloc[0].copy()
-        fonte_dimensoes = "Priorização Geral"
-
-    # Preenchimento defensivo dimensão por dimensão caso haja valores faltantes
+    base = por_carteira[0].copy()
     dim_cols = [
         "dimensao_estrategica",
         "dimensao_financeira",
         "dimensao_socioeconomica_pond",
         "dimensao_comercial",
         "dimensao_gerencial",
-        "ic_1_pond",
-        "ic_2_pond",
         "ic_3_pond",
-        "impacto_avaliado_1_pond_cenario",
-        "impacto_avaliado_2_pond_cenario",
         "impacto_avaliado_3_pond_cenario",
     ]
     for col in dim_cols:
-        if col in base and (pd.isna(base[col]) or base[col] == ""):
-            if not p_otim.empty and pd.notna(p_otim.iloc[0].get(col)):
-                base[col] = p_otim.iloc[0][col]
-            elif not p_geral.empty and pd.notna(p_geral.iloc[0].get(col)):
-                base[col] = p_geral.iloc[0][col]
+        if pd.isna(base.get(col)) or base.get(col) == "":
+            base[col] = next((p[col] for p in por_carteira[1:] if pd.notna(p.get(col))), base.get(col))
 
-    base["fonte_dimensoes"] = fonte_dimensoes
+    base["fonte_dimensoes"] = CARTEIRAS[base["carteira"]]
     return base
 
 
@@ -256,33 +228,3 @@ def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
         "mes_base": mes_base if mes_base not in (None, "", "nan") else "-",
         "fonte_financeiro": fonte_fin,
     }
-
-
-@st.cache_data(show_spinner=False)
-def get_mapa_capex_custo_economico() -> dict:
-    """Retorna um dicionário {id_empreendimento (int): capex (float)} obtido diretamente de
-    Custo Econômico LP (dados_financeiro / vw_empreendimento_custo_economico_lp).
-    """
-    df_fin = get_dados_financeiro()
-    capex_map = {}
-
-    if not df_fin.empty and "capex_empreendimento_atualizado" in df_fin.columns:
-        for _, row in df_fin.iterrows():
-            eid = row.get("id_empreendimento")
-            c = row.get("capex_empreendimento_atualizado")
-            if pd.notna(eid) and pd.notna(c):
-                try:
-                    eid_int = int(float(eid))
-                    if eid_int not in capex_map:
-                        capex_map[eid_int] = float(c)
-                except (ValueError, TypeError):
-                    pass
-
-    return capex_map
-
-
-# Alias para retrocompatibilidade
-get_mapa_capex_resolvido = get_mapa_capex_custo_economico
-
-
-

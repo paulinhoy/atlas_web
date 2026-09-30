@@ -5,13 +5,14 @@ Apresenta KPIs, filtros dinâmicos e tabela de empreendimentos estilizada no mes
 
 import html as html_mod
 import math
+import unicodedata
 import streamlit as st
 import pandas as pd
 from services import data_loader
-from services.formatters import fmt_int_br, fmt_bilhoes_br
+from services.formatters import fmt_int_br, fmt_bilhoes_br, fmt_brl_compacto, fmt_decimal_br_2, fmt_pct_br
 from streamlit_sortables import sort_items
 from views import estado_url
-from views.ui import inject_css, read_css
+from views.ui import inject_css, read_css, render_navbar
 
 
 def render_chatbot_button(container):
@@ -49,24 +50,17 @@ def render_header():
 def render_kpis(df: pd.DataFrame):
     """Renderiza cartões com indicadores resumidos dos empreendimentos no formato brasileiro."""
     total_emp = len(df)
-    total_setores = df["setor"].nunique() if "setor" in df.columns else 0
+    alta_viabilidade = int((df["viabilidade"] == "Alta viabilidade").sum())
+    alto_impacto = int((df["impacto_avaliado_3_pond_cenario"] == "Alto impacto").sum())
 
-    col_impacto = "impacto_avaliado_3_pond_cenario"
-    alto_impacto = len(df[df[col_impacto] == "Alto impacto"]) if col_impacto in df.columns else 0
-    top_setor = df["setor"].mode()[0] if "setor" in df.columns and not df.empty else "-"
-    pct_alto = (alto_impacto / total_emp) * 100 if total_emp > 0 else 0
-
-    capex_map = data_loader.get_mapa_capex_custo_economico()
-    if "id_empreendimento" in df.columns and not df.empty:
-        inv_formatado = fmt_bilhoes_br(float(df["id_empreendimento"].map(capex_map).fillna(0).sum()))
-    else:
-        inv_formatado = "-"
+    def pct_carteira(qtd: int) -> str:
+        return f"{fmt_pct_br(qtd / total_emp * 100 if total_emp else 0)} da carteira"
 
     cards = [
         ("Empreendimentos Priorizados", fmt_int_br(total_emp), "Carteira avaliada"),
-        ("Setores Atendidos", total_setores, f"Principal: <b>{top_setor}</b>"),
-        ("Alto Impacto", fmt_int_br(alto_impacto), f"{pct_alto:.1f}% da carteira"),
-        ("Investimento Total", inv_formatado, "CAPEX"),
+        ("Alta Viabilidade", fmt_int_br(alta_viabilidade), pct_carteira(alta_viabilidade)),
+        ("Alto Impacto", fmt_int_br(alto_impacto), pct_carteira(alto_impacto)),
+        ("Investimento Total", fmt_bilhoes_br(df["capex"].sum()), "CAPEX"),
     ]
     for col, (titulo, valor, subtexto) in zip(st.columns(4), cards):
         col.markdown(
@@ -98,10 +92,59 @@ def _render_badge(tipo: str, val) -> str:
     return f'<span class="badge {css}">{html_mod.escape(raw)}</span>'
 
 
+def _texto(val) -> str:
+    """Texto escapado; vazio ou nulo vira '-'."""
+    if val is None or (not isinstance(val, str) and pd.isna(val)) or str(val).strip() == "":
+        return "-"
+    return html_mod.escape(str(val))
+
+
 def _fmt_ic(val) -> str:
     if pd.notnull(val) and isinstance(val, (int, float)):
         return f"{float(val):.4f}".replace(".", ",")
     return "-"
+
+
+def _fmt_tirm(val) -> str:
+    """TIRM vem como fração (0,0776) e é exibida em % (7,76%)."""
+    return fmt_pct_br(val * 100, 2) if pd.notna(val) else "-"
+
+
+def _fmt_periodo(r) -> str:
+    inicio, fim = r.get("data_inicio"), r.get("data_conclusao")
+    if pd.isna(inicio) or pd.isna(fim):
+        return "-"
+    return f"{int(inicio)}–{int(fim)}"
+
+
+CHIPS_VISIVEIS = 3
+
+
+def _render_chips(valores) -> str:
+    """Colunas-lista: até 3 chips cinza + chip '+N' com os demais itens no tooltip (passe o mouse)."""
+    itens = [str(v) for v in (valores if valores is not None else [])]
+    if not itens:
+        return "-"
+    chips = "".join(f'<span class="chip">{html_mod.escape(v)}</span>' for v in itens[:CHIPS_VISIVEIS])
+    resto = itens[CHIPS_VISIVEIS:]
+    if resto:
+        chips += f'<span class="chip chip-mais" title="{html_mod.escape(", ".join(resto))}">+{len(resto)}</span>'
+    return f'<div class="chips">{chips}</div>'
+
+
+def _col_texto(label: str, coluna: str, alinhamento: str = "tc") -> dict:
+    return {"label": label, "th_class": alinhamento, "th_style": "", "td_class": alinhamento,
+            "render": lambda r: _texto(r.get(coluna))}
+
+
+def _col_valor(label: str, render) -> dict:
+    return {"label": label, "th_class": "tr", "th_style": "text-align: right;", "td_class": "tr font-mono nowrap",
+            "render": render}
+
+
+def _col_chips(label: str, coluna: str) -> dict:
+    return {"label": label, "th_class": "tl", "th_style": "text-align: left;", "td_class": "tl",
+            "render": lambda r: _render_chips(r.get(coluna))}
 
 
 AVAILABLE_COLUMNS = {
@@ -117,14 +160,15 @@ AVAILABLE_COLUMNS = {
         "th_class": "tl",
         "th_style": "text-align: left; width: 28%;",
         "td_class": "tl",
-        "render": lambda r: f'<a href="{estado_url.link_empreendimento(int(r["id_empreendimento"]))}" target="_self" class="emp-link">{html_mod.escape(str(r.get("nome_empreendimento") or "-"))}</a>',
+        "render": lambda r: f'<a href="{estado_url.link_empreendimento(int(r["id_empreendimento"]))}" target="_self" class="emp-link">{_texto(r.get("nome_empreendimento"))}</a>',
     },
-    "setor": {
-        "label": "Setor",
+    "setor": _col_texto("Setor", "setor"),
+    "origem_ajustada": {
+        "label": "Origem",
         "th_class": "tc",
         "th_style": "",
         "td_class": "tc",
-        "render": lambda r: html_mod.escape(str(r.get("setor") or "-")),
+        "render": lambda r: f'<span class="badge badge-neutral">{_texto(r.get("origem_ajustada"))}</span>',
     },
     "esfera": {
         "label": "Esfera",
@@ -133,55 +177,8 @@ AVAILABLE_COLUMNS = {
         "td_class": "tc",
         "render": lambda r: _render_badge("esfera", r.get("esfera_acao")),
     },
-    "status": {
-        "label": "Status",
-        "th_class": "tc",
-        "th_style": "",
-        "td_class": "tc",
-        "render": lambda r: html_mod.escape(str(r.get("descr_status_empreendimento") or "-")),
-    },
-    "viabilidade": {
-        "label": "Viabilidade",
-        "th_class": "tc",
-        "th_style": "",
-        "td_class": "tc",
-        "render": lambda r: _render_badge("viabilidade", r.get("viabilidade")),
-    },
-    "vocacao": {
-        "label": "Vocação",
-        "th_class": "tl",
-        "th_style": "text-align: left;",
-        "td_class": "tl",
-        "render": lambda r: html_mod.escape(str(r.get("vocacao") or "-")),
-    },
-    "origem_ajustada": {
-        "label": "Origem",
-        "th_class": "tc",
-        "th_style": "",
-        "td_class": "tc",
-        "render": lambda r: f'<span class="badge badge-neutral">{html_mod.escape(str(r.get("origem_ajustada") or "-"))}</span>',
-    },
-    "fonte_financiamento": {
-        "label": "Financiamento",
-        "th_class": "tc",
-        "th_style": "",
-        "td_class": "tc",
-        "render": lambda r: html_mod.escape(str(r.get("fonte_financiamento") or "-")),
-    },
-    "responsavel_gestao": {
-        "label": "Responsável",
-        "th_class": "tc",
-        "th_style": "",
-        "td_class": "tc",
-        "render": lambda r: html_mod.escape(str(r.get("responsavel_gestao_infraestrutura") or "-")),
-    },
-    "ic": {
-        "label": "Índice (IC)",
-        "th_class": "tr",
-        "th_style": "text-align: right;",
-        "td_class": "tr font-mono",
-        "render": lambda r: _fmt_ic(r.get("ic_3_pond")),
-    },
+    "tirm": _col_valor("TIRM", lambda r: _fmt_tirm(r.get("tirm"))),
+    "ic": _col_valor("Índice (IC)", lambda r: _fmt_ic(r.get("ic_3_pond"))),
     "impacto": {
         "label": "Impacto",
         "th_class": "tc",
@@ -189,6 +186,35 @@ AVAILABLE_COLUMNS = {
         "td_class": "tc",
         "render": lambda r: _render_badge("impacto", r.get("impacto_avaliado_3_pond_cenario")),
     },
+    # ── Colunas ocultas por padrão (disponíveis em "Personalizar Colunas") ──
+    "status": _col_texto("Status", "descr_status_empreendimento"),
+    "viabilidade": {
+        "label": "Viabilidade",
+        "th_class": "tc",
+        "th_style": "",
+        "td_class": "tc",
+        "render": lambda r: _render_badge("viabilidade", r.get("viabilidade")),
+    },
+    "vocacao": _col_texto("Vocação", "vocacao", "tl"),
+    "natureza": _col_texto("Natureza", "natureza_empreendimento"),
+    "intervencao_principal": _col_texto("Intervenção Principal", "intervencao_principal", "tl"),
+    "capex": _col_valor("CAPEX", lambda r: fmt_brl_compacto(r.get("capex"))),
+    "opex": _col_valor("OPEX", lambda r: fmt_brl_compacto(r.get("opex"))),
+    "valor_total": _col_valor("Valor Total", lambda r: fmt_brl_compacto(r.get("valor_total"))),
+    "dim_estrategica": _col_valor("Dimensão Estratégica", lambda r: _fmt_ic(r.get("dimensao_estrategica"))),
+    "dim_socioeconomica": _col_valor("Dimensão Socioeconômica", lambda r: _fmt_ic(r.get("dimensao_socioeconomica_pond"))),
+    "dim_gerencial": _col_valor("Dimensão Gerencial", lambda r: _fmt_ic(r.get("dimensao_gerencial"))),
+    "dim_comercial": _col_valor("Dimensão Comercial", lambda r: _fmt_ic(r.get("dimensao_comercial"))),
+    "dim_financeira": _col_valor("Dimensão Financeira", lambda r: _fmt_ic(r.get("dimensao_financeira"))),
+    "extensao": _col_valor("Extensão (km)", lambda r: fmt_decimal_br_2(r.get("extensao_km"))),
+    "periodo": _col_valor("Período", _fmt_periodo),
+    "fonte_financiamento": _col_texto("Financiamento", "fonte_financiamento"),
+    "responsavel_gestao": _col_texto("Responsável", "responsavel_gestao_infraestrutura"),
+    "provavel_responsavel": _col_texto("Provável Responsável", "provavel_responsavel"),
+    "intervencoes": _col_chips("Intervenções", "intervencoes"),
+    "tipos_infraestruturas": _col_chips("Tipos de Infraestrutura", "tipos_infraestruturas"),
+    "municipios": _col_chips("Municípios", "municipios"),
+    "regioes": _col_chips("Regiões Intermediárias", "regioes_intermediarias"),
     "acao": {
         "label": "Ação",
         "th_class": "tc",
@@ -202,16 +228,57 @@ AVAILABLE_COLUMNS = {
 DEFAULT_ACTIVE_COLUMNS = [
     "id",
     "nome",
-    "setor",
-    "esfera",
     "status",
-    "viabilidade",
+    "setor",
+    "natureza",
+    "origem_ajustada",
+    "esfera",
+    "capex",
+    "opex",
+    "tirm",
     "ic",
     "impacto",
-    "acao",
 ]
 
 PAGE_SIZE_OPTIONS = [15, 25, 50, 100]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ORDENAÇÃO pelo cabeçalho: clicar no título da coluna ordena a lista filtrada inteira.
+# Ciclo: primeiro sentido -> sentido oposto -> padrão (IC decrescente).
+# id da coluna -> (coluna do DataFrame, primeiro sentido). Colunas fora daqui não ordenam.
+# Valores: maiores primeiro ("desc"); textos e datas: A→Z / mais antigo primeiro ("asc").
+# ─────────────────────────────────────────────────────────────────────────────
+ORDENACAO = {
+    "id": ("id_empreendimento", "asc"),
+    "nome": ("nome_empreendimento", "asc"),
+    "setor": ("setor", "asc"),
+    "origem_ajustada": ("origem_ajustada", "asc"),
+    "esfera": ("esfera_acao", "asc"),
+    "status": ("descr_status_empreendimento", "asc"),
+    "natureza": ("natureza_empreendimento", "asc"),
+    "vocacao": ("vocacao", "asc"),
+    "intervencao_principal": ("intervencao_principal", "asc"),
+    "fonte_financiamento": ("fonte_financiamento", "asc"),
+    "responsavel_gestao": ("responsavel_gestao_infraestrutura", "asc"),
+    "provavel_responsavel": ("provavel_responsavel", "asc"),
+    "periodo": ("data_inicio", "asc"),
+    "impacto": ("impacto_avaliado_3_pond_cenario", "desc"),
+    "viabilidade": ("viabilidade", "desc"),
+    "tirm": ("tirm", "desc"),
+    "ic": ("ic_3_pond", "desc"),
+    "capex": ("capex", "desc"),
+    "opex": ("opex", "desc"),
+    "valor_total": ("valor_total", "desc"),
+    "extensao": ("extensao_km", "desc"),
+    "dim_estrategica": ("dimensao_estrategica", "desc"),
+    "dim_socioeconomica": ("dimensao_socioeconomica_pond", "desc"),
+    "dim_gerencial": ("dimensao_gerencial", "desc"),
+    "dim_comercial": ("dimensao_comercial", "desc"),
+    "dim_financeira": ("dimensao_financeira", "desc"),
+}
+ORDEM_PADRAO = ("ic", "desc")  # a carteira já vem do data_loader ordenada assim
+# Classes (Impacto, Viabilidade) seguem a ordem da classificação, não a alfabética
+NIVEL_CLASSE = {"alt": 3, "med": 2, "baix": 1}  # início do texto sem acento: "Médio impacto" -> "med"
 
 
 def _inteiro_positivo(texto: str) -> int:
@@ -277,11 +344,116 @@ def modal_personalizar_colunas():
             st.session_state["sortable_modal_ver"] = ver + 1
             st.rerun()
     with c_done:
-        if st.button("Salvar e Fechar", key="btn_fechar_modal_colunas", type="primary", use_container_width=True):
+        if st.button("Salvar e Fechar", key="btn_fechar_modal_colunas", type="primary", width="stretch"):
             st.rerun()
 
 
-def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
+# Tabela exibida por um componente v2 (Streamlit 1.51+): o HTML e o CSS são os mesmos de antes,
+# montados direto na página (sem iframe). O script só avisa o Python quando um título de coluna
+# ordenável (<th data-ordem="...">) é clicado; a ordem muda sem recarregar a página.
+_JS_TABELA = """
+export default function (component) {
+    const { data, parentElement, setTriggerValue } = component;
+    const caixa = parentElement.querySelector(".tabela-home");
+    caixa.innerHTML = data;
+    caixa.onclick = (evento) => {
+        const titulo = evento.target.closest("th[data-ordem]");
+        // Date.now(): clicar duas vezes na mesma coluna também conta como clique novo
+        if (titulo) setTriggerValue("ordenar", { coluna: titulo.dataset.ordem, t: Date.now() });
+    };
+}
+"""
+_tabela_home = st.components.v2.component("atlas_tabela_home", html='<div class="tabela-home"></div>', js=_JS_TABELA)
+
+# Filtros de seleção múltipla: clicar de novo na caixa ou na setinha com a lista aberta fecha a lista
+# (o Streamlit só fecha com um clique fora). O script segura esse clique e simula um clique fora.
+# Instalado uma vez por aba; o "x" dos itens escolhidos segue normal (erros_solucoes.md, caso 16).
+_JS_FILTROS = """
+export default function () {
+    if (window.__atlasFiltrosToggle) return;
+    window.__atlasFiltrosToggle = true;
+    let fechar = null;
+    document.addEventListener("mousedown", (evento) => {
+        if (evento.button !== 0) return;
+        const caixa = evento.target.closest('[data-testid="stMultiSelect"] [data-baseweb="select"]');
+        if (!caixa || evento.target.closest('[data-baseweb="tag"], [title="Clear all"]')) return;
+        fechar = caixa.querySelector('input[aria-expanded="true"]');
+        if (fechar) { evento.preventDefault(); evento.stopPropagation(); }
+    }, true);
+    document.addEventListener("click", (evento) => {
+        if (!fechar) return;
+        const campo = fechar;
+        fechar = null;
+        evento.preventDefault();
+        evento.stopPropagation();
+        document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        campo.blur();
+    }, true);
+}
+"""
+_filtros_toggle = st.components.v2.component("atlas_filtros_toggle", js=_JS_FILTROS)
+
+
+def _ler_ordem() -> tuple:
+    """(coluna, sentido) da URL; o padrão quando ausente ou inválido."""
+    col_id = estado_url.ler("ordem", ORDENACAO)
+    sentido = estado_url.ler("sentido", ("asc", "desc"))
+    return (col_id, sentido) if col_id and sentido else ORDEM_PADRAO
+
+
+def _proxima_ordem(col_id: str, atual: tuple) -> tuple:
+    """Ordem após clicar na coluna: primeiro sentido -> oposto -> padrão."""
+    primeiro = ORDENACAO[col_id][1]
+    oposto = "asc" if primeiro == "desc" else "desc"
+    if atual[0] != col_id:
+        return (col_id, primeiro)
+    if atual[1] == primeiro:  # vale também para o IC, que já começa no primeiro sentido (padrão)
+        return (col_id, oposto)
+    return ORDEM_PADRAO
+
+
+def _chave_ordenacao(serie: pd.Series) -> pd.Series:
+    """Valor usado para ordenar: número como está; classe pelo nível; texto sem acento e sem caixa."""
+    if pd.api.types.is_numeric_dtype(serie) or pd.api.types.is_datetime64_any_dtype(serie):
+        return serie
+    # Vazio vira None e vai para o fim
+    textos = serie.map(lambda v: _chave_ordem(str(v)) if isinstance(v, str) and v.strip() else None)
+    if serie.name in ("impacto_avaliado_3_pond_cenario", "viabilidade"):
+        return textos.map(lambda t: next((n for pre, n in NIVEL_CLASSE.items() if t and t.startswith(pre)), None))
+    return textos
+
+
+def _ordenar(df: pd.DataFrame, ordem: tuple) -> pd.DataFrame:
+    """Ordena a lista filtrada; vazios sempre no fim. Ordenação estável: empates mantêm a ordem do IC."""
+    if ordem == ORDEM_PADRAO:
+        return df
+    coluna, _ = ORDENACAO[ordem[0]]
+    return df.sort_values(coluna, ascending=ordem[1] == "asc", na_position="last", kind="mergesort",
+                          key=_chave_ordenacao).reset_index(drop=True)
+
+
+def _ao_ordenar() -> None:
+    """Callback do clique num título de coluna (vem do script da tabela): avança o ciclo e volta à página 1."""
+    clique = (st.session_state.get("tabela_home") or {}).get("ordenar") or {}
+    col_id = clique.get("coluna")
+    if col_id in ORDENACAO:
+        st.session_state["home_ordem"] = _proxima_ordem(col_id, st.session_state.get("home_ordem", ORDEM_PADRAO))
+        st.session_state["home_page"] = 1
+
+
+def _atributos_th(col_id: str, rotulo: str, ordem: tuple) -> tuple:
+    """(atributos extras do <th>, conteúdo). Colunas ordenáveis ganham data-ordem e a setinha
+    (▼/▲ na coluna ativa, ↕ só ao passar o mouse)."""
+    if col_id not in ORDENACAO:
+        return "", rotulo
+    if ordem[0] == col_id:
+        seta = f'<span class="th-seta">{"▼" if ordem[1] == "desc" else "▲"}</span>'
+    else:
+        seta = '<span class="th-seta th-seta-hover">↕</span>'
+    return f' data-ordem="{col_id}" title="Ordenar por {rotulo}"', f"{rotulo}{seta}"
+
+
+def render_table_html(df_page: pd.DataFrame, active_columns: list = None, ordem: tuple = ORDEM_PADRAO):
     """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas com colunas desacopladas."""
     if not active_columns:
         active_columns = DEFAULT_ACTIVE_COLUMNS
@@ -295,12 +467,12 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
         th_class = cfg.get("th_class", "tc")
         th_style = cfg.get("th_style", "")
         style_attr = f' style="{th_style}"' if th_style else ""
-        ths_html += f'<th class="{th_class}"{style_attr}>{cfg["label"]}</th>'
+        extras, conteudo = _atributos_th(col_id, cfg["label"], ordem)
+        ths_html += f'<th class="{th_class}"{style_attr}{extras}>{conteudo}</th>'
 
     # Linhas da tabela
     rows_html = ""
     for _, r in df_page.iterrows():
-        id_emp = int(r["id_empreendimento"])
         tds_html = ""
         for col_id in cols_to_render:
             cfg = AVAILABLE_COLUMNS[col_id]
@@ -308,11 +480,7 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
             content = cfg["render"](r)
             tds_html += f'<td class="{td_class}">{content}</td>'
 
-        rows_html += (
-            f'<tr onclick="window.location.href=\'{estado_url.link_empreendimento(id_emp)}\'">'
-            f'{tds_html}'
-            '</tr>'
-        )
+        rows_html += f'<tr>{tds_html}</tr>'
 
     table_html = (
         '<table class="home-atlas-table">'
@@ -320,7 +488,7 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
         f'<tbody>{rows_html}</tbody>'
         '</table>'
     )
-    st.markdown(table_html, unsafe_allow_html=True)
+    _tabela_home(data=table_html, isolate_styles=False, key="tabela_home", on_ordenar_change=_ao_ordenar)
 
 
 def render_pagination(
@@ -413,66 +581,206 @@ def render_pagination(
             st.rerun()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# FILTROS (declarativos): (parâmetro na URL, rótulo, coluna do DataFrame)
+# A chave do widget é "filtro_<parâmetro>". Para incluir um filtro, basta uma linha aqui.
+# ─────────────────────────────────────────────────────────────────────────────
+
+CARTEIRAS_HOME = {"Recomendada": "recomendada", "Otimizada": "otimizada", "De análise": "analise"}
+
+# Seleção múltipla sempre visível (duas linhas de 4)
+FILTROS_PRINCIPAIS = [
+    ("setor", "Setor", "setor"),
+    ("status", "Status", "descr_status_empreendimento"),
+    ("origem", "Origem", "origem_ajustada"),
+    ("esfera", "Esfera", "esfera_acao"),
+    ("impacto", "Impacto", "impacto_avaliado_3_pond_cenario"),
+    ("viabilidade", "Viabilidade", "viabilidade"),
+    ("natureza", "Natureza", "natureza_empreendimento"),
+    ("intervencao", "Intervenção Principal", "intervencao_principal"),
+]
+# Seleção múltipla dentro de "Mais filtros"
+FILTROS_MAIS = [
+    ("municipio", "Município", "municipios"),
+    ("regiao", "Região Intermediária", "regioes_intermediarias"),
+]
+# Sliders de faixa dentro de "Mais filtros"; os limites acompanham a carteira ativa
+FILTROS_FAIXA = [
+    ("total", "Valor Total", "valor_total"),
+    ("tirm", "TIRM", "tirm"),
+    ("ic", "Índice (IC)", "ic_3_pond"),
+]
+
+# Colunas cujo valor é uma lista: o filtro casa se QUALQUER item estiver selecionado
+COLUNAS_LISTA = {"intervencoes", "tipos_infraestruturas", "municipios", "regioes_intermediarias"}
+
+# Regiões intermediárias exibidas (as 13 de MG); regiões de outros estados vizinhos ficam de fora
+# do filtro e da coluna da tabela
+REGIOES_INTERMEDIARIAS_MG = {
+    "Barbacena", "Belo Horizonte", "Divinópolis", "Governador Valadares", "Ipatinga",
+    "Juiz de Fora", "Montes Claros", "Patos de Minas", "Pouso Alegre", "Teófilo Otoni",
+    "Uberaba", "Uberlândia", "Varginha",
+}
+
+# Degraus dos sliders de R$: a maioria dos valores é pequena, uma escala linear os esmagaria no início
+DEGRAUS_REAIS = [0.0, 1e6, 5e6, 1e7, 5e7, 1e8, 5e8, 1e9, 5e9, 1e10, 5e10, 1e11, 5e11, 1e12]
+
+
+def _chave_ordem(texto: str) -> str:
+    """Ordena ignorando acentos ('Águas' junto de 'Aguanil', não depois de 'Z')."""
+    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode().lower()
+
+
+def _opcoes(df: pd.DataFrame, coluna: str) -> list:
+    valores = df[coluna].explode() if coluna in COLUNAS_LISTA else df[coluna]
+    return sorted({str(v) for v in valores.dropna() if str(v).strip()}, key=_chave_ordem)
+
+
+def _degraus_reais(maximo: float) -> list:
+    """Degraus até o primeiro que cobre o máximo da carteira (ex.: máximo 60 bi -> ... 50 bi, 100 bi)."""
+    teto = next((d for d in DEGRAUS_REAIS if d >= maximo), DEGRAUS_REAIS[-1])
+    return [d for d in DEGRAUS_REAIS if d <= teto] if teto > 0 else DEGRAUS_REAIS[:2]
+
+
+def _degraus_ic(serie: pd.Series) -> list:
+    """Passos de 0,01 cobrindo o menor e o maior IC da carteira."""
+    inicio, fim = math.floor(serie.min() * 100), math.ceil(serie.max() * 100)
+    return [round(v / 100, 2) for v in range(inicio, max(fim, inicio + 1) + 1)]
+
+
+def _degraus_tirm(serie: pd.Series) -> list:
+    """Passos de 1 ponto percentual (TIRM em fração) cobrindo a menor e a maior TIRM da carteira."""
+    serie = serie.dropna()
+    if serie.empty:
+        return [0.0, 0.01]
+    inicio, fim = math.floor(serie.min() * 100), math.ceil(serie.max() * 100)
+    return [round(v / 100, 2) for v in range(inicio, max(fim, inicio + 1) + 1)]
+
+
+def _fmt_ic_faixa(val) -> str:
+    return f"{val:.2f}".replace(".", ",")
+
+
+# Rótulo dos degraus de cada slider de faixa
+FORMATO_FAIXA = {"total": fmt_brl_compacto, "tirm": lambda v: fmt_pct_br(v * 100, 0), "ic": _fmt_ic_faixa}
+
+
+def _preparar_lista(param: str, opcoes: list) -> list:
+    """Estado do multiselect: semeado pela URL no início da sessão e sempre restrito às opções atuais
+    (as opções mudam com a carteira; um valor fora delas derruba o widget)."""
+    chave = f"filtro_{param}"
+    if estado_url.inicio_da_sessao() and chave not in st.session_state:
+        st.session_state[chave] = estado_url.ler_lista(param, opcoes)
+    st.session_state[chave] = [v for v in st.session_state.get(chave, []) if v in opcoes]
+    return st.session_state[chave]
+
+
+def _preparar_faixa(param: str, opcoes: list) -> tuple:
+    """Estado do slider de faixa; volta à faixa completa se o valor não existir nos degraus atuais."""
+    chave = f"filtro_{param}"
+    padrao = (opcoes[0], opcoes[-1])
+    if estado_url.inicio_da_sessao() and chave not in st.session_state:
+        st.session_state[chave] = estado_url.ler_faixa(param, opcoes) or padrao
+    atual = tuple(st.session_state.get(chave, padrao))
+    # Faixa completa da carteira anterior continua "completa" na nova (os limites mudam com a carteira)
+    padrao_anterior = st.session_state.get(f"_{chave}_padrao", padrao)
+    if len(atual) != 2 or not all(v in opcoes for v in atual) or atual == padrao_anterior:
+        atual = padrao
+    st.session_state[f"_{chave}_padrao"] = padrao
+    st.session_state[chave] = atual
+    return atual
+
+
+def _limpar_filtros():
+    """Callback do botão "Limpar filtros" (mantém a carteira escolhida)."""
+    for param, _, _ in FILTROS_PRINCIPAIS + FILTROS_MAIS:
+        st.session_state[f"filtro_{param}"] = []
+    for param, _, _ in FILTROS_FAIXA:
+        st.session_state.pop(f"filtro_{param}", None)
+    st.session_state["busca_termo"] = ""
+
+
+def _aplicar_filtros(df: pd.DataFrame, busca: str, selecoes: dict, faixas: dict, opcoes_faixa: dict) -> pd.DataFrame:
+    if busca:
+        termo = busca.lower()
+        id_mask = df["id_empreendimento"].astype(str).str.contains(termo, regex=False, na=False)
+        nome_mask = df["nome_empreendimento"].astype(str).str.lower().str.contains(termo, regex=False, na=False)
+        df = df[id_mask | nome_mask]
+
+    for param, _, coluna in FILTROS_PRINCIPAIS + FILTROS_MAIS:
+        escolhidos = set(selecoes[param])
+        if not escolhidos:
+            continue
+        if coluna in COLUNAS_LISTA:
+            df = df[df[coluna].map(lambda itens: not escolhidos.isdisjoint(itens))]
+        else:
+            df = df[df[coluna].astype(str).isin(escolhidos)]
+
+    for param, _, coluna in FILTROS_FAIXA:
+        minimo, maximo = faixas[param]
+        if (minimo, maximo) != (opcoes_faixa[param][0], opcoes_faixa[param][-1]):
+            df = df[df[coluna].between(minimo, maximo)]
+    return df
+
+
 def render():
     """Função principal da tela Home."""
     inject_css("home")
-    botao_chatbot = st.empty()  # preenchido depois que o estado atual é gravado na URL
+    _filtros_toggle(key="filtros_toggle")  # só instala o script; não desenha nada
+    # Barra e botão do chatbot são redesenhados no fim, depois que o estado atual é gravado na URL.
+    # Já saem desenhados aqui (com os links da URL atual) para o espaço não ficar vazio durante o
+    # rerun: vazio, a página "dá um tranco" de 16px a cada clique (erros_solucoes.md, caso 12).
+    barra_nav = st.empty()
+    botao_chatbot = st.empty()
+    render_navbar("home", barra_nav)
+    render_chatbot_button(botao_chatbot)
     render_header()
 
-    df_base = data_loader.get_empreendimentos()
+    # ── Carteira ativa (URL -> sessão no início; aceita o nome antigo "completa") ──
+    rotulo_por_slug = {slug: rotulo for rotulo, slug in CARTEIRAS_HOME.items()}
+    if estado_url.inicio_da_sessao():
+        slug_url = estado_url.ler("carteira", rotulo_por_slug, data_loader.slug_carteira)
+        if slug_url:
+            st.session_state["filtro_carteira"] = rotulo_por_slug[slug_url]
+    if st.session_state.get("filtro_carteira") not in CARTEIRAS_HOME:
+        st.session_state["filtro_carteira"] = "Recomendada"
+    slug_carteira = CARTEIRAS_HOME[st.session_state["filtro_carteira"]]
 
-    if df_base.empty:
+    df_emp = data_loader.get_empreendimentos(slug_carteira)
+
+    if df_emp.empty:
         st.error(
-            "Nenhum dado encontrado em `data/processed/empreendimentos_priorizacao.parquet`.\n"
+            "Nenhum dado encontrado em `data/processed/carteiras.parquet`.\n"
             "Execute o script `scripts/process_data.py` para processar a base de dados."
         )
+        render_navbar("home", barra_nav)
         render_chatbot_button(botao_chatbot)
         return
 
-    # ── Mapeamento das Carteiras Metodológicas ──
-    carteiras_map = {
-        "Carteira Recomendada (1.044)": {
-            "slug": "recomendada",
-            "fonte": "cenario recomendado",
-            "titulo": "Carteira Recomendada",
-        },
-        "Carteira Otimizada (1.059)": {
-            "slug": "otimizada",
-            "fonte": "cenario otimizado",
-            "titulo": "Carteira Otimizada",
-        },
-        "Carteira Completa (1.682)": {
-            "slug": "completa",
-            "fonte": "priorizacao geral",
-            "titulo": "Carteira Completa",
-        },
-    }
-    lista_carteiras = list(carteiras_map.keys())
-    label_por_slug = {cfg["slug"]: label for label, cfg in carteiras_map.items()}
-
-    if estado_url.inicio_da_sessao():
-        slug_url = estado_url.ler("carteira", label_por_slug)
-        if slug_url:
-            st.session_state["home_carteira_selecionada"] = label_por_slug[slug_url]
-
-    if "home_carteira_selecionada" not in st.session_state or st.session_state["home_carteira_selecionada"] not in carteiras_map:
-        st.session_state["home_carteira_selecionada"] = lista_carteiras[0]
-
-    carteira_ativa = st.session_state["home_carteira_selecionada"]
-    config_carteira = carteiras_map[carteira_ativa]
-
-    # Filtra e ordena a base pela carteira selecionada
-    if "fonte_priorizacao" in df_base.columns:
-        df_emp = df_base[df_base["fonte_priorizacao"] == config_carteira["fonte"]].copy()
-    else:
-        df_emp = df_base.copy()
-
-    if "ic_3_pond" in df_emp.columns:
-        df_emp["ic_3_pond"] = pd.to_numeric(df_emp["ic_3_pond"], errors="coerce")
-        df_emp = df_emp.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
+    df_emp["regioes_intermediarias"] = df_emp["regioes_intermediarias"].map(
+        lambda regioes: [r for r in regioes if r in REGIOES_INTERMEDIARIAS_MG]
+    )
 
     # Renderiza KPIs específicos da carteira ativa
     render_kpis(df_emp)
+
+    # ── Estado dos filtros (antes dos widgets: opções dependem da carteira) ──
+    opcoes_lista = {param: _opcoes(df_emp, coluna) for param, _, coluna in FILTROS_PRINCIPAIS + FILTROS_MAIS}
+    opcoes_faixa = {
+        "total": _degraus_reais(df_emp["valor_total"].max()),
+        "tirm": _degraus_tirm(df_emp["tirm"]),
+        "ic": _degraus_ic(df_emp["ic_3_pond"]),
+    }
+    selecoes = {param: _preparar_lista(param, opcoes) for param, opcoes in opcoes_lista.items()}
+    faixas = {param: _preparar_faixa(param, opcoes) for param, opcoes in opcoes_faixa.items()}
+    estado_url.semear_widget("busca_termo", "q")
+
+    # "Mais filtros" abre sozinho só se o link já vier com algum desses filtros ativo
+    if "_home_mais_filtros_aberto" not in st.session_state:
+        st.session_state["_home_mais_filtros_aberto"] = (
+            any(selecoes[p] for p, _, _ in FILTROS_MAIS)
+            or any(faixas[p] != (opcoes_faixa[p][0], opcoes_faixa[p][-1]) for p, _, _ in FILTROS_FAIXA)
+        )
 
     # Painel de Filtros e Busca
     st.markdown(
@@ -482,98 +790,43 @@ def render():
                 Pesquisa e Filtros da Carteira
             </div>
             <div class="filter-panel-subtitle">
-                Refine a listagem por carteira metodológica, busca textual, setor, esfera, classificação, viabilidade, origem ou vocação
+                Escolha a carteira e refine a listagem; filtro vazio considera todos
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Linha 1 de Filtros: Busca textual, Setor, Esfera e Seletor de Carteira
-    f_col1, f_col2, f_col3, f_col4 = st.columns([2.6, 1.4, 1.4, 2.0])
+    c_carteira, c_busca = st.columns([1.4, 5.4], vertical_alignment="bottom")
+    c_carteira.selectbox("Carteira", list(CARTEIRAS_HOME), key="filtro_carteira")
+    busca = c_busca.text_input(
+        "Buscar por Nome ou Código ID",
+        placeholder="Ex: Ferrovia Centro-Atlântica, BR-381, 113...",
+        key="busca_termo",
+    ).strip()
 
-    with f_col1:
-        estado_url.semear_widget("busca_termo", "q")
-        busca = st.text_input(
-            "Buscar por Nome ou Código ID:",
-            placeholder="Ex: Ferrovia Centro-Atlântica, BR-381, 113...",
-            key="busca_termo",
-        )
+    for linha in (FILTROS_PRINCIPAIS[:4], FILTROS_PRINCIPAIS[4:]):
+        for coluna_ui, (param, rotulo, _) in zip(st.columns(4), linha):
+            coluna_ui.multiselect(rotulo, opcoes_lista[param], key=f"filtro_{param}", placeholder="Todos")
 
-    with f_col2:
-        setores = ["Todos"] + sorted([str(x) for x in df_emp["setor"].dropna().unique() if str(x).strip()]) if "setor" in df_emp.columns else ["Todos"]
-        estado_url.semear_widget("filtro_setor", "setor", setores)
-        filtro_setor = st.selectbox("Setor:", setores, key="filtro_setor")
+    with st.expander("Mais filtros", expanded=st.session_state["_home_mais_filtros_aberto"]):
+        for coluna_ui, (param, rotulo, _) in zip(st.columns(len(FILTROS_MAIS)), FILTROS_MAIS):
+            coluna_ui.multiselect(rotulo, opcoes_lista[param], key=f"filtro_{param}", placeholder="Todos")
+        for coluna_ui, (param, rotulo, _) in zip(st.columns(3), FILTROS_FAIXA):
+            opcoes = opcoes_faixa[param]
+            # value= em tupla é o que faz o select_slider ter duas alças (faixa); o valor atual vem da sessão
+            faixas[param] = coluna_ui.select_slider(
+                rotulo,
+                options=opcoes,
+                value=(opcoes[0], opcoes[-1]),
+                key=f"filtro_{param}",
+                format_func=FORMATO_FAIXA[param],
+            )
 
-    with f_col3:
-        esferas = ["Todas"] + sorted([str(x) for x in df_emp["esfera_acao"].dropna().unique() if str(x).strip()]) if "esfera_acao" in df_emp.columns else ["Todas"]
-        estado_url.semear_widget("filtro_esfera", "esfera", esferas)
-        filtro_esfera = st.selectbox("Esfera:", esferas, key="filtro_esfera")
-
-    with f_col4:
-        cur_idx = lista_carteiras.index(carteira_ativa)
-        carteira_escolhida = st.selectbox(
-            "Carteira:",
-            options=lista_carteiras,
-            index=cur_idx,
-            key="filtro_carteira_select",
-        )
-        if carteira_escolhida != carteira_ativa:
-            st.session_state["home_carteira_selecionada"] = carteira_escolhida
-            st.session_state["home_page"] = 1
-            st.rerun()
-
-    # Linha 2 de Filtros: Classificação (Impacto), Viabilidade, Origem Ajustada e Vocação
-    col_impacto = "impacto_avaliado_3_pond_cenario"
-    g_col1, g_col2, g_col3, g_col4 = st.columns([1.5, 1.5, 1.5, 2.9])
-
-    with g_col1:
-        impactos = ["Todos"] + sorted([str(x) for x in df_emp[col_impacto].dropna().unique() if str(x).strip()]) if col_impacto in df_emp.columns else ["Todos"]
-        estado_url.semear_widget("filtro_impacto", "classificacao", impactos)
-        filtro_impacto = st.selectbox("Classificação:", impactos, key="filtro_impacto")
-
-    with g_col2:
-        viabilidades = ["Todas"] + sorted([str(x) for x in df_emp["viabilidade"].dropna().unique() if str(x).strip()]) if "viabilidade" in df_emp.columns else ["Todas"]
-        estado_url.semear_widget("filtro_viabilidade", "viabilidade", viabilidades)
-        filtro_viabilidade = st.selectbox("Viabilidade:", viabilidades, key="filtro_viabilidade")
-
-    with g_col3:
-        origens = ["Todas"] + sorted([str(x) for x in df_emp["origem_ajustada"].dropna().unique() if str(x).strip()]) if "origem_ajustada" in df_emp.columns else ["Todas"]
-        estado_url.semear_widget("filtro_origem", "origem", origens)
-        filtro_origem = st.selectbox("Origem Ajustada:", origens, key="filtro_origem")
-
-    with g_col4:
-        vocacoes = ["Todas"] + sorted([str(x) for x in df_emp["vocacao"].dropna().unique() if str(x).strip()]) if "vocacao" in df_emp.columns else ["Todas"]
-        estado_url.semear_widget("filtro_vocacao", "vocacao", vocacoes)
-        filtro_vocacao = st.selectbox("Vocação:", vocacoes, key="filtro_vocacao")
-
-    # Aplicação dos Filtros
-    df_filtrado = df_emp.copy()
-
-    if busca.strip():
-        termo = busca.strip().lower()
-        id_mask = df_filtrado["id_empreendimento"].astype(str).str.contains(termo, case=False, na=False)
-        nome_mask = df_filtrado["nome_empreendimento"].astype(str).str.lower().str.contains(termo, na=False)
-        df_filtrado = df_filtrado[id_mask | nome_mask]
-
-    filtros_categoricos = [
-        (filtro_setor, "setor", "Todos"),
-        (filtro_esfera, "esfera_acao", "Todas"),
-        (filtro_impacto, col_impacto, "Todos"),
-        (filtro_viabilidade, "viabilidade", "Todas"),
-        (filtro_origem, "origem_ajustada", "Todas"),
-        (filtro_vocacao, "vocacao", "Todas"),
-    ]
-
-    for val, col, default_val in filtros_categoricos:
-        if val != default_val and col in df_filtrado.columns:
-            df_filtrado = df_filtrado[df_filtrado[col] == val]
-
-    # Ordenação defensiva estrita por ic_3_pond decrescente
-    if "ic_3_pond" in df_filtrado.columns:
-        df_filtrado["ic_3_pond"] = pd.to_numeric(df_filtrado["ic_3_pond"], errors="coerce")
-        df_filtrado = df_filtrado.sort_values(by="ic_3_pond", ascending=False).reset_index(drop=True)
-
+    if "home_ordem" not in st.session_state:
+        st.session_state["home_ordem"] = _ler_ordem()
+    ordem = st.session_state["home_ordem"]
+    df_filtrado = _ordenar(_aplicar_filtros(df_emp, busca, selecoes, faixas, opcoes_faixa).reset_index(drop=True), ordem)
     total_filtrado = len(df_filtrado)
 
     # ── Estado da tabela (colunas e paginação), lido da URL no início da sessão ──
@@ -586,8 +839,7 @@ def render():
         st.session_state["home_page_size"] = estado_url.ler("itens", PAGE_SIZE_OPTIONS, int) or 25
 
     # Qualquer mudança de filtro volta a listagem para a página 1
-    assinatura = (carteira_ativa, busca.strip(), filtro_setor, filtro_esfera, filtro_impacto,
-                  filtro_viabilidade, filtro_origem, filtro_vocacao)
+    assinatura = (slug_carteira, busca, tuple(tuple(v) for v in selecoes.values()), tuple(faixas.values()))
     if st.session_state.get("_home_assinatura_filtros", assinatura) != assinatura:
         st.session_state["home_page"] = 1
     st.session_state["_home_assinatura_filtros"] = assinatura
@@ -601,36 +853,39 @@ def render():
 
     estado_url.gravar(
         {
-            "carteira": config_carteira["slug"], "q": busca.strip(),
-            "setor": filtro_setor, "esfera": filtro_esfera, "classificacao": filtro_impacto,
-            "viabilidade": filtro_viabilidade, "origem": filtro_origem, "vocacao": filtro_vocacao,
+            "carteira": slug_carteira, "q": busca,
+            **{param: estado_url.texto_lista(valores) for param, valores in selecoes.items()},
+            **{param: estado_url.texto_faixa(faixas[param], (op[0], op[-1])) for param, op in opcoes_faixa.items()},
             "pg": st.session_state["home_page"], "itens": page_size, "cols": ",".join(colunas_ativas),
+            # ordem padrão (IC decrescente) fica fora da URL
+            "ordem": "" if ordem == ORDEM_PADRAO else ordem[0], "sentido": "" if ordem == ORDEM_PADRAO else ordem[1],
         },
-        padroes={
-            "carteira": "recomendada", "setor": "Todos", "esfera": "Todas", "classificacao": "Todos",
-            "viabilidade": "Todas", "origem": "Todas", "vocacao": "Todas",
-            "pg": 1, "itens": 25, "cols": ",".join(DEFAULT_ACTIVE_COLUMNS),
-        },
+        padroes={"carteira": "recomendada", "pg": 1, "itens": 25, "cols": ",".join(DEFAULT_ACTIVE_COLUMNS)},
     )
     estado_url.marcar_sessao_iniciada()
+    render_navbar("home", barra_nav)
     render_chatbot_button(botao_chatbot)
 
-    # ── Cabeçalho da Tabela com Botão de Personalização Integrado ──
+    # ── Cabeçalho da Tabela: título | botão redondo "Limpar filtros" | "Personalizar Colunas" ──
+    # A ordem das colunas importa: o CSS identifica cada botão pela posição (home.css)
 
-    col_hdr_title, col_hdr_btn = st.columns([0.76, 0.24], vertical_alignment="bottom")
+    col_hdr_title, col_hdr_limpar, col_hdr_btn = st.columns([0.80, 0.045, 0.155], vertical_alignment="bottom")
     with col_hdr_title:
         st.markdown(
             f'<div class="carteira-header-title">'
-            f'Carteira de Empreendimentos Priorizados — {config_carteira["titulo"]}'
+            f'Carteira de Empreendimentos Priorizados — {data_loader.CARTEIRAS[slug_carteira]}'
             f'</div>',
             unsafe_allow_html=True,
         )
+    with col_hdr_limpar:
+        # O texto fica escondido pelo CSS (aparece só a vassoura); a dica aparece ao passar o mouse
+        st.button("Limpar filtros", key="btn_limpar_filtros", on_click=_limpar_filtros, help="Limpar filtros")
     with col_hdr_btn:
         if st.button(
             "Personalizar Colunas",
             key="btn_abrir_modal_colunas",
             help="Personalizar ordem e visibilidade das colunas na tabela",
-            use_container_width=True,
+            width="stretch",
         ):
             modal_personalizar_colunas()
 
@@ -646,7 +901,7 @@ def render():
 
     # 1. Fatia e renderiza a tabela estilizada com colunas desacopladas
     df_page = df_filtrado.iloc[start_idx:end_idx]
-    render_table_html(df_page, active_columns=colunas_ativas)
+    render_table_html(df_page, active_columns=colunas_ativas, ordem=ordem)
 
     # 2. Barra de paginação numérica minimalista (< 1 ... 5 [6] 7 ... 17 >)
     render_pagination(

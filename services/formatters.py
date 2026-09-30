@@ -128,3 +128,21 @@ def fmt_bilhoes_br(valor: Any, com_cifrao: bool = True) -> str:
 
     prefixo = "R$ " if com_cifrao else ""
     return f"{prefixo}{num_str} Bi"
+
+
+def fmt_brl_compacto(valor: Any) -> str:
+    """
+    Formata valor monetário abreviado: 1911299822 -> 'R$ 1,9 bi'; 8425049 -> 'R$ 8,4 mi'; 0 -> 'R$ 0'.
+    Retorna '-' caso o valor seja nulo ou inválido.
+    """
+    if pd.isna(valor) or valor is None:
+        return "-"
+    try:
+        val = float(valor)
+    except (ValueError, TypeError):
+        return "-"
+    for limite, sufixo in ((1e9, "bi"), (1e6, "mi"), (1e3, "mil")):
+        if abs(val) >= limite:
+            numero = f"{val / limite:.1f}".replace(".", ",").removesuffix(",0")
+            return f"R$ {numero} {sufixo}"
+    return f"R$ {val:.0f}"
