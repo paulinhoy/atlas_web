@@ -22,6 +22,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 12. [Página "Dá um Tranco" a Cada Clique na Home (`st.empty` Vazio Durante o Rerun)](#caso-12-página-dá-um-tranco-a-cada-clique-na-home-stempty-vazio-durante-o-rerun)
 13. [Clique em Gráfico Altair Quebra com "Selections are not yet supported for multi-view charts"](#caso-13-clique-em-gráfico-altair-quebra-com-selections-are-not-yet-supported-for-multi-view-charts)
 14. [Migração do Streamlit 1.36 para 1.51: Seletores CSS Renomeados](#caso-14-migração-do-streamlit-136-para-151-seletores-css-renomeados)
+15. [Ordenar a Tabela Recarregava a Página; `AppTest` Não Monta Componente v2](#caso-15-ordenar-a-tabela-recarregava-a-página-apptest-não-monta-componente-v2)
 
 ---
 
@@ -366,6 +367,26 @@ Além disso, o 1.51 carrega a fonte com peso 300 (o 1.36 caía no 400) e o estil
 3. `use_container_width=True` → `width="stretch"`.
 4. Comparar capturas de tela das duas versões lado a lado (Playwright, dados sintéticos) antes de pedir a conferência no navegador.
 5. Dependências: `requirements.txt` fixa os pacotes que afetam a tela; `requirements.lock.txt` (gerado com `uv pip compile --universal --python-version 3.12`) fixa tudo, igual no Windows e no Ubuntu 20.04 (glibc 2.31).
+
+---
+
+## Caso 15: Ordenar a Tabela Recarregava a Página; `AppTest` Não Monta Componente v2
+
+* **Data:** 30/09/2026
+* **Componentes Afetados:** `views/home.py`, `assets/css/home.css`, teste automático (`docs/frontend.md`, 7.1)
+* **Tecnologia:** `streamlit==1.51.0` (`st.components.v2`)
+
+### 🛑 Contexto e Sintoma
+1. A primeira versão da ordenação pelo cabeçalho usava links (`<a href="?ordem=...">`). Todo link recarrega a página: a tela inteira piscava e voltava ao topo a cada clique.
+2. Ao trocar a tabela por um componente v2, o `AppTest` passou a falhar na Home com `TypeError: bad argument type for built-in operation` (em `bidi_component/main.py`, `js_content`), embora o app funcione no navegador.
+
+### 🔍 Causa Raiz
+1. `st.markdown` descarta JavaScript, então um clique no HTML só chegava ao Python por link (nova sessão). Botões do Streamlit não cabem dentro de uma tabela HTML.
+2. O `AppTest` do 1.51 não monta componentes v2 (reproduzido com um componente mínimo, fora do nosso código).
+
+### ✅ Solução Adotada
+1. A tabela passou a ser exibida por `st.components.v2.component(...)` com `isolate_styles=False`: o HTML fica na própria página (o CSS da Home vale), e um script de poucas linhas chama `setTriggerValue("ordenar", {coluna, t: Date.now()})` no clique do `<th data-ordem>`. O `Date.now()` faz o segundo clique na mesma coluna também contar. O callback `on_ordenar_change` atualiza `st.session_state["home_ordem"]`; a URL é gravada como os filtros. Conferido no navegador (Playwright): um marcador em `window` sobrevive ao clique (não recarrega) e a rolagem não se move.
+2. No teste automático, substituir o componente por `st.markdown` antes de rodar: `views.home._tabela_home = lambda data, **kw: st.markdown(data, unsafe_allow_html=True)`.
 
 ---
 

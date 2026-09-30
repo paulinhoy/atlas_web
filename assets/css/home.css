@@ -71,16 +71,13 @@
     letter-spacing: 0.25px;
     border: none;
 }
-/* Ordenação pelo cabeçalho: o título é um link com a mesma cara do texto; setinha ▼/▲ na coluna
-   ativa e ↕ só ao passar o mouse (invisível, mas ocupando o espaço, para a largura não "pular") */
-.home-atlas-table thead th a.th-ordem {
-    color: inherit !important;
-    text-decoration: none !important;
-    cursor: pointer;
-}
+/* Ordenação pelo cabeçalho: títulos com data-ordem são clicáveis (o script da tabela avisa o Python);
+   setinha ▼/▲ na coluna ativa e ↕ só ao passar o mouse (invisível, mas ocupando o espaço,
+   para a largura não "pular") */
+.home-atlas-table thead th[data-ordem] { cursor: pointer; user-select: none; }
 .home-atlas-table .th-seta { font-size: 10px; margin-left: 4px; opacity: 0.85; }
 .home-atlas-table .th-seta-hover { opacity: 0; transition: opacity 0.15s ease; }
-.home-atlas-table thead th a.th-ordem:hover .th-seta-hover { opacity: 0.6; }
+.home-atlas-table thead th[data-ordem]:hover .th-seta-hover { opacity: 0.6; }
 .home-atlas-table tbody td {
     padding: 0.55rem 0.75rem;
     border-bottom: 1px solid #eef2f7;

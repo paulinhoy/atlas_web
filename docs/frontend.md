@@ -246,7 +246,7 @@ Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&total=1000000
 
 **Para incluir um filtro novo na Home:** acrescente uma linha `(parâmetro na URL, rótulo, coluna)` em `FILTROS_PRINCIPAIS` (sempre visível) ou `FILTROS_MAIS` (dentro de "Mais filtros") em `views/home.py`. Opções, URL, "Limpar filtros", volta à página 1 e a filtragem saem dessa lista. Se a coluna for uma lista, inclua-a também em `COLUNAS_LISTA`. Slider de faixa: `FILTROS_FAIXA` + os degraus em `opcoes_faixa` + o rótulo em `FORMATO_FAIXA`.
 
-**Ordenação pelo cabeçalho (Home):** o título de cada coluna ordenável é um link (`_titulo_coluna` em `views/home.py`) que recarrega a página com `ordem`/`sentido` na URL e volta para a página 1. Ciclo de cliques: primeiro sentido → oposto → padrão (IC decrescente). Valores começam pelo maior; textos e Período, pelo A→Z/mais antigo; Impacto e Viabilidade pela classe (Alto → Médio → Baixo). Vazios ficam sempre no fim, e empates mantêm a ordem do IC. Para tornar uma coluna ordenável (ou mudar o primeiro sentido), edite `ORDENACAO`. A setinha ▼/▲ marca a coluna ativa; ↕ aparece só ao passar o mouse (`home.css`).
+**Ordenação pelo cabeçalho (Home):** a tabela é exibida por um **componente v2** (`_tabela_home` em `views/home.py`), montado direto na página (sem iframe, com o CSS da página). O HTML é o mesmo de antes; os títulos ordenáveis levam `data-ordem="<coluna>"` e um script curto (`_JS_TABELA`) avisa o Python do clique (`setTriggerValue`). O callback `_ao_ordenar` avança o ciclo, guarda a ordem em `st.session_state["home_ordem"]` e volta para a página 1 — **sem recarregar a página nem perder a rolagem**. A ordem vai para a URL (`ordem`/`sentido`) e é lida dela ao abrir o link. Ciclo de cliques: primeiro sentido → oposto → padrão (IC decrescente). Valores começam pelo maior; textos e Período, pelo A→Z/mais antigo; Impacto e Viabilidade pela classe (Alto → Médio → Baixo). Vazios ficam sempre no fim, e empates mantêm a ordem do IC. Para tornar uma coluna ordenável (ou mudar o primeiro sentido), edite `ORDENACAO`. A setinha ▼/▲ marca a coluna ativa; ↕ aparece só ao passar o mouse (`home.css`).
 
 **Como os filtros funcionam:**
 - Seleção múltipla vazia = todos. As opções vêm da carteira ativa; ao trocar de carteira, itens que não existem mais são descartados.
@@ -279,7 +279,12 @@ O Streamlit renderiza as páginas em memória com `AppTest`. Salve como script t
 
 ```python
 # smoke_ui.py — rode com: PYTHONPATH=. .venv/Scripts/python.exe smoke_ui.py
+import streamlit as st
+import views.home as home_view
 from streamlit.testing.v1 import AppTest
+
+# O AppTest (1.51) não monta componentes v2 (erros_solucoes.md, caso 15): no teste a tabela vira st.markdown
+home_view._tabela_home = lambda data, **kw: st.markdown(data, unsafe_allow_html=True)
 
 def run(params=None):
     at = AppTest.from_file("app.py", default_timeout=120)
@@ -320,7 +325,7 @@ Compare as declarações CSS efetivas antes/depois por seletor (resolvendo `var(
 |---|---|
 | **Seletores dependentes da versão do Streamlit** | O CSS usa nomes internos (`data-testid`) do Streamlit 1.51: `stColumn`, `stElementContainer`, `stMainBlockContainer`, `stDialog`, `stChatMessageAvatarUser`/`Assistant` etc. Eles mudam entre versões (na migração 1.36 → 1.51, quatro mudaram: `erros_solucoes.md`, caso 14). Atualizar o Streamlit exige revisar todos os seletores `[data-testid=...]` e conferir as telas. |
 | **`button[key="..."]` não funciona** | O Streamlit não coloca o atributo `key` no HTML do botão. O botão "Personalizar Colunas" é estilizado pela linha do título (`div[data-testid="stHorizontalBlock"]:has(.carteira-header-title)`). As regras `key` dos botões **dentro** do modal seguem sem efeito — mantidas porque o visual atual do modal está aprovado. Ver `docs/erros_solucoes.md`, caso 7. |
-| **`onclick` em HTML é descartado** | `st.markdown` não executa JavaScript inline (ex.: `<tr onclick=...>` na tabela). Só links `<a href>` funcionam. |
+| **`onclick` em HTML é descartado** | `st.markdown` não executa JavaScript inline. Para reagir a cliques sem recarregar a página, use um componente v2 com `isolate_styles=False`, como a tabela da Home (seção 5). |
 | **Navegar reinicia a sessão** | Links `<a href>` recarregam a página e zeram o `st.session_state`. Por isso o estado da Home vive na URL (`views/estado_url.py`). O que ainda se perde ao navegar: o histórico de conversa do chatbot. |
 | **Valor fora das opções derruba o selectbox** | Colocar em `st.session_state` um valor que não está nas `options` do selectbox gera `"... is not in iterable"` e a página quebra. Todo valor vindo da URL passa por `estado_url.ler(..., opcoes)`. |
 | **Iframes não herdam CSS** | Componentes como `streamlit-sortables` e o mapa Folium rodam em iframe: o CSS da página e os tokens não chegam lá dentro. Por isso `sortable_modal.css` é passado via `custom_style=read_css("sortable_modal")` e usa cores literais. |

@@ -93,16 +93,6 @@ def _link(**extra) -> str:
     return html.escape("?" + urlencode({**extra, **params}))
 
 
-def link_home_com(**alterar) -> str:
-    """href da Home com o estado atual, trocando parâmetros (valor None remove o parâmetro)."""
-    params = {k: v for k, v in st.query_params.items() if k not in PARAMS_NAVEGACAO}
-    for chave, valor in alterar.items():
-        params.pop(chave, None)
-        if valor is not None:
-            params[chave] = valor
-    return html.escape("?" + urlencode(params))
-
-
 def link_empreendimento(empreendimento_id: int) -> str:
     """href da ficha do empreendimento levando o estado atual da Home."""
     return _link(id=empreendimento_id)

@@ -348,6 +348,24 @@ def modal_personalizar_colunas():
             st.rerun()
 
 
+# Tabela exibida por um componente v2 (Streamlit 1.51+): o HTML e o CSS são os mesmos de antes,
+# montados direto na página (sem iframe). O script só avisa o Python quando um título de coluna
+# ordenável (<th data-ordem="...">) é clicado; a ordem muda sem recarregar a página.
+_JS_TABELA = """
+export default function (component) {
+    const { data, parentElement, setTriggerValue } = component;
+    const caixa = parentElement.querySelector(".tabela-home");
+    caixa.innerHTML = data;
+    caixa.onclick = (evento) => {
+        const titulo = evento.target.closest("th[data-ordem]");
+        // Date.now(): clicar duas vezes na mesma coluna também conta como clique novo
+        if (titulo) setTriggerValue("ordenar", { coluna: titulo.dataset.ordem, t: Date.now() });
+    };
+}
+"""
+_tabela_home = st.components.v2.component("atlas_tabela_home", html='<div class="tabela-home"></div>', js=_JS_TABELA)
+
+
 def _ler_ordem() -> tuple:
     """(coluna, sentido) da URL; o padrão quando ausente ou inválido."""
     col_id = estado_url.ler("ordem", ORDENACAO)
@@ -386,21 +404,25 @@ def _ordenar(df: pd.DataFrame, ordem: tuple) -> pd.DataFrame:
                           key=_chave_ordenacao).reset_index(drop=True)
 
 
-def _titulo_coluna(col_id: str, rotulo: str, ordem: tuple) -> str:
-    """Título do cabeçalho; nas colunas ordenáveis vira link com setinha (▼/▲ na ativa, ↕ ao passar o mouse)."""
+def _ao_ordenar() -> None:
+    """Callback do clique num título de coluna (vem do script da tabela): avança o ciclo e volta à página 1."""
+    clique = (st.session_state.get("tabela_home") or {}).get("ordenar") or {}
+    col_id = clique.get("coluna")
+    if col_id in ORDENACAO:
+        st.session_state["home_ordem"] = _proxima_ordem(col_id, st.session_state.get("home_ordem", ORDEM_PADRAO))
+        st.session_state["home_page"] = 1
+
+
+def _atributos_th(col_id: str, rotulo: str, ordem: tuple) -> tuple:
+    """(atributos extras do <th>, conteúdo). Colunas ordenáveis ganham data-ordem e a setinha
+    (▼/▲ na coluna ativa, ↕ só ao passar o mouse)."""
     if col_id not in ORDENACAO:
-        return rotulo
-    proxima = _proxima_ordem(col_id, ordem)
-    href = estado_url.link_home_com(
-        ordem=None if proxima == ORDEM_PADRAO else proxima[0],
-        sentido=None if proxima == ORDEM_PADRAO else proxima[1],
-        pg=None,  # nova ordem volta para a página 1
-    )
+        return "", rotulo
     if ordem[0] == col_id:
         seta = f'<span class="th-seta">{"▼" if ordem[1] == "desc" else "▲"}</span>'
     else:
         seta = '<span class="th-seta th-seta-hover">↕</span>'
-    return f'<a class="th-ordem" href="{href}" target="_self" title="Ordenar por {rotulo}">{rotulo}{seta}</a>'
+    return f' data-ordem="{col_id}" title="Ordenar por {rotulo}"', f"{rotulo}{seta}"
 
 
 def render_table_html(df_page: pd.DataFrame, active_columns: list = None, ordem: tuple = ORDEM_PADRAO):
@@ -417,12 +439,12 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None, ordem:
         th_class = cfg.get("th_class", "tc")
         th_style = cfg.get("th_style", "")
         style_attr = f' style="{th_style}"' if th_style else ""
-        ths_html += f'<th class="{th_class}"{style_attr}>{_titulo_coluna(col_id, cfg["label"], ordem)}</th>'
+        extras, conteudo = _atributos_th(col_id, cfg["label"], ordem)
+        ths_html += f'<th class="{th_class}"{style_attr}{extras}>{conteudo}</th>'
 
     # Linhas da tabela
     rows_html = ""
     for _, r in df_page.iterrows():
-        id_emp = int(r["id_empreendimento"])
         tds_html = ""
         for col_id in cols_to_render:
             cfg = AVAILABLE_COLUMNS[col_id]
@@ -430,11 +452,7 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None, ordem:
             content = cfg["render"](r)
             tds_html += f'<td class="{td_class}">{content}</td>'
 
-        rows_html += (
-            f'<tr onclick="window.location.href=\'{estado_url.link_empreendimento(id_emp)}\'">'
-            f'{tds_html}'
-            '</tr>'
-        )
+        rows_html += f'<tr>{tds_html}</tr>'
 
     table_html = (
         '<table class="home-atlas-table">'
@@ -442,7 +460,7 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None, ordem:
         f'<tbody>{rows_html}</tbody>'
         '</table>'
     )
-    st.markdown(table_html, unsafe_allow_html=True)
+    _tabela_home(data=table_html, isolate_styles=False, key="tabela_home", on_ordenar_change=_ao_ordenar)
 
 
 def render_pagination(
@@ -776,7 +794,9 @@ def render():
                 format_func=FORMATO_FAIXA[param],
             )
 
-    ordem = _ler_ordem()
+    if "home_ordem" not in st.session_state:
+        st.session_state["home_ordem"] = _ler_ordem()
+    ordem = st.session_state["home_ordem"]
     df_filtrado = _ordenar(_aplicar_filtros(df_emp, busca, selecoes, faixas, opcoes_faixa).reset_index(drop=True), ordem)
     total_filtrado = len(df_filtrado)
 
@@ -808,6 +828,8 @@ def render():
             **{param: estado_url.texto_lista(valores) for param, valores in selecoes.items()},
             **{param: estado_url.texto_faixa(faixas[param], (op[0], op[-1])) for param, op in opcoes_faixa.items()},
             "pg": st.session_state["home_page"], "itens": page_size, "cols": ",".join(colunas_ativas),
+            # ordem padrão (IC decrescente) fica fora da URL
+            "ordem": "" if ordem == ORDEM_PADRAO else ordem[0], "sentido": "" if ordem == ORDEM_PADRAO else ordem[1],
         },
         padroes={"carteira": "recomendada", "pg": 1, "itens": 25, "cols": ",".join(DEFAULT_ACTIVE_COLUMNS)},
     )
