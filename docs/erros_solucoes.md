@@ -23,6 +23,7 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 13. [Clique em Gráfico Altair Quebra com "Selections are not yet supported for multi-view charts"](#caso-13-clique-em-gráfico-altair-quebra-com-selections-are-not-yet-supported-for-multi-view-charts)
 14. [Migração do Streamlit 1.36 para 1.51: Seletores CSS Renomeados](#caso-14-migração-do-streamlit-136-para-151-seletores-css-renomeados)
 15. [Ordenar a Tabela Recarregava a Página; `AppTest` Não Monta Componente v2](#caso-15-ordenar-a-tabela-recarregava-a-página-apptest-não-monta-componente-v2)
+16. [Lista do Filtro (`st.multiselect`) Não Fecha ao Clicar de Novo na Caixa](#caso-16-lista-do-filtro-stmultiselect-não-fecha-ao-clicar-de-novo-na-caixa)
 
 ---
 
@@ -366,7 +367,7 @@ Além disso, o 1.51 carrega a fonte com peso 300 (o 1.36 caía no 400) e o estil
 2. `font-weight: 300` → `400` nos subtítulos dos cabeçalhos (mantém o visual aprovado); `a.bi-emp-link` para vencer o estilo de link do Streamlit.
 3. `use_container_width=True` → `width="stretch"`.
 4. Comparar capturas de tela das duas versões lado a lado (Playwright, dados sintéticos) antes de pedir a conferência no navegador.
-5. Dependências: `requirements.txt` fixa os pacotes que afetam a tela; `requirements.lock.txt` (gerado com `uv pip compile --universal --python-version 3.12`) fixa tudo, igual no Windows e no Ubuntu 20.04 (glibc 2.31).
+5. Dependências: `requirements.txt` fixa os pacotes que afetam a tela; `requirements.lock.txt` (gerado com `uv pip compile --universal --python-version 3.12`) fixa tudo, igual no Windows e no Ubuntu 20.04 (glibc 2.31). **Atualização (30/09/2026):** o conteúdo do lock passou a ser o próprio `requirements.txt` e o `requirements.lock.txt` foi removido; instale com `uv pip install -r requirements.txt`.
 
 ---
 
@@ -387,6 +388,27 @@ Além disso, o 1.51 carrega a fonte com peso 300 (o 1.36 caía no 400) e o estil
 ### ✅ Solução Adotada
 1. A tabela passou a ser exibida por `st.components.v2.component(...)` com `isolate_styles=False`: o HTML fica na própria página (o CSS da Home vale), e um script de poucas linhas chama `setTriggerValue("ordenar", {coluna, t: Date.now()})` no clique do `<th data-ordem>`. O `Date.now()` faz o segundo clique na mesma coluna também contar. O callback `on_ordenar_change` atualiza `st.session_state["home_ordem"]`; a URL é gravada como os filtros. Conferido no navegador (Playwright): um marcador em `window` sobrevive ao clique (não recarrega) e a rolagem não se move.
 2. No teste automático, substituir o componente por `st.markdown` antes de rodar: `views.home._tabela_home = lambda data, **kw: st.markdown(data, unsafe_allow_html=True)`.
+
+---
+
+## Caso 16: Lista do Filtro (`st.multiselect`) Não Fecha ao Clicar de Novo na Caixa
+
+* **Data:** 30/09/2026
+* **Componentes Afetados:** `views/home.py` (filtros de seleção múltipla), `assets/css/home.css`
+* **Tecnologia:** `streamlit==1.51.0` (Select do BaseWeb; `st.components.v2`)
+
+### 🛑 Contexto e Sintoma
+Abrir o filtro Setor, marcar "Ferroviário" e clicar de novo na caixa ou na setinha não fechava a lista: era preciso clicar num espaço vazio da página. Às vezes, logo depois de marcar um item, o clique fechava; em seguida, não.
+
+### 🔍 Causa Raiz
+O multiselect usa o Select do BaseWeb com busca: clicar no controle com a lista aberta mantém a lista aberta. O único gatilho de fechar confiável é o **clique fora**. Testado no navegador (Playwright): `blur()` no campo e tecla `Escape` simulada **não** fecham; um `click` simulado em `document.body` fecha. CSS não resolve.
+
+### ✅ Solução Adotada
+Script `_JS_FILTROS` em `views/home.py`, instalado por um componente v2 que não desenha nada (`_filtros_toggle`, chamado logo após o `inject_css`):
+1. No `mousedown` (fase de captura) sobre a caixa de um multiselect **aberto** (`input[aria-expanded="true"]`), bloqueia o evento para o Streamlit não reabrir a lista. O "x" dos itens e o "limpar tudo" são ignorados.
+2. No `click` seguinte, bloqueia o clique e dispara `document.body.dispatchEvent(new MouseEvent("click", {bubbles: true}))`, o mesmo que clicar fora.
+
+**Armadilhas:** o script roda a cada rerun, por isso se protege com `window.__atlasFiltrosToggle` para instalar os ouvintes uma vez só. O contêiner vazio do componente somava 16px de espaçamento no topo: `.st-key-filtros_toggle { display: none; }` resolve e o script continua rodando. Como na tabela (caso 15), o `AppTest` não monta o componente: no teste, `home_view._filtros_toggle = lambda **kw: None`. Ao atualizar o Streamlit, confira `[data-baseweb="select"]`, `[data-baseweb="tag"]` e `aria-expanded`.
 
 ---
 

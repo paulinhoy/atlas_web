@@ -333,6 +333,13 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     -webkit-mask-size: contain;
 }
 
+/* ---- Modal "Personalizar Colunas": mais estreito que o "large" do Streamlit (ocupa a largura toda),
+   para ficar menos alongado; os cards quebram em mais linhas ---- */
+div[data-testid="stDialog"] div[role="dialog"] {
+    width: 760px !important;
+    max-width: calc(100vw - 2rem) !important;
+}
+
 /* ---- Botões do modal de colunas ---- */
 div[data-testid="stDialog"] div[data-testid="stButton"] button {
     min-width: auto !important;
@@ -477,4 +484,10 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     background-color: currentColor;
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m16 22-1-4'/%3E%3Cpath d='M19 13.99a1 1 0 0 0 1-1V12a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v.99a1 1 0 0 0 1 1'/%3E%3Cpath d='M5 14h14l1.973 6.767A1 1 0 0 1 20 22H4a1 1 0 0 1-.973-1.233z'/%3E%3Cpath d='m8 22 1-4'/%3E%3C/svg%3E") no-repeat center / contain;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m16 22-1-4'/%3E%3Cpath d='M19 13.99a1 1 0 0 0 1-1V12a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v.99a1 1 0 0 0 1 1'/%3E%3Cpath d='M5 14h14l1.973 6.767A1 1 0 0 1 20 22H4a1 1 0 0 1-.973-1.233z'/%3E%3Cpath d='m8 22 1-4'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+/* ---- Script dos filtros (views/home.py -> _filtros_toggle): não desenha nada; sem isto somaria
+   o espaçamento entre blocos no topo da página ---- */
+.st-key-filtros_toggle {
+    display: none;
 }

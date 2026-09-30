@@ -52,8 +52,7 @@ O app **nunca acessa o banco**: tudo é lido dos arquivos `.parquet`.
 ```
 atlas_web/
 ├── app.py                  Roteador: ?page=chatbot → chatbot | ?page=bi → BI | ?id=N → ficha | vazio → Home
-├── requirements.txt        Dependências (streamlit==1.51.0 e pacotes de tela fixos)
-├── requirements.lock.txt   Versões exatas de tudo, geradas pelo uv (instalar por ele)
+├── requirements.txt        Versões exatas de todos os pacotes (streamlit==1.51.0); instalar com uv
 ├── .streamlit/config.toml  Servidor (porta, XSRF/CORS, telemetria) e tema claro institucional
 ├── views/
 │   ├── home.py             Home
@@ -166,7 +165,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 - **Regiões intermediárias:** a Home mostra (filtro e coluna) só as 13 regiões de MG (`REGIOES_INTERMEDIARIAS_MG` em `views/home.py`); regiões de estados vizinhos que aparecem nos dados são descartadas na exibição, sem alterar o parquet.
 - **Ficha:** cabeçalho, metadados + mapa (mesma altura, 520px), e as tabelas Resultados da Priorização, Dados Financeiros, Alocação 2055 e Detalhamento das Obras.
 - **Mapa (`services/map_service.py`):** Folium com base OpenStreetMap (sem chave de API), traçado linear e pontos do empreendimento, enquadramento automático; aviso quando não há geometria. A legenda QGIS está preservada em `render_legenda_qgis()` (desativada).
-- **Painel de Indicadores & BI (protótipo em validação):** seletores de carteira (padrão Recomendada) e setor (padrão "Todos os setores"). Números-resumo da seleção: Empreendimentos, Presente | Futuro (Contratado | Planejado), CAPEX e Alto Impacto. Cada empreendimento é comparado com os pares do mesmo setor (mesmo com "Todos os setores", cada setor é ranqueado à parte) em cada recorte (setor inteiro, intervenção principal, região intermediária de MG) nas métricas IC, 5 dimensões e TIRM; desempate pelo IC; nota zero numa dimensão = não pontuou (fica fora do ranking). Abas: Perfil do empreendimento (cartão com investimento total = CAPEX + OPEX), Impacto × Viabilidade (X = TIRM com linhas de referência em 0% e 11,2%; seletor do eixo Y: IC, investimento total = CAPEX + OPEX (escala logarítmica) ou nota da dimensão socioeconômica ou da estratégica; cor = classe de impacto; sem classificação de modelo de execução) e Presente × Futuro (só a tabela de intervenção principal por esfera: quantidade e CAPEX. Presente, usado nos números-resumo e no cartão = Contratado - execução não iniciada, Contratado - em execução, Paralisado; o resto é Futuro; CAPEX "-" quando CAPEX e OPEX do grupo somam zero = sem modelagem financeira completa).
+- **Painel de Indicadores & BI (protótipo em validação):** seletores de carteira (padrão Recomendada) e setor (padrão "Todos os setores"). Números-resumo da seleção: Empreendimentos, Presente | Futuro (Contratado | Planejado), CAPEX e Alto Impacto. Cada empreendimento é comparado com os pares do mesmo setor (mesmo com "Todos os setores", cada setor é ranqueado à parte) em cada recorte (setor inteiro, intervenção principal, região intermediária de MG) nas métricas IC, 5 dimensões e TIRM; desempate pelo IC; nota zero numa dimensão = não pontuou (fica fora do ranking). Abas: Perfil do empreendimento (cartão com investimento total = CAPEX + OPEX), Impacto × Viabilidade (X = TIRM com linhas de referência em 0% e 11,2%; seletor do eixo Y: IC, investimento total = CAPEX + OPEX (escala logarítmica) ou nota da dimensão socioeconômica ou da estratégica; cor = classe de impacto; sem classificação de modelo de execução) e Panorama de Investimentos (só a tabela de intervenção principal por esfera: quantidade e CAPEX. Presente, usado nos números-resumo e no cartão = Contratado - execução não iniciada, Contratado - em execução, Paralisado; o resto é Futuro; CAPEX "-" quando CAPEX e OPEX do grupo somam zero = sem modelagem financeira completa).
 - **Visual:** todo o CSS em `assets/css/`, com cores centralizadas — ver `docs/frontend.md`.
 
 ---
@@ -175,8 +174,8 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 
 - **Tudo roda no computador do responsável.** Servidores (inclusive produção) **não estão ao alcance dos agentes**: não há acesso, comandos de deploy ou configuração de servidor a fazer por aqui. A publicação no servidor é feita pelo responsável.
 - **Rodar localmente:** `.venv/Scripts/python.exe -m streamlit run app.py` → `http://localhost:8501`.
-- **Sempre use o `.venv`**: Python 3.12 e Streamlit **1.51.0** (versão fixa), instalados com `uv pip install -r requirements.lock.txt`; o servidor (Ubuntu 20.04) usa o mesmo arquivo. O Python global da máquina pode ter outra versão, o que quebra o mapa e muda o visual.
-- **Mudar versões:** edite `requirements.txt` e gere de novo o lock com `uv pip compile requirements.txt --universal --python-version 3.12 -o requirements.lock.txt` (vale para Windows e Linux). Troca de versão do Streamlit exige revisão visual (`docs/frontend.md`, seção 8).
+- **Sempre use o `.venv`**: Python 3.12 e Streamlit **1.51.0** (versão fixa), instalados com `uv pip install -r requirements.txt`; o servidor (Ubuntu 20.04) usa o mesmo arquivo. O Python global da máquina pode ter outra versão, o que quebra o mapa e muda o visual.
+- **Mudar versões:** o `requirements.txt` é o único arquivo de dependências e fixa a versão exata de tudo (os pacotes principais são os marcados com `# via -r requirements.txt`). Para trocar a versão de um pacote, edite a linha dele, reinstale no `.venv` com `uv pip install -r requirements.txt` e confira se o uv não acusa conflito; se a troca puxar dependências novas, ajuste as linhas delas também. Troca de versão do Streamlit (ou de outro pacote de tela) exige revisão visual (`docs/frontend.md`, seção 8).
 - Não há dependências fora do `requirements.txt`.
 
 | Branch | Papel |

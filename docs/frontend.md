@@ -19,8 +19,8 @@ Guia de referência para quem (pessoa ou agente) for mexer na interface. Leia an
 
 | Item | Valor |
 |---|---|
-| Versão do Streamlit | **1.51.0** (fixada em `requirements.txt`; versões exatas de tudo em `requirements.lock.txt`) |
-| Criar o ambiente | `uv venv -p 3.12 .venv` e `uv pip install -r requirements.lock.txt` |
+| Versão do Streamlit | **1.51.0** (fixada em `requirements.txt`, que tem as versões exatas de todos os pacotes) |
+| Criar o ambiente | `uv venv -p 3.12 .venv` e `uv pip install -r requirements.txt` |
 | Ambiente virtual | `.venv/` na raiz. **Use sempre** `.venv/Scripts/python.exe` (Windows) |
 | Rodar o app | `.venv/Scripts/python.exe -m streamlit run app.py` |
 
@@ -133,6 +133,7 @@ O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.t
 | `.divider-light`, `.divider-navy` | Linhas separadoras |
 | `.pagination-info`, `.pagination-size-label`, `.pagination-ellipsis` | Textos da paginação |
 | `.modal-hint` | Texto de instrução do modal de colunas |
+| `div[data-testid="stDialog"] div[role="dialog"]` | Largura do modal "Personalizar Colunas": 760px (o `width="large"` do Streamlit ocupa a largura toda e deixa o modal muito alongado) |
 | Seletores `div[data-testid=...]` | Estilização de widgets nativos do Streamlit (inputs, selects, botões da paginação e do modal) |
 
 **`atlas.css`**
@@ -253,6 +254,7 @@ Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&total=1000000
 - Filtro de coluna-lista (ex.: município) mostra o empreendimento se **qualquer** item dele estiver selecionado.
 - CAPEX e OPEX usam degraus fixos (0, 1 mi, 5 mi, 10 mi, ..., 1 tri) até o primeiro que cobre o máximo da carteira, porque a maioria dos valores é pequena. IC usa passos de 0,01. Slider na faixa completa = sem filtro; a faixa completa acompanha a carteira.
 - "Mais filtros" começa fechado, a não ser que o link já traga algum desses filtros.
+- Com a lista de um filtro aberta, clicar de novo na caixa ou na setinha fecha a lista (o Streamlit, sozinho, só fecha com clique fora). Quem faz isso é um script curto (`_JS_FILTROS`) instalado por outro componente v2, `_filtros_toggle`, que não desenha nada (`.st-key-filtros_toggle` fica escondido em `home.css`). Ver `erros_solucoes.md`, caso 16.
 
 A troca de qualquer filtro volta a paginação para a página 1.
 
@@ -285,6 +287,7 @@ from streamlit.testing.v1 import AppTest
 
 # O AppTest (1.51) não monta componentes v2 (erros_solucoes.md, caso 15): no teste a tabela vira st.markdown
 home_view._tabela_home = lambda data, **kw: st.markdown(data, unsafe_allow_html=True)
+home_view._filtros_toggle = lambda **kw: None   # script dos filtros (só existe no navegador)
 
 def run(params=None):
     at = AppTest.from_file("app.py", default_timeout=120)

@@ -303,7 +303,7 @@ def _render_eficiencia(carteira: str, setor: str, df: pd.DataFrame) -> None:
         _render_perfil(carteira, setor, df, eid)
 
 
-# ── Aba 3: Presente × Futuro (composição por esfera) ────────────────────────
+# ── Aba 3: Panorama de Investimentos (composição por esfera) ────────────────
 
 def _fmt_capex_grupo(qtd, capex, opex) -> str:
     """CAPEX do grupo; "-" quando há empreendimentos mas CAPEX e OPEX somam zero (sem modelagem financeira)."""
@@ -371,7 +371,7 @@ def render():
     _render_kpis(df)
 
     # Aba "Eficiência do CAPEX" (_render_eficiencia) oculta por enquanto
-    abas = st.tabs(["Perfil do empreendimento", "Impacto × Viabilidade", "Presente × Futuro"])
+    abas = st.tabs(["Perfil do empreendimento", "Impacto × Viabilidade", "Panorama de Investimentos"])
     with abas[0]:
         _render_aba_perfil(carteira, setor, df)
     with abas[1]:

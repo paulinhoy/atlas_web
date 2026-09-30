@@ -365,6 +365,34 @@ export default function (component) {
 """
 _tabela_home = st.components.v2.component("atlas_tabela_home", html='<div class="tabela-home"></div>', js=_JS_TABELA)
 
+# Filtros de seleção múltipla: clicar de novo na caixa ou na setinha com a lista aberta fecha a lista
+# (o Streamlit só fecha com um clique fora). O script segura esse clique e simula um clique fora.
+# Instalado uma vez por aba; o "x" dos itens escolhidos segue normal (erros_solucoes.md, caso 16).
+_JS_FILTROS = """
+export default function () {
+    if (window.__atlasFiltrosToggle) return;
+    window.__atlasFiltrosToggle = true;
+    let fechar = null;
+    document.addEventListener("mousedown", (evento) => {
+        if (evento.button !== 0) return;
+        const caixa = evento.target.closest('[data-testid="stMultiSelect"] [data-baseweb="select"]');
+        if (!caixa || evento.target.closest('[data-baseweb="tag"], [title="Clear all"]')) return;
+        fechar = caixa.querySelector('input[aria-expanded="true"]');
+        if (fechar) { evento.preventDefault(); evento.stopPropagation(); }
+    }, true);
+    document.addEventListener("click", (evento) => {
+        if (!fechar) return;
+        const campo = fechar;
+        fechar = null;
+        evento.preventDefault();
+        evento.stopPropagation();
+        document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        campo.blur();
+    }, true);
+}
+"""
+_filtros_toggle = st.components.v2.component("atlas_filtros_toggle", js=_JS_FILTROS)
+
 
 def _ler_ordem() -> tuple:
     """(coluna, sentido) da URL; o padrão quando ausente ou inválido."""
@@ -698,6 +726,7 @@ def _aplicar_filtros(df: pd.DataFrame, busca: str, selecoes: dict, faixas: dict,
 def render():
     """Função principal da tela Home."""
     inject_css("home")
+    _filtros_toggle(key="filtros_toggle")  # só instala o script; não desenha nada
     # Barra e botão do chatbot são redesenhados no fim, depois que o estado atual é gravado na URL.
     # Já saem desenhados aqui (com os links da URL atual) para o espaço não ficar vazio durante o
     # rerun: vazio, a página "dá um tranco" de 16px a cada clique (erros_solucoes.md, caso 12).
