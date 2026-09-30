@@ -15,7 +15,7 @@ Aplicação Streamlit que exibe os resultados do estudo do PELTMG (carteira prio
 - **Antes de criar a branch, rode `git log main..staging`.** Se a `staging` tiver commits que a `main` não tem (ajustes visuais ainda em avaliação costumam estar só lá), pergunte ao responsável se a branch deve partir da `staging`. Nunca deixe uma tarefa desfazer algo que já existe na `staging`.
 
 ## Regras fixas
-- Use sempre o `.venv` (`.venv/Scripts/python.exe`): Streamlit **1.36.0** é versão fixa. O Python global da máquina tem outra versão e não tem as dependências.
+- Use sempre o `.venv` (`.venv/Scripts/python.exe`), criado com `uv` a partir do `requirements.lock.txt`: Python 3.12 e Streamlit **1.51.0** (versão fixa; mudar exige revisão visual). O Python global da máquina tem outra versão e não tem as dependências.
 - Servidores (produção e staging publicados) **estão fora do alcance dos agentes**: tudo roda localmente; publicar é tarefa do responsável.
 - `data/` não vai para o Git. Rodar o ETL (`scripts/process_data.py`) **sobrescreve** `data/processed/`: faça cópia antes se for comparar resultados.
 - Nada de CSS no Python: estilos em `assets/css/`, links internos via `views/estado_url.py` (detalhes em `docs/frontend.md`).

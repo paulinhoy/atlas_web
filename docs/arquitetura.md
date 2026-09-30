@@ -52,7 +52,8 @@ O app **nunca acessa o banco**: tudo é lido dos arquivos `.parquet`.
 ```
 atlas_web/
 ├── app.py                  Roteador: ?page=chatbot → chatbot | ?page=bi → BI | ?id=N → ficha | vazio → Home
-├── requirements.txt        Dependências (streamlit==1.36.0 fixo)
+├── requirements.txt        Dependências (streamlit==1.51.0 e pacotes de tela fixos)
+├── requirements.lock.txt   Versões exatas de tudo, geradas pelo uv (instalar por ele)
 ├── .streamlit/config.toml  Servidor (porta, XSRF/CORS, telemetria) e tema claro institucional
 ├── views/
 │   ├── home.py             Home
@@ -161,7 +162,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 - **A URL é a fonte da verdade.** Links internos são relativos (começam com `?`).
 - **Barra de navegação superior** (todas as telas, `render_navbar` em `views/ui.py`): Página Inicial, Painel de Indicadores & BI e Assistente Virtual, com destaque na tela aberta (na ficha, destaca Página Inicial). Substitui a faixa nativa do Streamlit (menu ⋮), que fica escondida.
 - **Estado da Home na URL:** carteira, busca, filtros, página, itens por página e colunas vão para a URL (`views/estado_url.py`), e os links da tabela, do chatbot e dos botões "Voltar" os carregam. Assim, abrir uma ficha e voltar não perde os filtros, e o link pode ser compartilhado. Detalhes e como incluir um filtro novo: `docs/frontend.md`, seção 5.9.
-- **Home:** 4 KPIs; filtros com carteira, busca e 8 filtros de seleção múltipla sempre visíveis (setor, status, origem, esfera, impacto, viabilidade, natureza, intervenção principal) e a seção recolhida **"Mais filtros"** (município, região intermediária e sliders de Valor Total = CAPEX + OPEX, TIRM e IC); botão redondo "Limpar filtros" (vassoura) ao lado de "Personalizar Colunas"; tabela paginada com colunas configuráveis (modal de arrastar; padrão: ID, Nome, Status, Setor, Natureza, Origem, Esfera, CAPEX, OPEX, TIRM, Índice, Impacto; entre as ocultas, Valor Total e as notas das 5 dimensões), botão flutuante do assistente.
+- **Home:** 4 KPIs; filtros com carteira, busca e 8 filtros de seleção múltipla sempre visíveis (setor, status, origem, esfera, impacto, viabilidade, natureza, intervenção principal) e a seção recolhida **"Mais filtros"** (município, região intermediária e sliders de Valor Total = CAPEX + OPEX, TIRM e IC); botão redondo "Limpar filtros" (vassoura) ao lado de "Personalizar Colunas"; tabela paginada e ordenável pelo cabeçalho (clique: primeiro sentido → oposto → volta ao padrão IC decrescente; ordem na URL) com colunas configuráveis (modal de arrastar; padrão: ID, Nome, Status, Setor, Natureza, Origem, Esfera, CAPEX, OPEX, TIRM, Índice, Impacto; entre as ocultas, Valor Total e as notas das 5 dimensões), botão flutuante do assistente.
 - **Regiões intermediárias:** a Home mostra (filtro e coluna) só as 13 regiões de MG (`REGIOES_INTERMEDIARIAS_MG` em `views/home.py`); regiões de estados vizinhos que aparecem nos dados são descartadas na exibição, sem alterar o parquet.
 - **Ficha:** cabeçalho, metadados + mapa (mesma altura, 520px), e as tabelas Resultados da Priorização, Dados Financeiros, Alocação 2055 e Detalhamento das Obras.
 - **Mapa (`services/map_service.py`):** Folium com base OpenStreetMap (sem chave de API), traçado linear e pontos do empreendimento, enquadramento automático; aviso quando não há geometria. A legenda QGIS está preservada em `render_legenda_qgis()` (desativada).
@@ -174,7 +175,8 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 
 - **Tudo roda no computador do responsável.** Servidores (inclusive produção) **não estão ao alcance dos agentes**: não há acesso, comandos de deploy ou configuração de servidor a fazer por aqui. A publicação no servidor é feita pelo responsável.
 - **Rodar localmente:** `.venv/Scripts/python.exe -m streamlit run app.py` → `http://localhost:8501`.
-- **Sempre use o `.venv`**: ele tem o Streamlit **1.36.0**, versão fixa exigida pelo servidor de hospedagem. O Python global da máquina pode ter outra versão, o que quebra o mapa e muda o visual.
+- **Sempre use o `.venv`**: Python 3.12 e Streamlit **1.51.0** (versão fixa), instalados com `uv pip install -r requirements.lock.txt`; o servidor (Ubuntu 20.04) usa o mesmo arquivo. O Python global da máquina pode ter outra versão, o que quebra o mapa e muda o visual.
+- **Mudar versões:** edite `requirements.txt` e gere de novo o lock com `uv pip compile requirements.txt --universal --python-version 3.12 -o requirements.lock.txt` (vale para Windows e Linux). Troca de versão do Streamlit exige revisão visual (`docs/frontend.md`, seção 8).
 - Não há dependências fora do `requirements.txt`.
 
 | Branch | Papel |
@@ -221,7 +223,7 @@ Links internos são relativos (começam com `?`), por isso o app funciona igual 
 - **Revisar a view `vw_dadosgerais_plataformaonline`** para incluir `natureza_empreendimento` e `id_grupo_modelagem`. Hoje eles vêm de um CSV legado e de um dicionário no ETL (seção 4.2, item 6). Depois disso, remover `natureza_empreendimento_legado.csv` e `ID_GRUPO_MODELAGEM`.
 - `data/processed/empreendimentos_priorizacao.parquet` (tabela antiga) não é mais usado pelo app nem gerado pelo ETL; pode ser apagado.
 - O histórico de conversa do chatbot se perde ao navegar para outra tela.
-- Algumas regras CSS dependem de detalhes internos do Streamlit 1.36 (ver `docs/frontend.md`, seção 8). Atualizar o Streamlit exige revisão visual.
+- Algumas regras CSS dependem de detalhes internos do Streamlit 1.51 (ver `docs/frontend.md`, seção 8). Atualizar o Streamlit exige revisão visual.
 - Legenda do mapa e camadas socioambientais adicionais: planejadas, ainda não ativas.
 - Logos institucionais existem em `logos/`, mas não são exibidos.
 - **Painel de BI (protótipo — pendências registradas em 28/09/2026):**
@@ -229,4 +231,4 @@ Links internos são relativos (começam com `?`), por isso o app funciona igual 
   - *Dependência da Home:* `views/bi.py` importa `CARTEIRAS_HOME` de `views/home.py` e repete a lista das regiões de MG (`REGIOES_MG` em `bi_service.py`, igual a `REGIOES_INTERMEDIARIAS_MG` da Home). Centralizar (ex.: em `data_loader`) antes de publicar.
   - *Região intermediária:* um empreendimento que passa por várias regiões conta inteiro em cada uma. Aguardando a tabela de pertencimento (`id_empreendimento`, tamanho do empreendimento, RGI, tamanho na RGI) para ponderar.
   - *Retirado/oculto até nova definição:* métrica CAPEX por km (removida), aba "Eficiência do CAPEX" (`_render_eficiencia`, oculta). A aba "Destaques por recorte" e a lista "Destaques fora do topo do IC" foram apagadas em 29/09/2026.
-  - *Gráficos:* clique só funciona em gráfico Altair de camada única no Streamlit 1.36 (`erros_solucoes.md`, caso 13).
+  - *Gráficos:* clique só funcionava em gráfico Altair de camada única no Streamlit 1.36 (`erros_solucoes.md`, caso 13); a matriz ainda usa a solução de contorno — reavaliar no 1.51.

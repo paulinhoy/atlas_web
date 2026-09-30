@@ -19,11 +19,12 @@ Guia de referência para quem (pessoa ou agente) for mexer na interface. Leia an
 
 | Item | Valor |
 |---|---|
-| Versão do Streamlit | **1.36.0** (fixada em `requirements.txt`) |
+| Versão do Streamlit | **1.51.0** (fixada em `requirements.txt`; versões exatas de tudo em `requirements.lock.txt`) |
+| Criar o ambiente | `uv venv -p 3.12 .venv` e `uv pip install -r requirements.lock.txt` |
 | Ambiente virtual | `.venv/` na raiz. **Use sempre** `.venv/Scripts/python.exe` (Windows) |
 | Rodar o app | `.venv/Scripts/python.exe -m streamlit run app.py` |
 
-⚠️ O Python global da máquina de desenvolvimento pode ter outra versão do Streamlit (ex.: 1.52) e **não tem** `folium`. Rodar fora do `.venv` quebra o mapa e **muda o visual**, porque parte do CSS depende da estrutura interna do Streamlit 1.36 (ver seção 8).
+⚠️ O Python global da máquina de desenvolvimento pode ter outra versão do Streamlit (ex.: 1.52) e **não tem** `folium`. Rodar fora do `.venv` quebra o mapa e **muda o visual**, porque parte do CSS depende da estrutura interna do Streamlit 1.51 (ver seção 8).
 
 ---
 
@@ -240,10 +241,12 @@ Links recarregam a página e zeram a sessão; a URL sobrevive. `views/estado_url
 - **Toda execução:** `estado_url.gravar(valores, padroes)` escreve o estado na URL sem recarregar; valores iguais ao padrão ficam fora (URL limpa).
 - **Links:** `link_empreendimento(id)`, `link_chatbot()`, `link_home()` montam o `href` com o estado atual.
 
-Parâmetros atuais: `carteira` (recomendada/otimizada/analise; `completa` ainda é aceito), `q` (busca), filtros de seleção múltipla com itens separados por `|` (`setor`, `status`, `origem`, `esfera`, `impacto`, `viabilidade`, `intervencao`, `natureza`, `municipio`, `regiao`), faixas `min:max` (`total` = Valor Total, `tirm` em fração, `ic`), `pg`, `itens`, `cols` (ids separados por vírgula).
+Parâmetros atuais: `carteira` (recomendada/otimizada/analise; `completa` ainda é aceito), `q` (busca), filtros de seleção múltipla com itens separados por `|` (`setor`, `status`, `origem`, `esfera`, `impacto`, `viabilidade`, `intervencao`, `natureza`, `municipio`, `regiao`), faixas `min:max` (`total` = Valor Total, `tirm` em fração, `ic`), ordenação da tabela (`ordem` = id da coluna, `sentido` = `asc`/`desc`; ausentes = IC decrescente), `pg`, `itens`, `cols` (ids separados por vírgula).
 Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&total=10000000:1000000000&pg=2`.
 
 **Para incluir um filtro novo na Home:** acrescente uma linha `(parâmetro na URL, rótulo, coluna)` em `FILTROS_PRINCIPAIS` (sempre visível) ou `FILTROS_MAIS` (dentro de "Mais filtros") em `views/home.py`. Opções, URL, "Limpar filtros", volta à página 1 e a filtragem saem dessa lista. Se a coluna for uma lista, inclua-a também em `COLUNAS_LISTA`. Slider de faixa: `FILTROS_FAIXA` + os degraus em `opcoes_faixa` + o rótulo em `FORMATO_FAIXA`.
+
+**Ordenação pelo cabeçalho (Home):** o título de cada coluna ordenável é um link (`_titulo_coluna` em `views/home.py`) que recarrega a página com `ordem`/`sentido` na URL e volta para a página 1. Ciclo de cliques: primeiro sentido → oposto → padrão (IC decrescente). Valores começam pelo maior; textos e Período, pelo A→Z/mais antigo; Impacto e Viabilidade pela classe (Alto → Médio → Baixo). Vazios ficam sempre no fim, e empates mantêm a ordem do IC. Para tornar uma coluna ordenável (ou mudar o primeiro sentido), edite `ORDENACAO`. A setinha ▼/▲ marca a coluna ativa; ↕ aparece só ao passar o mouse (`home.css`).
 
 **Como os filtros funcionam:**
 - Seleção múltipla vazia = todos. As opções vêm da carteira ativa; ao trocar de carteira, itens que não existem mais são descartados.
@@ -315,7 +318,7 @@ Compare as declarações CSS efetivas antes/depois por seletor (resolvendo `var(
 
 | Problema | Detalhe |
 |---|---|
-| **Seletores dependentes da versão do Streamlit** | A paginação usa `data-testid="column"` (1.36) e o alinhamento do mapa usa `data-testid="stColumn"` (1.37+). Com 1.36, as regras do mapa não se aplicam. Atualizar o Streamlit exige revisar todos os seletores `div[data-testid=...]`. |
+| **Seletores dependentes da versão do Streamlit** | O CSS usa nomes internos (`data-testid`) do Streamlit 1.51: `stColumn`, `stElementContainer`, `stMainBlockContainer`, `stDialog`, `stChatMessageAvatarUser`/`Assistant` etc. Eles mudam entre versões (na migração 1.36 → 1.51, quatro mudaram: `erros_solucoes.md`, caso 14). Atualizar o Streamlit exige revisar todos os seletores `[data-testid=...]` e conferir as telas. |
 | **`button[key="..."]` não funciona** | O Streamlit não coloca o atributo `key` no HTML do botão. O botão "Personalizar Colunas" é estilizado pela linha do título (`div[data-testid="stHorizontalBlock"]:has(.carteira-header-title)`). As regras `key` dos botões **dentro** do modal seguem sem efeito — mantidas porque o visual atual do modal está aprovado. Ver `docs/erros_solucoes.md`, caso 7. |
 | **`onclick` em HTML é descartado** | `st.markdown` não executa JavaScript inline (ex.: `<tr onclick=...>` na tabela). Só links `<a href>` funcionam. |
 | **Navegar reinicia a sessão** | Links `<a href>` recarregam a página e zeram o `st.session_state`. Por isso o estado da Home vive na URL (`views/estado_url.py`). O que ainda se perde ao navegar: o histórico de conversa do chatbot. |

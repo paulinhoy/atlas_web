@@ -25,7 +25,7 @@
     font-size: 26px;
     color: #d1e3f8;
     margin-top: 0.3rem;
-    font-weight: 300;
+    font-weight: 400;  /* 300 só existe a partir do Streamlit 1.37; 400 mantém o visual aprovado */
     line-height: 1.3;
 }
 
@@ -71,6 +71,16 @@
     letter-spacing: 0.25px;
     border: none;
 }
+/* Ordenação pelo cabeçalho: o título é um link com a mesma cara do texto; setinha ▼/▲ na coluna
+   ativa e ↕ só ao passar o mouse (invisível, mas ocupando o espaço, para a largura não "pular") */
+.home-atlas-table thead th a.th-ordem {
+    color: inherit !important;
+    text-decoration: none !important;
+    cursor: pointer;
+}
+.home-atlas-table .th-seta { font-size: 10px; margin-left: 4px; opacity: 0.85; }
+.home-atlas-table .th-seta-hover { opacity: 0; transition: opacity 0.15s ease; }
+.home-atlas-table thead th a.th-ordem:hover .th-seta-hover { opacity: 0.6; }
 .home-atlas-table tbody td {
     padding: 0.55rem 0.75rem;
     border-bottom: 1px solid #eef2f7;
@@ -191,8 +201,8 @@ div[data-testid="stSelectbox"] > div > div[aria-expanded="true"] {
 }
 
 /* ---- Paginação numérica (blocos horizontais com 5+ colunas) ---- */
-div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="primary"],
-div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"] {
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(5)) button[kind="primary"],
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(5)) button[kind="secondary"] {
     border: none !important;
     border-radius: 4px !important;
     min-width: 32px !important;
@@ -206,24 +216,24 @@ div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5
     justify-content: center !important;
     margin: 0 auto !important;
 }
-div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="primary"] {
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(5)) button[kind="primary"] {
     background-color: var(--navy) !important;
     color: #ffffff !important;
     font-weight: 700 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
 }
-div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"] {
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(5)) button[kind="secondary"] {
     background-color: transparent !important;
     color: var(--text) !important;
     font-weight: 500 !important;
     box-shadow: none !important;
     transition: all 0.15s ease !important;
 }
-div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:hover:not(:disabled) {
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(5)) button[kind="secondary"]:hover:not(:disabled) {
     background-color: var(--bg-soft-2) !important;
     color: var(--navy) !important;
 }
-div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(5)) button[kind="secondary"]:disabled {
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(5)) button[kind="secondary"]:disabled {
     color: var(--border-2) !important;
     background-color: transparent !important;
     cursor: not-allowed !important;
@@ -236,14 +246,14 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) {
     margin-top: 1.8rem !important;
     margin-bottom: 0px !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"] {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"] {
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-end !important;
     margin-bottom: 0px !important;
     padding-bottom: 0px !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="element-container"],
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stElementContainer"],
 div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stMarkdownContainer"] {
     margin-bottom: 0px !important;
     padding-bottom: 0px !important;
@@ -269,7 +279,7 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
 }
 
 /* ---- Botão "Personalizar Colunas" ---- */
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:last-child div[data-testid="stButton"] button {
     min-width: 175px !important;
     max-width: 220px !important;
     width: auto !important;
@@ -292,19 +302,18 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     margin-bottom: 0px !important;
     transition: all 0.2s ease !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button:hover {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:last-child div[data-testid="stButton"] button:hover {
     background: rgba(11, 37, 69, 0.92) !important;
     border-color: var(--navy) !important;
     color: #ffffff !important;
 }
-div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover,
 div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button:hover {
     background: var(--grad-button-hover) !important;
     color: #ffffff !important;
     box-shadow: 0 4px 12px rgba(11, 37, 69, 0.35) !important;
     transform: translateY(-1px);
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button p {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:last-child div[data-testid="stButton"] button p {
     white-space: nowrap !important;
     font-size: 13px !important;
     font-weight: 600 !important;
@@ -315,7 +324,7 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     gap: 7px !important;
 }
 /* Ícone de engrenagem em SVG monocromático (evita o emoji roxo do Windows) */
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:last-child div[data-testid="stButton"] button p::before {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:last-child div[data-testid="stButton"] button p::before {
     content: "";
     display: inline-block;
     width: 14px;
@@ -327,8 +336,7 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     -webkit-mask-size: contain;
 }
 
-/* ---- Botões do modal de colunas (stModal 1.36 / stDialog 1.37+) ---- */
-div[data-testid="stModal"] div[data-testid="stButton"] button,
+/* ---- Botões do modal de colunas ---- */
 div[data-testid="stDialog"] div[data-testid="stButton"] button {
     min-width: auto !important;
     max-width: none !important;
@@ -339,19 +347,16 @@ div[data-testid="stDialog"] div[data-testid="stButton"] button {
     font-weight: 600 !important;
     transition: all 0.2s ease !important;
 }
-div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button,
 div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button {
     background: var(--grad-button) !important;
     color: #ffffff !important;
     border: none !important;
     box-shadow: 0 2px 6px rgba(11, 37, 69, 0.25) !important;
 }
-div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p,
 div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_fechar_modal_colunas"]) button p {
     color: #ffffff !important;
     font-weight: 600 !important;
 }
-div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button,
 div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button {
     background: var(--bg-soft) !important;
     color: var(--muted) !important;
@@ -359,13 +364,11 @@ div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_rest
     box-shadow: none !important;
     font-weight: 500 !important;
 }
-div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover,
 div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button:hover {
     background: var(--bg-soft-2) !important;
     color: var(--navy) !important;
     border-color: var(--muted-2) !important;
 }
-div[data-testid="stModal"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p,
 div[data-testid="stDialog"] div[data-testid="stButton"]:has(button[key="btn_restaurar_colunas"]) button p {
     color: inherit !important;
 }
@@ -443,7 +446,7 @@ div[data-testid="stExpander"] summary p {
 
 /* ---- Botão redondo "Limpar filtros" (vassoura), à esquerda de "Personalizar Colunas" ---- */
 /* É a 2ª coluna da linha do título; o texto do botão fica escondido e só o ícone aparece */
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:nth-child(2) div[data-testid="stButton"] button {
     width: 34px !important;
     min-width: 34px !important;
     height: 34px !important;
@@ -460,17 +463,17 @@ div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid
     justify-content: center !important;
     transition: all 0.2s ease !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button:hover {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:nth-child(2) div[data-testid="stButton"] button:hover {
     background: var(--bg-soft-2) !important;
     border-color: var(--navy) !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button p {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:nth-child(2) div[data-testid="stButton"] button p {
     font-size: 0 !important;
     line-height: 0 !important;
     margin: 0 !important;
     display: flex !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button p::before {
+div[data-testid="stHorizontalBlock"]:has(.carteira-header-title) div[data-testid="stColumn"]:nth-child(2) div[data-testid="stButton"] button p::before {
     content: "";
     width: 16px;
     height: 16px;

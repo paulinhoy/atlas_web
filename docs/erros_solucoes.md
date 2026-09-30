@@ -20,6 +20,8 @@ Este documento registra o histórico de problemas técnicos complexos, comportam
 10. [Prefixo de Arquivo do ETL Capturando o Arquivo Errado](#caso-10-prefixo-de-arquivo-do-etl-capturando-o-arquivo-errado)
 11. [Servidor com Python Antigo e CSS Novo Após Editar o Código](#caso-11-servidor-com-python-antigo-e-css-novo-após-editar-o-código)
 12. [Página "Dá um Tranco" a Cada Clique na Home (`st.empty` Vazio Durante o Rerun)](#caso-12-página-dá-um-tranco-a-cada-clique-na-home-stempty-vazio-durante-o-rerun)
+13. [Clique em Gráfico Altair Quebra com "Selections are not yet supported for multi-view charts"](#caso-13-clique-em-gráfico-altair-quebra-com-selections-are-not-yet-supported-for-multi-view-charts)
+14. [Migração do Streamlit 1.36 para 1.51: Seletores CSS Renomeados](#caso-14-migração-do-streamlit-136-para-151-seletores-css-renomeados)
 
 ---
 
@@ -332,6 +334,38 @@ Manter um gráfico só de pontos e desenhar as referências de outro jeito:
 x=alt.X("tirm_pct:Q", axis=alt.Axis(values=[0, 11.2], grid=True, gridDash=[6, 4], gridColor=COR_NAVY))
 ```
 Os nomes das zonas ficam num texto HTML acima do gráfico (`.bi-zonas`). Sem clique, camadas voltam a ser permitidas.
+
+---
+
+## Caso 14: Migração do Streamlit 1.36 para 1.51: Seletores CSS Renomeados
+
+* **Data:** 30/09/2026
+* **Componentes Afetados:** `assets/css/base.css`, `home.css`, `chatbot.css`, `bi.css`, `atlas.css`, `requirements.txt`
+* **Tecnologia:** `streamlit==1.51.0` (antes 1.36.0), Python 3.12, `uv`
+
+### 🛑 Contexto e Sintoma
+Na troca de versão o Python rodou sem erro (só o aviso de `use_container_width`), mas parte do CSS deixaria de ter efeito: paginação e botões da linha do título da tabela, espaço do topo, barra de navegação, balões do chat. Também apareceram diferenças finas: subtítulo dos cabeçalhos mais fino e link do cartão do BI sublinhado.
+
+### 🔍 Causa Raiz
+O CSS depende de nomes internos (`data-testid`) que o Streamlit renomeou:
+
+| 1.36 | 1.51 |
+|---|---|
+| `column` | `stColumn` |
+| `element-container` | `stElementContainer` |
+| `stAppViewBlockContainer` | `stMainBlockContainer` |
+| `stModal` | `stDialog` |
+| `chatAvatarIcon-user` / `-assistant` | `stChatMessageAvatarUser` / `Assistant` |
+| `stDecoration` | não existe mais |
+
+Além disso, o 1.51 carrega a fonte com peso 300 (o 1.36 caía no 400) e o estilo de link do markdown ganhou prioridade sobre `.bi-emp-link`.
+
+### ✅ Solução Adotada
+1. Conferir cada `data-testid` do CSS no código do frontend das duas versões (arquivos `streamlit/static/static/js/*.js` do pacote instalado): `grep -rlF '"stColumn"' .../static/js`. O que não existe mais foi trocado pelo nome novo.
+2. `font-weight: 300` → `400` nos subtítulos dos cabeçalhos (mantém o visual aprovado); `a.bi-emp-link` para vencer o estilo de link do Streamlit.
+3. `use_container_width=True` → `width="stretch"`.
+4. Comparar capturas de tela das duas versões lado a lado (Playwright, dados sintéticos) antes de pedir a conferência no navegador.
+5. Dependências: `requirements.txt` fixa os pacotes que afetam a tela; `requirements.lock.txt` (gerado com `uv pip compile --universal --python-version 3.12`) fixa tudo, igual no Windows e no Ubuntu 20.04 (glibc 2.31).
 
 ---
 

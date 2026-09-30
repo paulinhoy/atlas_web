@@ -242,6 +242,44 @@ DEFAULT_ACTIVE_COLUMNS = [
 
 PAGE_SIZE_OPTIONS = [15, 25, 50, 100]
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ORDENAÇÃO pelo cabeçalho: clicar no título da coluna ordena a lista filtrada inteira.
+# Ciclo: primeiro sentido -> sentido oposto -> padrão (IC decrescente).
+# id da coluna -> (coluna do DataFrame, primeiro sentido). Colunas fora daqui não ordenam.
+# Valores: maiores primeiro ("desc"); textos e datas: A→Z / mais antigo primeiro ("asc").
+# ─────────────────────────────────────────────────────────────────────────────
+ORDENACAO = {
+    "id": ("id_empreendimento", "asc"),
+    "nome": ("nome_empreendimento", "asc"),
+    "setor": ("setor", "asc"),
+    "origem_ajustada": ("origem_ajustada", "asc"),
+    "esfera": ("esfera_acao", "asc"),
+    "status": ("descr_status_empreendimento", "asc"),
+    "natureza": ("natureza_empreendimento", "asc"),
+    "vocacao": ("vocacao", "asc"),
+    "intervencao_principal": ("intervencao_principal", "asc"),
+    "fonte_financiamento": ("fonte_financiamento", "asc"),
+    "responsavel_gestao": ("responsavel_gestao_infraestrutura", "asc"),
+    "provavel_responsavel": ("provavel_responsavel", "asc"),
+    "periodo": ("data_inicio", "asc"),
+    "impacto": ("impacto_avaliado_3_pond_cenario", "desc"),
+    "viabilidade": ("viabilidade", "desc"),
+    "tirm": ("tirm", "desc"),
+    "ic": ("ic_3_pond", "desc"),
+    "capex": ("capex", "desc"),
+    "opex": ("opex", "desc"),
+    "valor_total": ("valor_total", "desc"),
+    "extensao": ("extensao_km", "desc"),
+    "dim_estrategica": ("dimensao_estrategica", "desc"),
+    "dim_socioeconomica": ("dimensao_socioeconomica_pond", "desc"),
+    "dim_gerencial": ("dimensao_gerencial", "desc"),
+    "dim_comercial": ("dimensao_comercial", "desc"),
+    "dim_financeira": ("dimensao_financeira", "desc"),
+}
+ORDEM_PADRAO = ("ic", "desc")  # a carteira já vem do data_loader ordenada assim
+# Classes (Impacto, Viabilidade) seguem a ordem da classificação, não a alfabética
+NIVEL_CLASSE = {"alt": 3, "med": 2, "baix": 1}  # início do texto sem acento: "Médio impacto" -> "med"
+
 
 def _inteiro_positivo(texto: str) -> int:
     valor = int(texto)
@@ -306,11 +344,66 @@ def modal_personalizar_colunas():
             st.session_state["sortable_modal_ver"] = ver + 1
             st.rerun()
     with c_done:
-        if st.button("Salvar e Fechar", key="btn_fechar_modal_colunas", type="primary", use_container_width=True):
+        if st.button("Salvar e Fechar", key="btn_fechar_modal_colunas", type="primary", width="stretch"):
             st.rerun()
 
 
-def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
+def _ler_ordem() -> tuple:
+    """(coluna, sentido) da URL; o padrão quando ausente ou inválido."""
+    col_id = estado_url.ler("ordem", ORDENACAO)
+    sentido = estado_url.ler("sentido", ("asc", "desc"))
+    return (col_id, sentido) if col_id and sentido else ORDEM_PADRAO
+
+
+def _proxima_ordem(col_id: str, atual: tuple) -> tuple:
+    """Ordem após clicar na coluna: primeiro sentido -> oposto -> padrão."""
+    primeiro = ORDENACAO[col_id][1]
+    oposto = "asc" if primeiro == "desc" else "desc"
+    if atual[0] != col_id:
+        return (col_id, primeiro)
+    if atual[1] == primeiro:  # vale também para o IC, que já começa no primeiro sentido (padrão)
+        return (col_id, oposto)
+    return ORDEM_PADRAO
+
+
+def _chave_ordenacao(serie: pd.Series) -> pd.Series:
+    """Valor usado para ordenar: número como está; classe pelo nível; texto sem acento e sem caixa."""
+    if pd.api.types.is_numeric_dtype(serie) or pd.api.types.is_datetime64_any_dtype(serie):
+        return serie
+    # Vazio vira None e vai para o fim
+    textos = serie.map(lambda v: _chave_ordem(str(v)) if isinstance(v, str) and v.strip() else None)
+    if serie.name in ("impacto_avaliado_3_pond_cenario", "viabilidade"):
+        return textos.map(lambda t: next((n for pre, n in NIVEL_CLASSE.items() if t and t.startswith(pre)), None))
+    return textos
+
+
+def _ordenar(df: pd.DataFrame, ordem: tuple) -> pd.DataFrame:
+    """Ordena a lista filtrada; vazios sempre no fim. Ordenação estável: empates mantêm a ordem do IC."""
+    if ordem == ORDEM_PADRAO:
+        return df
+    coluna, _ = ORDENACAO[ordem[0]]
+    return df.sort_values(coluna, ascending=ordem[1] == "asc", na_position="last", kind="mergesort",
+                          key=_chave_ordenacao).reset_index(drop=True)
+
+
+def _titulo_coluna(col_id: str, rotulo: str, ordem: tuple) -> str:
+    """Título do cabeçalho; nas colunas ordenáveis vira link com setinha (▼/▲ na ativa, ↕ ao passar o mouse)."""
+    if col_id not in ORDENACAO:
+        return rotulo
+    proxima = _proxima_ordem(col_id, ordem)
+    href = estado_url.link_home_com(
+        ordem=None if proxima == ORDEM_PADRAO else proxima[0],
+        sentido=None if proxima == ORDEM_PADRAO else proxima[1],
+        pg=None,  # nova ordem volta para a página 1
+    )
+    if ordem[0] == col_id:
+        seta = f'<span class="th-seta">{"▼" if ordem[1] == "desc" else "▲"}</span>'
+    else:
+        seta = '<span class="th-seta th-seta-hover">↕</span>'
+    return f'<a class="th-ordem" href="{href}" target="_self" title="Ordenar por {rotulo}">{rotulo}{seta}</a>'
+
+
+def render_table_html(df_page: pd.DataFrame, active_columns: list = None, ordem: tuple = ORDEM_PADRAO):
     """Renderiza a tabela de empreendimentos estilizada no padrão visual do Atlas com colunas desacopladas."""
     if not active_columns:
         active_columns = DEFAULT_ACTIVE_COLUMNS
@@ -324,7 +417,7 @@ def render_table_html(df_page: pd.DataFrame, active_columns: list = None):
         th_class = cfg.get("th_class", "tc")
         th_style = cfg.get("th_style", "")
         style_attr = f' style="{th_style}"' if th_style else ""
-        ths_html += f'<th class="{th_class}"{style_attr}>{cfg["label"]}</th>'
+        ths_html += f'<th class="{th_class}"{style_attr}>{_titulo_coluna(col_id, cfg["label"], ordem)}</th>'
 
     # Linhas da tabela
     rows_html = ""
@@ -683,7 +776,8 @@ def render():
                 format_func=FORMATO_FAIXA[param],
             )
 
-    df_filtrado = _aplicar_filtros(df_emp, busca, selecoes, faixas, opcoes_faixa).reset_index(drop=True)
+    ordem = _ler_ordem()
+    df_filtrado = _ordenar(_aplicar_filtros(df_emp, busca, selecoes, faixas, opcoes_faixa).reset_index(drop=True), ordem)
     total_filtrado = len(df_filtrado)
 
     # ── Estado da tabela (colunas e paginação), lido da URL no início da sessão ──
@@ -740,7 +834,7 @@ def render():
             "Personalizar Colunas",
             key="btn_abrir_modal_colunas",
             help="Personalizar ordem e visibilidade das colunas na tabela",
-            use_container_width=True,
+            width="stretch",
         ):
             modal_personalizar_colunas()
 
@@ -756,7 +850,7 @@ def render():
 
     # 1. Fatia e renderiza a tabela estilizada com colunas desacopladas
     df_page = df_filtrado.iloc[start_idx:end_idx]
-    render_table_html(df_page, active_columns=colunas_ativas)
+    render_table_html(df_page, active_columns=colunas_ativas, ordem=ordem)
 
     # 2. Barra de paginação numérica minimalista (< 1 ... 5 [6] 7 ... 17 >)
     render_pagination(

@@ -63,8 +63,9 @@
 .bi-table tbody td.tr { font-family: var(--font-mono); }
 .bi-table .tc { text-align: center; }
 
-.bi-emp-link { color: var(--navy); font-weight: 600; text-decoration: none; }
-.bi-emp-link:hover { color: var(--blue-accent); text-decoration: underline; }
+/* "a." aumenta a prioridade: o Streamlit 1.51 sublinha e pinta os links do markdown */
+a.bi-emp-link { color: var(--navy); font-weight: 600; text-decoration: none; }
+a.bi-emp-link:hover { color: var(--blue-accent); text-decoration: underline; }
 
 /* ---- Badges de impacto (mesmas cores da Home) ---- */
 .bi-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }

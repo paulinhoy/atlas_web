@@ -220,7 +220,7 @@ def _grafico_matriz(carteira: str, setor: str, df: pd.DataFrame, m: pd.DataFrame
         tooltip=tooltip,
     ).add_params(ponto)
 
-    evento = st.altair_chart(pontos.properties(height=480), use_container_width=True,
+    evento = st.altair_chart(pontos.properties(height=480), width="stretch",
                              on_select="rerun", key=f"bi_matriz_{chave}")  # chave por eixo: cada gráfico guarda a sua seleção
     eid = _selecionado(evento, "ponto")
     if eid is not None:
@@ -283,7 +283,7 @@ def _render_eficiencia(carteira: str, setor: str, df: pd.DataFrame) -> None:
                  alt.Tooltip("capex_txt:N", title="CAPEX"),
                  alt.Tooltip("ic_3_pond:Q", title="IC", format=".4f")],
     ).add_params(ponto)
-    evento = st.altair_chart(pontos.properties(height=420), use_container_width=True,
+    evento = st.altair_chart(pontos.properties(height=420), width="stretch",
                              on_select="rerun", key="bi_eficiencia")
 
     f = g[g["fronteira"]].sort_values("capex")

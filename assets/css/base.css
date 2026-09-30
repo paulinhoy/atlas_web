@@ -110,16 +110,15 @@
 
 /* ---- Barra de navegação superior (views/ui.py -> render_navbar) ---- */
 /* Esconde a faixa nativa do Streamlit (menu e aviso "Running"): a barra ocupa o lugar dela */
-header[data-testid="stHeader"],
-div[data-testid="stDecoration"] {
+header[data-testid="stHeader"] {
     display: none !important;
 }
 /* Conteúdo começa logo abaixo da barra (antes: 6rem reservados para a faixa do Streamlit) */
-div[data-testid="stAppViewBlockContainer"] {
+div[data-testid="stMainBlockContainer"] {
     padding-top: calc(var(--navbar-height) + 1.5rem) !important;
 }
 /* O bloco que contém a barra sai do fluxo: não soma espaçamento entre elementos */
-div[data-testid="element-container"]:has(.atlas-navbar) {
+div[data-testid="stElementContainer"]:has(.atlas-navbar) {
     position: absolute;
 }
 .atlas-navbar {
