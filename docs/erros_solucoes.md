@@ -433,6 +433,26 @@ Links `<a href>` recarregam a página e abrem uma sessão nova: só a URL sobrev
 
 ---
 
+## Caso 18: CSV de Observações Feito à Mão — Linha com Separador no Texto e "R$" Virando Fórmula
+
+* **Data:** 02/10/2026
+* **Componentes Afetados:** `services/data_loader.py` (`_load_observacoes`), `views/atlas.py` (`render_observacao`)
+* **Tecnologia:** pandas 2.x, Streamlit 1.51.0
+
+### 🛑 Contexto e Sintoma
+1. Uma observação com `;` sem aspas (`721;Obra em licitação; previsão 2027`) fazia o `pd.read_csv` devolver colunas trocadas, e **todas** as observações sumiam sem erro.
+2. Risco no texto: `st.markdown` interpreta `$...$` como fórmula LaTeX, então "R$ 10 mi a R$ 20 mi" poderia virar fórmula.
+
+### 🔍 Causa Raiz
+1. Com mais campos na linha do que no cabeçalho, o pandas usa os campos extras como índice. O CSV é editado à mão, então isso acontece.
+2. O Markdown do Streamlit tem suporte a matemática com `$`.
+
+### ✅ Solução Adotada
+1. Leitura com o módulo `csv` (não pandas): como `observacao` é a última coluna, os pedaços extras da linha são juntados de volta com o separador. O separador (`;` ou `,`) é detectado pelo cabeçalho, e a codificação tenta UTF-8 (com ou sem BOM) e depois Windows-1252.
+2. O texto é escapado (`html.escape`), `$` vira `&#36;` e a quebra de linha vira `<br>`.
+
+---
+
 ## 📝 Modelo de Registro para Novos Casos
 
 Sempre que documentar um novo erro, utilize o padrão abaixo:

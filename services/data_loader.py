@@ -13,12 +13,16 @@ Estratégia de Cache:
        Se precisar modificar, use .copy() antes: df_local = df.copy()
 """
 
+import csv
+import io
 from pathlib import Path
 import pandas as pd
 import streamlit as st
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
+# Observações da ficha: CSV mantido à mão (não passa pelo ETL), colunas id_empreendimento e observacao
+OBSERVACOES_CSV = BASE_DIR / "data" / "observacoes" / "observacoes_empreendimentos.csv"
 
 
 @st.cache_data(show_spinner=False)
@@ -128,6 +132,52 @@ def get_custo_obra() -> pd.DataFrame:
 
 def get_alocacao() -> pd.DataFrame:
     return load_parquet("alocacao_empreendimento")
+
+
+@st.cache_data(show_spinner=False)
+def _load_observacoes() -> dict:
+    """{id_empreendimento: [observações]} lido do CSV de observações.
+    Lido uma vez por servidor (cache): mudanças no arquivo valem após reiniciar o Streamlit.
+    Arquivo ausente ou ilegível não derruba a ficha: simplesmente não há observações."""
+    if not OBSERVACOES_CSV.exists():
+        return {}
+    # Excel em português salva com ";" e acentos em Windows-1252; o resto, com "," e UTF-8
+    bruto = OBSERVACOES_CSV.read_bytes()
+    try:
+        texto = bruto.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        texto = bruto.decode("cp1252", errors="replace")
+    primeira_linha = texto.splitlines()[0] if texto else ""
+    separador = ";" if ";" in primeira_linha else ","
+    linhas = list(csv.reader(io.StringIO(texto), delimiter=separador))
+    if not linhas:
+        return {}
+    cabecalho = [c.strip().lower() for c in linhas[0]]
+    if "id_empreendimento" not in cabecalho or "observacao" not in cabecalho:
+        return {}
+    i_id, i_obs = cabecalho.index("id_empreendimento"), cabecalho.index("observacao")
+    observacoes = {}
+    for linha in linhas[1:]:
+        if len(linha) <= max(i_id, i_obs):
+            continue
+        # Separador sem aspas dentro do texto quebra a linha em colunas a mais: junta de volta
+        obs = separador.join(linha[i_obs:]) if i_obs == len(cabecalho) - 1 else linha[i_obs]
+        obs = obs.replace("\r\n", "\n").strip()
+        try:
+            valor_id = float(linha[i_id].strip())
+        except ValueError:
+            continue
+        if obs and valor_id.is_integer():
+            observacoes.setdefault(int(valor_id), []).append(obs)
+    return observacoes
+
+
+def get_observacoes(empreendimento_id) -> list:
+    """Observações do empreendimento (várias linhas no CSV = vários parágrafos); lista vazia se não houver."""
+    try:
+        return _load_observacoes().get(int(empreendimento_id), [])
+    except (TypeError, ValueError):
+        return []
 
 
 def get_empreendimento_geo() -> pd.DataFrame:

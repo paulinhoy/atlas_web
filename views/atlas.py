@@ -136,6 +136,27 @@ def render_legenda_qgis():
 # Tabelas de Dados
 # ---------------------------------------------------------------------------
 
+_ICONE_INFO = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+               'stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle>'
+               '<path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>')
+
+
+def render_observacao(empreendimento_id):
+    """Balão de observação (CSV em data/observacoes/); não aparece se o empreendimento não tiver observação."""
+    observacoes = data_loader.get_observacoes(empreendimento_id)
+    if not observacoes:
+        return
+    # Texto puro: HTML escapado, quebra de linha vira <br>, "$" escapado (o st.markdown leria "R$ ... $" como fórmula)
+    paragrafos = "".join(
+        f"<p>{html_mod.escape(texto).replace(chr(10), '<br>').replace('$', '&#36;')}</p>" for texto in observacoes
+    )
+    st.markdown(
+        f'<div class="atlas-observacao"><div class="atlas-observacao-titulo">{_ICONE_INFO}<span>Observação</span></div>'
+        f'<div class="atlas-observacao-texto">{paragrafos}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def render_tabela_priorizacao(row):
     """Tabela 1 — Resultados da Priorização (com resolução hierárquica e badge da fonte)."""
     # Garante que as notas venham da resolução hierárquica: Recomendada -> Otimizada -> de Análise
@@ -558,6 +579,9 @@ def render(empreendimento_id: int | None):
 
     with col_map:
         render_map_section(empreendimento_id)
+
+    # ── Observação do empreendimento (só quando existe no CSV) ──
+    render_observacao(empreendimento_id)
 
     # ── Tabela 1: Resultados da Priorização ──
     render_tabela_priorizacao(row)

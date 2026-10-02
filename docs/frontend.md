@@ -36,7 +36,7 @@ views/
 ├── ui.py                   inject_css()/read_css() + componentes comuns (render_navbar, render_back_button)
 ├── estado_url.py           Estado da Home e do BI guardado na URL e origem do Voltar — ver seção 5.9
 ├── home.py                 Tela inicial: KPIs, filtros, tabela, paginação, modal de colunas
-├── atlas.py                Ficha do empreendimento: cabeçalho, metadados, mapa, 4 tabelas
+├── atlas.py                Ficha do empreendimento: cabeçalho, metadados, mapa, balão de observação, 4 tabelas
 ├── chatbot.py              Tela do assistente virtual (a lógica fica em services/chatbot_service.py)
 └── bi.py                   Painel de Indicadores & BI (provisório: "em construção")
 services/
@@ -141,6 +141,7 @@ O tema base do Streamlit (cores de widgets nativos) fica em `.streamlit/config.t
 |---|---|
 | `.atlas-header` (+ `h2`, `.sub`) | Cabeçalho da ficha |
 | `.meta-card`, `.meta-row`, `.meta-label`, `.meta-value` | Painel de metadados (altura fixa 520px) |
+| `.atlas-observacao` (+ `-titulo`, `-texto`) | Balão de observação entre o mapa e "Resultados da Priorização" (`render_observacao`; texto do CSV em `data/observacoes/`, ver `arquitetura.md`) |
 | `.map-placeholder`, `.map-placeholder-icon` | Aviso "sem geometria" (altura 520px, alinhado ao metadados) |
 | `.section-title`, `.section-title--badge` | Título de seção; `--badge` alinha um badge à direita |
 | `.atlas-table …` | Complementos das tabelas da ficha (`.tl`/`.tr` com `!important`, `.text-left`/`.text-right`) |

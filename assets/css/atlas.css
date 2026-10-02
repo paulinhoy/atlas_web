@@ -113,6 +113,33 @@
 .legenda-dot { width: 9px; height: 9px; border-radius: 50%; }
 .legenda-square { width: 12px; height: 12px; border-radius: 2px; }
 
+/* ---- Balão de observação (entre o mapa e "Resultados da Priorização") ---- */
+.atlas-observacao {
+    background: #f1f5fb;
+    border: 1px solid #dde3ec;
+    border-left: 4px solid var(--navy);
+    border-radius: 8px;
+    padding: 0.85rem 1.2rem;
+    margin: 1.2rem 0 0 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.atlas-observacao-titulo {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--navy);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+.atlas-observacao-texto p {
+    margin: 0 0 0.4rem 0;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+}
+.atlas-observacao-texto p:last-child { margin-bottom: 0; }
+
 /* ---- Título de seção ---- */
 .section-title {
     font-size: 20px;
