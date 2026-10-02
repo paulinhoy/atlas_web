@@ -412,6 +412,47 @@ Script `_JS_FILTROS` em `views/home.py`, instalado por um componente v2 que não
 
 ---
 
+## Caso 17: Voltar da Ficha Aberta pelo BI Levava para a Home (e a Aba Aberta Não Pode Ser Lida)
+
+* **Data:** 01/10/2026
+* **Componentes Afetados:** `views/estado_url.py`, `views/bi.py`, `views/ui.py`, `views/atlas.py`, `app.py`
+* **Tecnologia:** Streamlit 1.51.0
+
+### 🛑 Contexto e Sintoma
+Ao abrir uma ficha pelo Painel de BI, o botão dizia "Voltar para a Lista" e levava para a Home. Mesmo voltando ao BI pela barra superior, setor, empreendimento, eixo da matriz e aba voltavam ao padrão.
+
+### 🔍 Causa Raiz
+Links `<a href>` recarregam a página e abrem uma sessão nova: só a URL sobrevive, e a ficha não sabia de onde tinha vindo. Além disso, o `st.tabs` da 1.51 aceita `default` (aba inicial), mas **não informa qual aba está aberta** (não tem `key` nem valor de retorno), então não dá para gravar a aba na URL a cada execução.
+
+### ✅ Solução Adotada
+1. Estado do BI na URL com prefixo `bi_` (`bi_setor`, `bi_emp`, `bi_eixo`), para não colidir com os filtros da Home (que já usa `setor` e `origem`).
+2. Cada link do BI para a ficha sabe de qual aba foi desenhado e leva `de=bi&bi_aba=<aba>`. A ficha escolhe o botão por `estado_url.origem()`, que aceita só valores de `ORIGENS`. Nunca use um endereço livre (`?voltar=https://...`): isso abre redirecionamento para sites de fora.
+3. De volta ao BI, `bi_aba` vira `st.tabs(..., default=rótulo)` e é removido da URL junto com `de`.
+
+**Armadilhas:** `_link()` agora dá prioridade aos parâmetros passados (`extra`) sobre os da URL. Antes, a URL sobrescrevia, e um `bi_emp` antigo venceria o do link. Gravar `bi_setor`/`bi_eixo` **antes** das abas, senão os links da aba Perfil (desenhada antes da matriz) levam o eixo da execução anterior. No `AppTest`, procure a barra por `<nav class="atlas-navbar"`: o CSS injetado também contém o texto `atlas-navbar`.
+
+---
+
+## Caso 18: CSV de Observações Feito à Mão — Linha com Separador no Texto e "R$" Virando Fórmula
+
+* **Data:** 02/10/2026
+* **Componentes Afetados:** `services/data_loader.py` (`_load_observacoes`), `views/atlas.py` (`render_observacao`)
+* **Tecnologia:** pandas 2.x, Streamlit 1.51.0
+
+### 🛑 Contexto e Sintoma
+1. Uma observação com `;` sem aspas (`721;Obra em licitação; previsão 2027`) fazia o `pd.read_csv` devolver colunas trocadas, e **todas** as observações sumiam sem erro.
+2. Risco no texto: `st.markdown` interpreta `$...$` como fórmula LaTeX, então "R$ 10 mi a R$ 20 mi" poderia virar fórmula.
+
+### 🔍 Causa Raiz
+1. Com mais campos na linha do que no cabeçalho, o pandas usa os campos extras como índice. O CSV é editado à mão, então isso acontece.
+2. O Markdown do Streamlit tem suporte a matemática com `$`.
+
+### ✅ Solução Adotada
+1. Leitura com o módulo `csv` (não pandas): como `observacao` é a última coluna, os pedaços extras da linha são juntados de volta com o separador. O separador (`;` ou `,`) é detectado pelo cabeçalho, e a codificação tenta UTF-8 (com ou sem BOM) e depois Windows-1252.
+2. O texto é escapado (`html.escape`), `$` vira `&#36;` e a quebra de linha vira `<br>`.
+
+---
+
 ## 📝 Modelo de Registro para Novos Casos
 
 Sempre que documentar um novo erro, utilize o padrão abaixo:

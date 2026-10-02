@@ -13,9 +13,11 @@ data/raw/*.json
 data/processed/*.parquet
 data/chat_logs/
 data/budget.json
+data/observacoes/*.csv
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/chat_logs/.gitkeep
+!data/observacoes/.gitkeep
 
 # Environment Variables (API Keys)
 .env
