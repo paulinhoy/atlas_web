@@ -34,7 +34,7 @@ Guia de referência para quem (pessoa ou agente) for mexer na interface. Leia an
 app.py                      Roteamento pela URL (?id=123 → ficha; ?page=chatbot → chatbot; ?page=bi → BI; vazio → Home)
 views/
 ├── ui.py                   inject_css()/read_css() + componentes comuns (render_navbar, render_back_button)
-├── estado_url.py           Estado da Home (filtros, página, colunas) guardado na URL — ver seção 5.9
+├── estado_url.py           Estado da Home e do BI guardado na URL e origem do Voltar — ver seção 5.9
 ├── home.py                 Tela inicial: KPIs, filtros, tabela, paginação, modal de colunas
 ├── atlas.py                Ficha do empreendimento: cabeçalho, metadados, mapa, 4 tabelas
 ├── chatbot.py              Tela do assistente virtual (a lógica fica em services/chatbot_service.py)
@@ -235,15 +235,21 @@ Seguem o mesmo molde: título `.section-title` + `<table class="atlas-table">`. 
 ### 5.8 Mapa
 Tudo em `services/map_service.py` (`render_map(id)`). Cores das linhas/pontos estão nos `style_function`/`CircleMarker`; altura em `folium_static(m, height=510)` casada com os 520px do CSS (`.meta-card`, `.map-placeholder`, regras de `iframe` em `atlas.css`). **Se mudar a altura, mude nos quatro lugares.**
 
-### 5.9 Estado da Home na URL (filtros, página, colunas)
+### 5.9 Estado na URL (Home, BI e origem do Voltar)
 Links recarregam a página e zeram a sessão; a URL sobrevive. `views/estado_url.py` faz a ponte:
 
 - **Início da sessão:** `semear_widget(chave, param, opcoes)` coloca o valor da URL no widget **se for válido** (senão ignora).
 - **Toda execução:** `estado_url.gravar(valores, padroes)` escreve o estado na URL sem recarregar; valores iguais ao padrão ficam fora (URL limpa).
-- **Links:** `link_empreendimento(id)`, `link_chatbot()`, `link_home()` montam o `href` com o estado atual.
+- **Links:** `link_empreendimento(id)`, `link_chatbot()`, `link_home()`, `link_bi()` montam o `href` com o estado atual. A partir do BI: `link_empreendimento(id, de="bi", aba="matriz")`.
+- **Parâmetros de navegação** (`PARAMS_NAVEGACAO`: `id`, `page`, `de`, `bi_aba`): dizem *para onde* ir, não são estado; os links não os repassam.
 
 Parâmetros atuais: `carteira` (recomendada/otimizada/analise; `completa` ainda é aceito), `q` (busca), filtros de seleção múltipla com itens separados por `|` (`setor`, `status`, `origem`, `esfera`, `impacto`, `viabilidade`, `intervencao`, `natureza`, `municipio`, `regiao`), faixas `min:max` (`total` = Valor Total, `tirm` em fração, `ic`), ordenação da tabela (`ordem` = id da coluna, `sentido` = `asc`/`desc`; ausentes = IC decrescente), `pg`, `itens`, `cols` (ids separados por vírgula).
 Exemplo: `?id=1042&carteira=analise&setor=Ferroviário|Dutoviário&total=10000000:1000000000&pg=2`.
+
+**Painel de BI** (`views/bi.py`): `bi_setor`, `bi_emp` (id do empreendimento do Perfil), `bi_eixo` (`ic`/`invest`/`socio`/`estrat`; `ic` fica fora da URL). Lidos no início da sessão por `_ler_estado_url()`; setor e empreendimento só entram no widget se existirem nas opções do recorte. `bi_setor` e `bi_eixo` são gravados **antes** das abas, para os links das fichas já levarem o valor novo.
+
+**Origem da ficha (botão Voltar):** os links do BI para a ficha levam `de=bi`, `bi_aba` (`perfil`/`matriz`) e `bi_emp`. Na ficha, `render_back_button()` usa `estado_url.origem()`: com `de=bi` mostra "Voltar para o Painel" (`link_bi()`), senão "Voltar para a Lista". De volta ao BI, `bi_aba` vira o `default` do `st.tabs` e, se for `matriz`, o perfil de `bi_emp` aparece abaixo do gráfico até o usuário clicar num ponto. Para uma nova origem (ex.: chatbot), acrescente-a em `ORIGENS` e trate-a em `render_back_button()`.
+Exemplo: `?id=1937&de=bi&bi_aba=matriz&bi_emp=1937&bi_setor=Rodoviário&bi_eixo=invest`.
 
 **Para incluir um filtro novo na Home:** acrescente uma linha `(parâmetro na URL, rótulo, coluna)` em `FILTROS_PRINCIPAIS` (sempre visível) ou `FILTROS_MAIS` (dentro de "Mais filtros") em `views/home.py`. Opções, URL, "Limpar filtros", volta à página 1 e a filtragem saem dessa lista. Se a coluna for uma lista, inclua-a também em `COLUNAS_LISTA`. Slider de faixa: `FILTROS_FAIXA` + os degraus em `opcoes_faixa` + o rótulo em `FORMATO_FAIXA`.
 
@@ -270,7 +276,7 @@ A troca de qualquer filtro volta a paginação para a página 1.
 6. **Não altere o DataFrame geoespacial** retornado por `data_loader.get_empreendimento_geo()` (é compartilhado entre usuários; use `.copy()` se precisar).
 7. **Fins de linha:** `app.py`, `views/atlas.py` e `services/map_service.py` usam CRLF. Scripts que reescrevem arquivos devem preservar isso para não gerar diffs gigantes.
 8. **Não mexa na lógica do chatbot** (`services/chatbot_service.py`, `services/chat_logger.py`) sem pedido explícito.
-9. **Links internos** (`<a href>`) sempre por `estado_url.link_empreendimento()`, `link_chatbot()`, `link_home()` ou `render_back_button()`; nunca `?id=...` ou `?` escritos à mão.
+9. **Links internos** (`<a href>`) sempre por `estado_url.link_empreendimento()`, `link_chatbot()`, `link_home()`, `link_bi()` ou `render_back_button()`; nunca `?id=...` ou `?` escritos à mão.
 
 ---
 

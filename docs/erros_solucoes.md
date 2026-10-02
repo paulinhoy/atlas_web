@@ -412,6 +412,27 @@ Script `_JS_FILTROS` em `views/home.py`, instalado por um componente v2 que não
 
 ---
 
+## Caso 17: Voltar da Ficha Aberta pelo BI Levava para a Home (e a Aba Aberta Não Pode Ser Lida)
+
+* **Data:** 01/10/2026
+* **Componentes Afetados:** `views/estado_url.py`, `views/bi.py`, `views/ui.py`, `views/atlas.py`, `app.py`
+* **Tecnologia:** Streamlit 1.51.0
+
+### 🛑 Contexto e Sintoma
+Ao abrir uma ficha pelo Painel de BI, o botão dizia "Voltar para a Lista" e levava para a Home. Mesmo voltando ao BI pela barra superior, setor, empreendimento, eixo da matriz e aba voltavam ao padrão.
+
+### 🔍 Causa Raiz
+Links `<a href>` recarregam a página e abrem uma sessão nova: só a URL sobrevive, e a ficha não sabia de onde tinha vindo. Além disso, o `st.tabs` da 1.51 aceita `default` (aba inicial), mas **não informa qual aba está aberta** (não tem `key` nem valor de retorno), então não dá para gravar a aba na URL a cada execução.
+
+### ✅ Solução Adotada
+1. Estado do BI na URL com prefixo `bi_` (`bi_setor`, `bi_emp`, `bi_eixo`), para não colidir com os filtros da Home (que já usa `setor` e `origem`).
+2. Cada link do BI para a ficha sabe de qual aba foi desenhado e leva `de=bi&bi_aba=<aba>`. A ficha escolhe o botão por `estado_url.origem()`, que aceita só valores de `ORIGENS`. Nunca use um endereço livre (`?voltar=https://...`): isso abre redirecionamento para sites de fora.
+3. De volta ao BI, `bi_aba` vira `st.tabs(..., default=rótulo)` e é removido da URL junto com `de`.
+
+**Armadilhas:** `_link()` agora dá prioridade aos parâmetros passados (`extra`) sobre os da URL. Antes, a URL sobrescrevia, e um `bi_emp` antigo venceria o do link. Gravar `bi_setor`/`bi_eixo` **antes** das abas, senão os links da aba Perfil (desenhada antes da matriz) levam o eixo da execução anterior. No `AppTest`, procure a barra por `<nav class="atlas-navbar"`: o CSS injetado também contém o texto `atlas-navbar`.
+
+---
+
 ## 📝 Modelo de Registro para Novos Casos
 
 Sempre que documentar um novo erro, utilize o padrão abaixo:

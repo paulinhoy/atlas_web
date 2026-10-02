@@ -64,9 +64,11 @@ def _classe_posicao(posicao, total) -> str:
     return "rk rk-fim"
 
 
-def _link_emp(row) -> str:
+def _link_emp(row, aba: str | None) -> str:
+    """Link para a ficha; leva a origem e a `aba` para o "Voltar para o Painel" reabrir o mesmo lugar."""
     nome = html_mod.escape(str(row["nome_empreendimento"]))
-    return f'<a href="{estado_url.link_empreendimento(int(row["id_empreendimento"]))}" target="_self" class="bi-emp-link">{nome}</a>'
+    href = estado_url.link_empreendimento(int(row["id_empreendimento"]), de="bi", aba=aba)
+    return f'<a href="{href}" target="_self" class="bi-emp-link">{nome}</a>'
 
 
 def _badge_impacto(valor) -> str:
@@ -109,13 +111,13 @@ def _render_kpis(df: pd.DataFrame) -> None:
 
 # ── Aba 1: Perfil do empreendimento ─────────────────────────────────────────
 
-def _render_perfil(carteira: str, setor: str, df: pd.DataFrame, empreendimento_id: int) -> None:
+def _render_perfil(carteira: str, setor: str, df: pd.DataFrame, empreendimento_id: int, aba: str | None) -> None:
     r = df[df["id_empreendimento"] == empreendimento_id]
     if r.empty:
         return
     r = r.iloc[0]
     st.markdown(
-        f'<div class="bi-perfil-card"><div class="bi-perfil-nome">{_link_emp(r)}</div>'
+        f'<div class="bi-perfil-card"><div class="bi-perfil-nome">{_link_emp(r, aba)}</div>'
         f'<div class="bi-perfil-meta">{html_mod.escape(str(r["intervencao_principal"]))} · {r["momento"]} '
         f'({html_mod.escape(str(r["descr_status_empreendimento"]))}) · {html_mod.escape(str(r["esfera_acao"]))} · '
         f'Investimento total {fmt_brl_compacto(r["valor_total"])} · TIRM {_fmt_metrica("tirm", r["tirm"])} · '
@@ -159,9 +161,14 @@ def _render_aba_perfil(carteira: str, setor: str, df: pd.DataFrame) -> None:
     _titulo("Avaliação específica do empreendimento",
             "Posição do empreendimento em cada métrica, em comparação com os empreendimentos do mesmo recorte.")
     nomes = df.set_index("id_empreendimento")["nome_empreendimento"]
+    # Empreendimento vindo da URL: só entra se existir no recorte (valor fora das opções derruba o selectbox)
+    emp_url = st.session_state.pop("_bi_emp_url", None)
+    if emp_url in nomes.index and "bi_perfil_emp" not in st.session_state:
+        st.session_state["bi_perfil_emp"] = emp_url
     eid = st.selectbox("Empreendimento", nomes.index.tolist(), key="bi_perfil_emp",
                        format_func=lambda i: f"{nomes[i]} (ID {i})")
-    _render_perfil(carteira, setor, df, int(eid))
+    estado_url.gravar({"bi_emp": int(eid)}, {})
+    _render_perfil(carteira, setor, df, int(eid), "perfil")
 
 
 # ── Aba 2: Matriz Impacto × Viabilidade ─────────────────────────────────────
@@ -178,6 +185,7 @@ EIXOS_Y = [
     ("socio", "dimensao_socioeconomica_pond", "Dimensão socioeconômica — nota", "Dimensão socioeconômica × Viabilidade"),
     ("estrat", "dimensao_estrategica", "Dimensão estratégica — nota", "Dimensão estratégica × Viabilidade"),
 ]
+EIXO_PADRAO = "ic"
 
 
 def _grafico_matriz(carteira: str, setor: str, df: pd.DataFrame, m: pd.DataFrame,
@@ -224,8 +232,13 @@ def _grafico_matriz(carteira: str, setor: str, df: pd.DataFrame, m: pd.DataFrame
                              on_select="rerun", key=f"bi_matriz_{chave}")  # chave por eixo: cada gráfico guarda a sua seleção
     eid = _selecionado(evento, "ponto")
     if eid is not None:
+        st.session_state.pop("_bi_matriz_emp", None)  # clique do usuário substitui o que veio da URL
+    else:
+        # Volta de uma ficha: o gráfico não marca o ponto pelo código, mas o perfil reaparece
+        eid = st.session_state.get("_bi_matriz_emp")
+    if eid is not None and eid in set(m["id_empreendimento"]):
         _titulo("Empreendimento selecionado")
-        _render_perfil(carteira, setor, df, eid)
+        _render_perfil(carteira, setor, df, eid, "matriz")
 
 
 def _render_matriz(carteira: str, setor: str, df: pd.DataFrame) -> None:
@@ -289,7 +302,7 @@ def _render_eficiencia(carteira: str, setor: str, df: pd.DataFrame) -> None:
     f = g[g["fronteira"]].sort_values("capex")
     cab = [("Empreendimento", "tl"), ("CAPEX", "tr"), ("Índice (IC)", "tr"),
            ("Posição no setor (IC)", "tc"), ("Momento", "tc")]
-    linhas_tab = [[_link_emp(r), fmt_brl_compacto(r["capex"]), fmt_decimal_br(r["ic_3_pond"], 4),
+    linhas_tab = [[_link_emp(r, None), fmt_brl_compacto(r["capex"]), fmt_decimal_br(r["ic_3_pond"], 4),
                    _fmt_posicao(r["pos_ic_setor"], r["total_setor"]), r["momento"]]
                   for _, r in f.iterrows()]
     st.markdown(_tabela(cab, linhas_tab), unsafe_allow_html=True)
@@ -300,7 +313,7 @@ def _render_eficiencia(carteira: str, setor: str, df: pd.DataFrame) -> None:
     eid = _selecionado(evento, "ponto_efic")
     if eid is not None:
         _titulo("Empreendimento selecionado")
-        _render_perfil(carteira, setor, df, eid)
+        _render_perfil(carteira, setor, df, eid, None)  # aba oculta: o Voltar abre a primeira aba
 
 
 # ── Aba 3: Panorama de Investimentos (composição por esfera) ────────────────
@@ -333,16 +346,39 @@ def _render_composicao(df: pd.DataFrame) -> None:
 
 # ── Página ──────────────────────────────────────────────────────────────────
 
+# Abas: (valor de "bi_aba" na URL, rótulo). Aba "Eficiência do CAPEX" (_render_eficiencia) oculta por enquanto
+ABAS = {"perfil": "Perfil do empreendimento", "matriz": "Impacto × Viabilidade", "panorama": "Panorama de Investimentos"}
+
+
+def _ler_estado_url() -> None:
+    """Início da sessão: URL -> session_state. Setor e empreendimento dependem dos dados, então ficam
+    guardados aqui e são validados quando as opções existem (em render e _render_aba_perfil)."""
+    rotulo_por_slug = {slug: rot for rot, slug in CARTEIRAS_HOME.items()}
+    slug_url = estado_url.ler("carteira", rotulo_por_slug, data_loader.slug_carteira)
+    st.session_state.setdefault("bi_carteira", rotulo_por_slug.get(slug_url, "Recomendada"))
+    eixo = estado_url.ler("bi_eixo", [e[0] for e in EIXOS_Y])
+    if eixo is not None:
+        st.session_state.setdefault("bi_matriz_eixo_y", eixo)
+    st.session_state["_bi_setor_url"] = estado_url.ler("bi_setor")
+    st.session_state["_bi_emp_url"] = estado_url.ler("bi_emp", conversor=int)
+    # "bi_aba" só existe na volta de uma ficha: define a aba inicial e sai da URL (não é estado)
+    aba = estado_url.ler("bi_aba", ABAS)
+    st.session_state["_bi_aba_inicial"] = ABAS.get(aba)
+    if aba == "matriz":
+        st.session_state["_bi_matriz_emp"] = st.session_state["_bi_emp_url"]
+    for param in ("de", "bi_aba"):
+        if param in st.query_params:
+            del st.query_params[param]
+
+
 def render():
     inject_css("bi")
     navbar = st.empty()
     render_navbar("bi", container=navbar)  # conteúdo provisório: evita o "tranco" (erros_solucoes.md, caso 12)
 
-    # Carteira é global: vem da URL (a mesma da Home) e volta para ela
-    if estado_url.inicio_da_sessao() and "bi_carteira" not in st.session_state:
-        rotulo_por_slug = {slug: rot for rot, slug in CARTEIRAS_HOME.items()}
-        slug_url = estado_url.ler("carteira", rotulo_por_slug, data_loader.slug_carteira)
-        st.session_state["bi_carteira"] = rotulo_por_slug.get(slug_url, "Recomendada")
+    # Carteira é global (a mesma da Home); o resto do estado do BI usa parâmetros "bi_"
+    if estado_url.inicio_da_sessao():
+        _ler_estado_url()
         estado_url.marcar_sessao_iniciada()
 
     st.markdown(
@@ -363,15 +399,18 @@ def render():
         return
     setores = [TODOS_SETORES] + todos["setor"].value_counts().index.tolist()
     if st.session_state.get("bi_setor") not in setores:
-        st.session_state["bi_setor"] = TODOS_SETORES
+        setor_url = st.session_state.pop("_bi_setor_url", None)
+        st.session_state["bi_setor"] = setor_url if setor_url in setores else TODOS_SETORES
     c2.selectbox("Setor", setores, key="bi_setor")
     setor = st.session_state["bi_setor"]
+    # Antes das abas: os links das fichas levam a URL já atualizada
+    estado_url.gravar({"bi_setor": setor, "bi_eixo": st.session_state.get("bi_matriz_eixo_y", EIXO_PADRAO)},
+                      {"bi_setor": TODOS_SETORES, "bi_eixo": EIXO_PADRAO})
 
     df = _dados(carteira, setor)
     _render_kpis(df)
 
-    # Aba "Eficiência do CAPEX" (_render_eficiencia) oculta por enquanto
-    abas = st.tabs(["Perfil do empreendimento", "Impacto × Viabilidade", "Panorama de Investimentos"])
+    abas = st.tabs(list(ABAS.values()), default=st.session_state.get("_bi_aba_inicial"))
     with abas[0]:
         _render_aba_perfil(carteira, setor, df)
     with abas[1]:

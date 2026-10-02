@@ -1,19 +1,25 @@
 """
-Estado da Home (filtros, paginação e colunas) guardado na URL.
+Estado da Home e do Painel de BI guardado na URL.
 
 Links HTML recarregam a página e o Streamlit abre uma sessão nova (session_state vazio);
 a URL sobrevive ao recarregamento. Fluxo:
     - início da sessão: URL -> session_state (só valores válidos; inválidos são ignorados)
     - a cada execução: session_state -> URL (valores padrão ficam fora da URL)
     - links de navegação carregam o estado atual da URL
+
+Parâmetros do BI levam o prefixo "bi_" para não colidir com os filtros da Home.
+A ficha aberta a partir do BI recebe "de=bi" (origem) e "bi_aba" (aba de onde veio),
+usados só pelo botão Voltar; não são estado e saem dos demais links.
 """
 
 import html
 from urllib.parse import urlencode
 import streamlit as st
 
-# Parâmetros de navegação que não fazem parte do estado da Home
-PARAMS_NAVEGACAO = ("id", "page")
+# Parâmetros de navegação: não fazem parte do estado e não são repassados pelos links
+PARAMS_NAVEGACAO = ("id", "page", "de", "bi_aba")
+# Origens aceitas em "de": lista fechada, nunca um endereço livre (evita redirecionamento para fora)
+ORIGENS = ("bi",)
 _FLAG_SEMEADO = "_estado_url_semeado"
 SEPARADOR_LISTA = "|"  # filtros de seleção múltipla: ?setor=Ferroviário|Dutoviário
 
@@ -89,13 +95,23 @@ def gravar(valores: dict, padroes: dict) -> None:
 
 
 def _link(**extra) -> str:
-    params = {k: v for k, v in st.query_params.items() if k not in PARAMS_NAVEGACAO}
+    """href com o estado atual da URL; `extra` (valores None são ignorados) prevalece sobre ele."""
+    extra = {k: v for k, v in extra.items() if v is not None}
+    params = {k: v for k, v in st.query_params.items() if k not in PARAMS_NAVEGACAO and k not in extra}
     return html.escape("?" + urlencode({**extra, **params}))
 
 
-def link_empreendimento(empreendimento_id: int) -> str:
-    """href da ficha do empreendimento levando o estado atual da Home."""
-    return _link(id=empreendimento_id)
+def origem() -> str | None:
+    """Página de onde a ficha foi aberta ("bi"); None quando veio da Home ou o valor é inválido."""
+    return ler("de", ORIGENS)
+
+
+def link_empreendimento(empreendimento_id: int, de: str | None = None, aba: str | None = None) -> str:
+    """href da ficha do empreendimento levando o estado atual da URL.
+    A partir do BI: de="bi" e a aba de onde veio, para o Voltar retornar ao mesmo lugar."""
+    if de is None:
+        return _link(id=empreendimento_id)
+    return _link(id=empreendimento_id, de=de, bi_aba=aba, bi_emp=empreendimento_id)
 
 
 def link_chatbot() -> str:
@@ -103,7 +119,8 @@ def link_chatbot() -> str:
 
 
 def link_bi() -> str:
-    return _link(page="bi")
+    """href do BI; vindo de uma ficha aberta pelo BI, reabre a aba de origem."""
+    return _link(page="bi", bi_aba=st.query_params.get("bi_aba"))
 
 
 def link_home() -> str:

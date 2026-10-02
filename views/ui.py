@@ -47,12 +47,16 @@ def render_navbar(ativa: str, container=st) -> None:
 
 
 def render_back_button() -> None:
-    """Botão flutuante "Voltar para a Lista", devolvendo os filtros da Home que vieram na URL."""
+    """Botão flutuante "Voltar" da ficha: volta para a página de origem (BI ou Home) com o estado da URL."""
+    if estado_url.origem() == "bi":
+        href, texto = estado_url.link_bi(), "Voltar para o Painel"
+    else:
+        href, texto = estado_url.link_home(), "Voltar para a Lista"
     st.markdown(
         f"""
-        <a href="{estado_url.link_home()}" target="_self" class="atlas-floating-back-btn">
+        <a href="{href}" target="_self" class="atlas-floating-back-btn">
             <span class="back-arrow">←</span>
-            <span>Voltar para a Lista</span>
+            <span>{texto}</span>
         </a>
         """,
         unsafe_allow_html=True,

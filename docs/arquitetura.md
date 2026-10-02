@@ -60,7 +60,7 @@ atlas_web/
 │   ├── chatbot.py          Tela do assistente virtual
 │   ├── bi.py               Painel de Indicadores & BI (protótipo em validação)
 │   ├── ui.py               Carregador de CSS e componentes comuns (barra de navegação, botão Voltar)
-│   └── estado_url.py       Filtros/paginação/colunas da Home guardados na URL
+│   └── estado_url.py       Estado da Home e do BI guardado na URL; links internos e origem do Voltar
 ├── services/
 │   ├── data_loader.py      Leitura dos parquets, cache e regras de precedência
 │   ├── bi_service.py       Cálculos do BI: rankings por recorte, perfil, fronteira de eficiência
@@ -157,9 +157,12 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 | `?id=1042` | Ficha do empreendimento 1042 (ID inválido → mensagem de "não encontrado") |
 | `?page=chatbot` | Assistente virtual |
 | `?page=bi` | Painel de Indicadores & BI (protótipo; `carteira` na URL é a mesma da Home) |
+| `?id=1042&de=bi&bi_aba=matriz` | Ficha aberta a partir do BI: o botão vira "Voltar para o Painel" e reabre a aba de origem |
 
 - **A URL é a fonte da verdade.** Links internos são relativos (começam com `?`).
-- **Barra de navegação superior** (todas as telas, `render_navbar` em `views/ui.py`): Página Inicial, Painel de Indicadores & BI e Assistente Virtual, com destaque na tela aberta (na ficha, destaca Página Inicial). Substitui a faixa nativa do Streamlit (menu ⋮), que fica escondida.
+- **Barra de navegação superior** (todas as telas, `render_navbar` em `views/ui.py`): Página Inicial, Painel de Indicadores & BI e Assistente Virtual, com destaque na tela aberta (na ficha, destaca a página de origem: Página Inicial ou, com `de=bi`, o Painel). Substitui a faixa nativa do Streamlit (menu ⋮), que fica escondida.
+- **Voltar da ficha conforme a origem:** links do BI para a ficha levam `de=bi` (origem, lista fechada em `estado_url.ORIGENS`; nunca um endereço livre) e `bi_aba` (aba de onde veio). Com `de=bi` o botão é "Voltar para o Painel" e leva ao BI com o estado dele; sem `de`, "Voltar para a Lista" (Home). `de` e `bi_aba` são parâmetros de navegação: o BI os lê ao abrir e os tira da URL, e a Home também os remove.
+- **Estado do BI na URL:** `carteira` (a mesma da Home), `bi_setor`, `bi_emp` (empreendimento do Perfil) e `bi_eixo` (eixo Y da matriz). O prefixo `bi_` evita colisão com os filtros da Home; os dois estados convivem na URL, então Home → BI → ficha → BI → Home não perde nada. Detalhes: `docs/frontend.md`, seção 5.9.
 - **Estado da Home na URL:** carteira, busca, filtros, página, itens por página e colunas vão para a URL (`views/estado_url.py`), e os links da tabela, do chatbot e dos botões "Voltar" os carregam. Assim, abrir uma ficha e voltar não perde os filtros, e o link pode ser compartilhado. Detalhes e como incluir um filtro novo: `docs/frontend.md`, seção 5.9.
 - **Home:** 4 KPIs; filtros com carteira, busca e 8 filtros de seleção múltipla sempre visíveis (setor, status, origem, esfera, impacto, viabilidade, natureza, intervenção principal) e a seção recolhida **"Mais filtros"** (município, região intermediária e sliders de Valor Total = CAPEX + OPEX, TIRM e IC); botão redondo "Limpar filtros" (vassoura) ao lado de "Personalizar Colunas"; tabela paginada e ordenável pelo cabeçalho (clique: primeiro sentido → oposto → volta ao padrão IC decrescente; ordem na URL) com colunas configuráveis (modal de arrastar; padrão: ID, Nome, Status, Setor, Natureza, Origem, Esfera, CAPEX, OPEX, TIRM, Índice, Impacto; entre as ocultas, Valor Total e as notas das 5 dimensões), botão flutuante do assistente.
 - **Regiões intermediárias:** a Home mostra (filtro e coluna) só as 13 regiões de MG (`REGIOES_INTERMEDIARIAS_MG` em `views/home.py`); regiões de estados vizinhos que aparecem nos dados são descartadas na exibição, sem alterar o parquet.
@@ -226,7 +229,7 @@ Links internos são relativos (começam com `?`), por isso o app funciona igual 
 - Legenda do mapa e camadas socioambientais adicionais: planejadas, ainda não ativas.
 - Logos institucionais existem em `logos/`, mas não são exibidos.
 - **Painel de BI (protótipo — pendências registradas em 28/09/2026):**
-  - *Estado na URL:* só a `carteira` vai para a URL. Setor, eixo da matriz, empreendimento do perfil e aba ficam na sessão e se perdem ao recarregar ou ao abrir uma ficha. O botão "Voltar" da ficha leva para a Home, não de volta ao BI. O BI usa a mesma marca de "sessão iniciada" da Home (`estado_url.marcar_sessao_iniciada`).
+  - *Estado na URL (resolvido em 01/10/2026):* ver "Estado do BI na URL" acima. Limitações: o `st.tabs` (1.51) não informa a aba aberta, então a aba só é lembrada na volta de uma ficha (recarregar a página abre a primeira aba); o ponto clicado na matriz não é marcado de novo no gráfico, mas o perfil dele reaparece abaixo até um novo clique. O BI usa a mesma marca de "sessão iniciada" da Home (`estado_url.marcar_sessao_iniciada`).
   - *Dependência da Home:* `views/bi.py` importa `CARTEIRAS_HOME` de `views/home.py` e repete a lista das regiões de MG (`REGIOES_MG` em `bi_service.py`, igual a `REGIOES_INTERMEDIARIAS_MG` da Home). Centralizar (ex.: em `data_loader`) antes de publicar.
   - *Região intermediária:* um empreendimento que passa por várias regiões conta inteiro em cada uma. Aguardando a tabela de pertencimento (`id_empreendimento`, tamanho do empreendimento, RGI, tamanho na RGI) para ponderar.
   - *Retirado/oculto até nova definição:* métrica CAPEX por km (removida), aba "Eficiência do CAPEX" (`_render_eficiencia`, oculta). A aba "Destaques por recorte" e a lista "Destaques fora do topo do IC" foram apagadas em 29/09/2026.
