@@ -231,7 +231,7 @@ cards = [
 ```
 
 ### 5.7 Tabelas da ficha (`atlas.py`)
-Seguem o mesmo molde: título `.section-title` + `<table class="atlas-table">`. A tabela de alocação escolhe fonte e colunas por setor em `render_tabela_alocacao` (cadeia `if/elif` com `col_map = {"Rótulo": "coluna_no_parquet"}`) — para um setor novo, adicione um ramo com seu `col_map`.
+Seguem o mesmo molde: título `.section-title` + `<table class="atlas-table">`. A tabela de alocação escolhe fonte e colunas por setor em `render_tabela_alocacao` (cadeia `if/elif` com `col_map = {"Rótulo": "coluna_no_parquet"}`) — para um setor novo, adicione um ramo com seu `col_map`. A tabela de obras (`render_tabela_obras`) mostra a coluna "Origem do Valor" (`origem_valor`, calculada no ETL) antes de "Valor Obra (R$)"; valor 0 sem origem "Declarado" (obra sem modelagem) aparece como "-" nas duas colunas.
 
 ### 5.8 Mapa
 Tudo em `services/map_service.py` (`render_map(id)`). Cores das linhas/pontos estão nos `style_function`/`CircleMarker`; altura em `folium_static(m, height=510)` casada com os 520px do CSS (`.meta-card`, `.map-placeholder`, regras de `iframe` em `atlas.css`). **Se mudar a altura, mude nos quatro lugares.**

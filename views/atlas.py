@@ -503,7 +503,14 @@ def render_tabela_obras(df_obras):
         valor_num = obra.get("valor_calculado")
 
         extensao_fmt = fmt_decimal_br_2(extensao) if pd.notna(extensao) else "-"
-        valor_fmt = fmt_brl(valor_num)
+        # Estimado/Declarado: vem do tipo_custo da vw_custo_economico (ETL); obra sem custo fica com "-"
+        origem = obra.get("origem_valor")
+        origem_fmt = html_mod.escape(str(origem)) if pd.notna(origem) and origem else "-"
+        # Valor zero só é dado real quando declarado; sem custo ou estimativa zerada = obra sem modelagem
+        if origem != "Declarado" and (pd.isna(valor_num) or valor_num == 0):
+            valor_fmt, origem_fmt = "-", "-"
+        else:
+            valor_fmt = fmt_brl(valor_num)
 
         rows_html += (
             '<tr>'
@@ -511,6 +518,7 @@ def render_tabela_obras(df_obras):
             f'<td>{intervencao}</td>'
             f'<td>{tipo_infra}</td>'
             f'<td class="tr">{extensao_fmt}</td>'
+            f'<td>{origem_fmt}</td>'
             f'<td class="tr font-mono font-bold">{valor_fmt}</td>'
             '</tr>'
         )
@@ -523,6 +531,7 @@ def render_tabela_obras(df_obras):
         '<th>Intervenção</th>'
         '<th>Tipo da Infraestrutura</th>'
         '<th>Extensão (Km)</th>'
+        '<th>Origem do Valor</th>'
         '<th class="tr">Valor Obra (R$)</th>'
         '</tr></thead>'
         f'<tbody>{rows_html}</tbody>'

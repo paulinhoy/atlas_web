@@ -94,7 +94,7 @@ O ETL escolhe, para cada destino, o arquivo de `data/raw/` cujo nome começa com
 | `vw_empreendimento_custo_economico_lp` | `dados_financeiro` | `id_empreendimento` | Custo Econômico LP: CAPEX, OPEX, receita, mês base |
 | `resumo_financeiro` | `resumo_financeiro` | `id_empreendimento`, `id_cenario` | Resumo financeiro por cenário (o app usa 7 e 10): CAPEX, OPEX, receita e TIRM CODEMGE |
 | `alocacao_total`, `tbl_alocacaoempreendimento` | `alocacao_empreendimento` | `id_empreendimento`, `id_cenario` | Alocação de fluxos 2055 por cenário |
-| `vw_obra` | `obras_priorizacao` | `id_obra`, `id_empreendimento` | Obras de cada empreendimento (+ `valor_calculado`) |
+| `vw_obra` | `obras_priorizacao` | `id_obra`, `id_empreendimento` | Obras de cada empreendimento (+ `valor_calculado` e `origem_valor`) |
 | `vw_custo_economico` | `custo_obra` | `id_obra`, `id_cenario` | Custos de cada obra por cenário |
 | `capacidade_satur_aero_cenarios` | `demanda_pax_aero_ano` | `id_empreendimento`, `id_cenario` | Demanda de passageiros — aeroviário |
 | `demanda_duto` | `demanda_duto_ano` | `id_empreendimento` | Volume e TKU — dutoviário |
@@ -106,7 +106,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 ### 4.2 Regras do ETL (`scripts/process_data.py`)
 1. **Encoding:** os CSVs exportados são UTF-8 e são lidos como UTF-8 (`utf-8-sig`); Latin-1 só é usado se o arquivo não for UTF-8. **Não existe correção de acentuação em tempo de execução.** Se o ETL imprimir `[AVISO] ... possivel acentuacao corrompida`, o problema está na exportação — corrija na origem, não no texto.
 2. **Tipo do ID:** `id_empreendimento` é gravado como inteiro que aceita vazio (`Int64`) em todas as tabelas. O app compara o ID diretamente, sem conversões.
-3. **Custo das obras:** `valor_calculado` = soma dos custos da obra em cada cenário, adotando o **cenário mais caro**; se não houver custo, usa `valor_global` da obra.
+3. **Custo das obras:** `valor_calculado` = soma dos custos da obra em cada cenário, adotando o **cenário mais caro**; se não houver custo, usa `valor_global` da obra. **Origem do valor** (`origem_valor`): pelo `tipo_custo` da `vw_custo_economico` (`ORIGEM_VALOR_OBRA` em `process_data.py`): `Estimativa` → "Estimado"; `Obra` ou `Empreendimento` → "Declarado". Vem **sempre** da `vw_custo_economico`: obra sem custo lá fica vazia, mesmo com `valor_global`. Hoje cada obra tem um único `tipo_custo`; se uma obra misturar estimado e declarado, o ETL avisa e marca "Estimado". Um `tipo_custo` novo, sem regra, também gera aviso.
 4. **`resumo_financeiro`:** duplicatas de (`id_empreendimento`, `id_cenario`) são removidas.
 5. **`carteiras`:** os 3 CSVs da view `vw_dadosgerais_plataformaonline` (um por schema) viram uma tabela com a coluna `carteira` (`recomendada`, `otimizada`, `analise`). As colunas em formato de array do PostgreSQL (`{Araporã,Prata}`) viram listas Python: `intervencoes`, `tipos_infraestruturas`, `municipios`, `regioes_intermediarias`.
 6. **Natureza e grupo de modelagem (provisório):** a view ainda não traz `natureza_empreendimento` nem `id_grupo_modelagem`, usados na tabela de Alocação da ficha. A natureza vem de `data/raw/natureza_empreendimento_legado.csv` (id → natureza, extraído da tabela antiga `mvw_8_calcula_impacto_3_pond_cenario` em 25/09/2026; a natureza não mudou) e o `id_grupo_modelagem` é deduzido do nome do grupo (`ID_GRUPO_MODELAGEM` em `process_data.py`). O ETL avisa se algum empreendimento ficar sem natureza ou se surgir um grupo desconhecido. **Não apague o CSV legado** enquanto a view não for revisada (seção 10).
@@ -144,7 +144,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
    | 4 | — | — | Tabela não exibida |
    | 5 Aeroviário | — | demanda aero | Demanda de passageiros/ano |
    | 6 Dutoviário | — | demanda duto | **"Tonelada Total"** (`volume_2055`) e TKU Total |
-6. **Obras:** a ficha mostra **todas** as obras do empreendimento (o QGIS limitava a 4), ordenadas pelo `valor_calculado` decrescente. Extensão total = soma de `extensao_km`; duração = menor início – maior conclusão.
+6. **Obras:** a ficha mostra **todas** as obras do empreendimento (o QGIS limitava a 4), ordenadas pelo `valor_calculado` decrescente, com a coluna "Origem do Valor" (Estimado/Declarado, "-" sem informação; regra na seção 4.2, item 3) antes de "Valor Obra (R$)". **Obra sem modelagem** (sem custo na `vw_custo_economico` ou estimativa zerada) com valor 0 mostra "-" no valor e na origem; valor declarado igual a 0 é dado real e aparece como `R$ 0,00`. É só exibição: o `valor_calculado` continua 0 no parquet. Extensão total = soma de `extensao_km`; duração = menor início – maior conclusão.
 7. **Formatação brasileira:** milhar com ponto (`1.682`), decimais com vírgula (`0,4031`), moeda `R$ 289.892.422,00` — sempre pelos helpers de `services/formatters.py`.
 8. **Dados ausentes:** sempre exibidos como hífen `-` (nunca "N/D" ou "N/A").
 9. **Tom institucional:** sem emojis em títulos, botões e tabelas; ícones em SVG simples.
