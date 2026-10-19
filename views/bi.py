@@ -383,8 +383,7 @@ def render():
 
     st.markdown(
         '<div class="bi-header"><div class="bi-header-title">Painel de Indicadores &amp; BI</div>'
-        '<div class="bi-header-sub">Encontre empreendimentos comparando cada um com os seus pares — '
-        'não só pelo IC geral, mas pelos recortes em que ele se destaca.</div></div>',
+        '<div class="bi-header-sub">Encontre empreendimentos comparando cada um com os seus pares.</div></div>',
         unsafe_allow_html=True,
     )
     c1, c2, _ = st.columns([1.3, 1.3, 4])
