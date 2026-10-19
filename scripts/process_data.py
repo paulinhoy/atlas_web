@@ -24,8 +24,8 @@ TARGET_FILES = {
     "carteira_recomendada": ["cenario_recomendado_2_vw_dadosgerais"],
     "carteira_otimizada": ["cenario_recomendado_1_vw_dadosgerais"],
     "carteira_analise": ["priorizacao_peltlp_vw_dadosgerais"],
-    "natureza_legado": ["natureza_empreendimento_legado"],
-    "alocacao_empreendimento": ["alocacao_total", "tbl_alocacaoempreendimento"],
+    # Alocação compilada (cenários 1-4, 8 Otimizado e 10 Recomendado); os antigos (cenário 7) ficam de reserva
+    "alocacao_empreendimento": ["cenario_recomendado_2_alocacao_geral", "alocacao_total", "tbl_alocacaoempreendimento"],
     "dados_financeiro": ["vw_empreendimento_custo_economico_lp"],
     "obras_priorizacao": ["vw_obra"],
     "custo_obra": ["vw_custo_economico"],
@@ -42,10 +42,8 @@ ORIGEM_VALOR_OBRA = {"estimativa": "Estimado", "obra": "Declarado", "empreendime
 # Colunas que chegam do banco como array PostgreSQL ("{Araporã,Prata}") e viram listas
 COLUNAS_LISTA = ["intervencoes", "tipos_infraestruturas", "municipios", "regioes_intermediarias"]
 
-# PENDENTE: a view vw_dadosgerais_plataformaonline não traz natureza_empreendimento nem
-# id_grupo_modelagem, usados na tabela de Alocação da ficha. Até a view ser revisada:
-# - a natureza vem de data/raw/natureza_empreendimento_legado.csv (extraída da tabela antiga);
-# - o id do grupo de modelagem é deduzido do nome do grupo por este dicionário.
+# A view vw_dadosgerais_plataformaonline traz natureza_empreendimento e o nome do grupo de modelagem,
+# mas não o id do grupo, usado na tabela de Alocação da ficha: o id é deduzido do nome por este dicionário.
 ID_GRUPO_MODELAGEM = {
     "Caso geral - infraestruturas lineares": 1,
     "Caso geral - infraestruturas pontuais": 2,
@@ -89,7 +87,7 @@ def array_pg_para_lista(valor) -> list:
 
 def montar_carteiras(processed_dfs: dict) -> pd.DataFrame | None:
     """Junta as 3 carteiras numa tabela só (coluna 'carteira'), converte as colunas-lista e
-    completa natureza/id_grupo_modelagem, que a view ainda não traz."""
+    deduz o id_grupo_modelagem do nome do grupo (a view não traz o id)."""
     partes = []
     for slug in ("recomendada", "otimizada", "analise"):
         df = processed_dfs.pop(f"carteira_{slug}", None)
@@ -97,7 +95,6 @@ def montar_carteiras(processed_dfs: dict) -> pd.DataFrame | None:
             print(f"[AVISO] Carteira '{slug}' nao encontrada em data/raw/.")
             continue
         partes.append(df.assign(carteira=slug))
-    natureza = processed_dfs.pop("natureza_legado", None)
     if not partes:
         return None
 
@@ -106,13 +103,12 @@ def montar_carteiras(processed_dfs: dict) -> pd.DataFrame | None:
         if col in df.columns:
             df[col] = df[col].map(array_pg_para_lista)
 
-    if natureza is not None:
-        df = df.merge(natureza[["id_empreendimento", "natureza_empreendimento"]], on="id_empreendimento", how="left")
+    if "natureza_empreendimento" not in df.columns:
+        print("[AVISO] a view nao trouxe natureza_empreendimento: a tabela de Alocacao da ficha depende dela.")
+    else:
         sem_natureza = df.loc[df["natureza_empreendimento"].isna(), "id_empreendimento"].unique()
         if len(sem_natureza):
-            print(f"[AVISO] {len(sem_natureza)} empreendimentos sem natureza no arquivo legado: {list(sem_natureza)[:20]}")
-    else:
-        print("[AVISO] natureza_empreendimento_legado.csv nao encontrado: natureza ficara vazia.")
+            print(f"[AVISO] {len(sem_natureza)} empreendimentos sem natureza: {list(sem_natureza)[:20]}")
 
     df["id_grupo_modelagem"] = df["grupo_modelagem"].map(ID_GRUPO_MODELAGEM).astype("Int64")
     grupos_novos = set(df.loc[df["id_grupo_modelagem"].isna(), "grupo_modelagem"].dropna())

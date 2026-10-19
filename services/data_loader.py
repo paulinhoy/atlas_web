@@ -24,6 +24,13 @@ PROCESSED_DIR = BASE_DIR / "data" / "processed"
 # Observações da ficha: CSV mantido à mão (não passa pelo ETL), colunas id_empreendimento e observacao
 OBSERVACOES_CSV = BASE_DIR / "data" / "observacoes" / "observacoes_empreendimentos.csv"
 
+# Cenários das tabelas de alocação e resumo financeiro
+CENARIO_RECOMENDADO = 10
+CENARIO_OTIMIZADO = 8
+CENARIO_OTIMIZADO_ANTIGO = 7  # numeração antiga do Otimizado; o resumo_financeiro atual ainda usa
+# Mês base dos valores financeiros: fixo para todos os empreendimentos
+MES_BASE = "2024-08-01"
+
 
 @st.cache_data(show_spinner=False)
 def load_parquet(filename: str) -> pd.DataFrame:
@@ -204,14 +211,14 @@ def get_demanda_duto() -> pd.DataFrame:
 
 
 def get_resumo_financeiro() -> pd.DataFrame:
-    """Retorna os dados do resumo financeiro (cenários 10, 7 e outros)."""
+    """Retorna os dados do resumo financeiro (cenários 10, 8/7 e outros)."""
     return load_parquet("resumo_financeiro")
 
 
 def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
     """Retorna os dados financeiros consolidados do empreendimento com a regra de precedência:
     1. Cenário Recomendado (id_cenario = 10 em resumo_financeiro)
-    2. Cenário Otimizado (id_cenario = 7 em resumo_financeiro)
+    2. Cenário Otimizado (id_cenario = 8 em resumo_financeiro; 7 na numeração antiga)
     3. Custo Econômico LP (dados_financeiro / vw_empreendimento_custo_economico_lp)
     
     Retorna um dicionário com:
@@ -221,7 +228,7 @@ def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
         - receita: float | None
         - tirm_val: float | None (em percentual, ex: 7.76 para 7,76%)
         - viabilidade: str ("-" se ausente)
-        - mes_base: str ("-" se ausente)
+        - mes_base: str (sempre MES_BASE)
         - fonte_financeiro: str ("Cenário Recomendado", "Cenário Otimizado" ou "Custo Econômico LP")
     """
     # 1. Tenta buscar em resumo_financeiro (Cenário 10 ou 7)
@@ -232,19 +239,20 @@ def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
     rec_resumo = filtrar_por_empreendimento(df_resumo, empreendimento_id)
     if not rec_resumo.empty:
         cenarios_num = pd.to_numeric(rec_resumo["id_cenario"], errors="coerce")
-        r10 = rec_resumo[cenarios_num == 10]
-        r7 = rec_resumo[cenarios_num == 7]
+        r10 = rec_resumo[cenarios_num == CENARIO_RECOMENDADO]
+        r_otimizado = rec_resumo[cenarios_num == CENARIO_OTIMIZADO]
+        if r_otimizado.empty:
+            r_otimizado = rec_resumo[cenarios_num == CENARIO_OTIMIZADO_ANTIGO]
         if not r10.empty:
             r_sel = r10.iloc[0]
             fonte_fin = "Cenário Recomendado"
-        elif not r7.empty:
-            r_sel = r7.iloc[0]
+        elif not r_otimizado.empty:
+            r_sel = r_otimizado.iloc[0]
             fonte_fin = "Cenário Otimizado"
                 
-    # 2. Dados de Custo Econômico LP (para fallback ou mês base)
+    # 2. Dados de Custo Econômico LP (fallback)
     rec_fin = filtrar_por_empreendimento(get_dados_financeiro(), empreendimento_id)
     rf = rec_fin.iloc[0] if not rec_fin.empty else {}
-    mes_base = rf.get("mes_atualizacao", "-")
     
     # 3. Metadados complementares (Viabilidade e TIRM da priorização)
     emp_res = get_empreendimento_resolvido(empreendimento_id)
@@ -275,6 +283,6 @@ def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
         "receita": receita if pd.notna(receita) else None,
         "tirm_val": float(tirm_val) if pd.notna(tirm_val) else None,
         "viabilidade": viab if viab not in (None, "", "nan") else "-",
-        "mes_base": mes_base if mes_base not in (None, "", "nan") else "-",
+        "mes_base": MES_BASE,
         "fonte_financeiro": fonte_fin,
     }

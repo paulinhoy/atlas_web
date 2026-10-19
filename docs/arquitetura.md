@@ -9,6 +9,7 @@ Documento de entrada do projeto. Leia antes de qualquer alteração. Ele descrev
 | `docs/erros_solucoes.md` | Ao encontrar comportamento estranho do Streamlit/pandas — e para registrar erros novos |
 | `docs/chatbot_assistente_virtual.md`, `docs/seguranca_chatbot.md` | Antes de mexer na lógica do chatbot (em desenvolvimento) |
 | `docs/queries_extracao.sql` | Ao extrair, atualizar ou incluir dados — contém todas as consultas ao banco |
+| `docs/especificacao_ficha_qgis.md` | Especificação da ficha para o projeto QGIS (colunas, fontes em Parquet e regras). **Atualize junto** ao mudar uma regra ou coluna da ficha |
 
 ---
 
@@ -90,10 +91,10 @@ O ETL escolhe, para cada destino, o arquivo de `data/raw/` cujo nome começa com
 
 | Prefixo(s) em `data/raw/` | Parquet gerado | Chaves | Conteúdo |
 |---|---|---|---|
-| `cenario_recomendado_2_vw_dadosgerais` (Recomendada), `cenario_recomendado_1_vw_dadosgerais` (Otimizada), `priorizacao_peltlp_vw_dadosgerais` (de Análise) + `natureza_empreendimento_legado` | `carteiras` | `id_empreendimento`, `carteira` | Tabela mestra: metadados, notas, IC, CAPEX/OPEX/TIRM e listas (municípios, regiões, intervenções, tipos de infraestrutura) de cada carteira |
-| `vw_empreendimento_custo_economico_lp` | `dados_financeiro` | `id_empreendimento` | Custo Econômico LP: CAPEX, OPEX, receita, mês base |
+| `cenario_recomendado_2_vw_dadosgerais` (Recomendada), `cenario_recomendado_1_vw_dadosgerais` (Otimizada), `priorizacao_peltlp_vw_dadosgerais` (de Análise) | `carteiras` | `id_empreendimento`, `carteira` | Tabela mestra: metadados (inclusive natureza, grupo de modelagem e `data_inicio`/`data_conclusao`), notas, IC, CAPEX/OPEX/TIRM e listas (municípios, regiões, intervenções, tipos de infraestrutura) de cada carteira |
+| `vw_empreendimento_custo_economico_lp` | `dados_financeiro` | `id_empreendimento` | Custo Econômico LP: CAPEX, OPEX, receita |
 | `resumo_financeiro` | `resumo_financeiro` | `id_empreendimento`, `id_cenario` | Resumo financeiro por cenário (o app usa 7 e 10): CAPEX, OPEX, receita e TIRM CODEMGE |
-| `alocacao_total`, `tbl_alocacaoempreendimento` | `alocacao_empreendimento` | `id_empreendimento`, `id_cenario` | Alocação de fluxos 2055 por cenário |
+| `cenario_recomendado_2_alocacao_geral` (antigos, de reserva: `alocacao_total`, `tbl_alocacaoempreendimento`) | `alocacao_empreendimento` | `id_empreendimento`, `id_cenario` | Alocação de fluxos 2055 compilada, cenários 1–4, **8 (Otimizado)** e 10 (Recomendado). Nos arquivos antigos o Otimizado era o 7 |
 | `vw_obra` | `obras_priorizacao` | `id_obra`, `id_empreendimento` | Obras de cada empreendimento (+ `valor_calculado` e `origem_valor`) |
 | `vw_custo_economico` | `custo_obra` | `id_obra`, `id_cenario` | Custos de cada obra por cenário |
 | `capacidade_satur_aero_cenarios` | `demanda_pax_aero_ano` | `id_empreendimento`, `id_cenario` | Demanda de passageiros — aeroviário |
@@ -109,7 +110,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 3. **Custo das obras:** `valor_calculado` = soma dos custos da obra em cada cenário, adotando o **cenário mais caro**; se não houver custo, usa `valor_global` da obra. **Origem do valor** (`origem_valor`): pelo `tipo_custo` da `vw_custo_economico` (`ORIGEM_VALOR_OBRA` em `process_data.py`): `Estimativa` → "Estimado"; `Obra` ou `Empreendimento` → "Declarado". Vem **sempre** da `vw_custo_economico`: obra sem custo lá fica vazia, mesmo com `valor_global`. Hoje cada obra tem um único `tipo_custo`; se uma obra misturar estimado e declarado, o ETL avisa e marca "Estimado". Um `tipo_custo` novo, sem regra, também gera aviso.
 4. **`resumo_financeiro`:** duplicatas de (`id_empreendimento`, `id_cenario`) são removidas.
 5. **`carteiras`:** os 3 CSVs da view `vw_dadosgerais_plataformaonline` (um por schema) viram uma tabela com a coluna `carteira` (`recomendada`, `otimizada`, `analise`). As colunas em formato de array do PostgreSQL (`{Araporã,Prata}`) viram listas Python: `intervencoes`, `tipos_infraestruturas`, `municipios`, `regioes_intermediarias`.
-6. **Natureza e grupo de modelagem (provisório):** a view ainda não traz `natureza_empreendimento` nem `id_grupo_modelagem`, usados na tabela de Alocação da ficha. A natureza vem de `data/raw/natureza_empreendimento_legado.csv` (id → natureza, extraído da tabela antiga `mvw_8_calcula_impacto_3_pond_cenario` em 25/09/2026; a natureza não mudou) e o `id_grupo_modelagem` é deduzido do nome do grupo (`ID_GRUPO_MODELAGEM` em `process_data.py`). O ETL avisa se algum empreendimento ficar sem natureza ou se surgir um grupo desconhecido. **Não apague o CSV legado** enquanto a view não for revisada (seção 10).
+6. **Natureza e grupo de modelagem:** `natureza_empreendimento` e `grupo_modelagem` (nome) vêm da própria view (desde 19/10/2026; antes a natureza vinha de um CSV legado, que não é mais lido). O `id_grupo_modelagem`, usado na tabela de Alocação da ficha, é deduzido do nome (`ID_GRUPO_MODELAGEM` em `process_data.py`). O ETL avisa se algum empreendimento ficar sem natureza ou se surgir um grupo desconhecido.
 
 ### 4.3 Leitura e cache (`services/data_loader.py`)
 - Parquets pequenos: `@st.cache_data` — cada chamada recebe uma cópia; um usuário não altera o dado de outro.
@@ -131,9 +132,9 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 
    A carteira escolhida na Home define KPIs, opções dos filtros, tabela, índice (IC) e impacto exibidos. A listagem é ordenada por `ic_3_pond` decrescente.
 2. **Notas da ficha (Resultados da Priorização):** vêm da carteira **Recomendada**; se o empreendimento não estiver nela, da **Otimizada**; senão, da **de Análise** (`get_empreendimento_resolvido`). Dimensões vazias são completadas pela próxima fonte. Um badge mostra a fonte usada.
-3. **Dados financeiros da ficha:** CAPEX, OPEX, receita e TIRM vêm do **cenário 10 (Recomendado)** do `resumo_financeiro`; senão do **cenário 7 (Otimizado)**; senão do **Custo Econômico LP** (`dados_financeiro`) com a TIRM da priorização (`get_dados_financeiro_resolvido`). Valor Total = CAPEX + OPEX. O mês base vem sempre do Custo Econômico LP. Um badge mostra a fonte usada.
+3. **Dados financeiros da ficha:** CAPEX, OPEX, receita e TIRM vêm do **cenário 10 (Recomendado)** do `resumo_financeiro`; senão do **cenário 8 (Otimizado)** — ou **7**, a numeração antiga, enquanto o `resumo_financeiro` não for reexportado; senão do **Custo Econômico LP** (`dados_financeiro`) com a TIRM da priorização (`get_dados_financeiro_resolvido`). Valor Total = CAPEX + OPEX. O **mês base é fixo: ago/2024** (`MES_BASE = "2024-08-01"` em `data_loader.py`). Números dos cenários: `CENARIO_RECOMENDADO`/`CENARIO_OTIMIZADO` em `data_loader.py`. Um badge mostra a fonte usada.
 4. **KPIs da Home** (dependem só da carteira, não dos filtros): Empreendimentos, **Alta Viabilidade** (`viabilidade == "Alta viabilidade"`), **Alto Impacto** e **Investimento Total** = soma do `capex` da própria carteira, em bilhões arredondados (ex.: `R$ 530 Bi`).
-5. **Alocação 2055 (ficha):** mostra os cenários **1 a 4, 7 (Otimizado) e 10 (Recomendado)**. A fonte e as colunas dependem do setor:
+5. **Alocação 2055 (ficha):** mostra os cenários **1 a 4, 8 (Otimizado) e 10 (Recomendado)**. A fonte e as colunas dependem do setor:
    | Setor (`id_setor`) | Condição | Fonte | Colunas |
    |---|---|---|---|
    | 1 Rodoviário | — | alocação | Carga, Ônibus, Automóvel, Total Veículos, TKU Total |
@@ -144,11 +145,12 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
    | 4 | — | — | Tabela não exibida |
    | 5 Aeroviário | — | demanda aero | Demanda de passageiros/ano |
    | 6 Dutoviário | — | demanda duto | **"Tonelada Total"** (`volume_2055`) e TKU Total |
-6. **Obras:** a ficha mostra **todas** as obras do empreendimento (o QGIS limitava a 4), ordenadas pelo `valor_calculado` decrescente, com a coluna "Origem do Valor" (Estimado/Declarado, "-" sem informação; regra na seção 4.2, item 3) antes de "Valor Obra (R$)". **Obra sem modelagem** (sem custo na `vw_custo_economico` ou estimativa zerada) com valor 0 mostra "-" no valor e na origem; valor declarado igual a 0 é dado real e aparece como `R$ 0,00`. É só exibição: o `valor_calculado` continua 0 no parquet. Duração = menor início – maior conclusão.
-7. **Extensão do empreendimento (metadados da ficha):** `extensao_km` do próprio empreendimento (`vw_dadosgerais_plataformaonline`, igual nas 3 carteiras). **Não somar as obras:** obras do mesmo trecho (implantação, manutenção, operação) repetem a extensão; na base de 25/09/2026 a soma inflava 338 de 1.341 empreendimentos (ex.: id 53, 771,30 km somando × 257,10 km reais). A coluna Extensão da tabela de obras continua mostrando a de cada obra.
-8. **Formatação brasileira:** milhar com ponto (`1.682`), decimais com vírgula (`0,4031`), moeda `R$ 289.892.422,00` — sempre pelos helpers de `services/formatters.py`.
-9. **Dados ausentes:** sempre exibidos como hífen `-` (nunca "N/D" ou "N/A").
-10. **Tom institucional:** sem emojis em títulos, botões e tabelas; ícones em SVG simples.
+6. **Obras:** a ficha mostra **todas** as obras do empreendimento (o QGIS limitava a 4), ordenadas pelo `valor_calculado` decrescente, com a coluna "Origem do Valor" (Estimado/Declarado, "-" sem informação; regra na seção 4.2, item 3) antes de "Valor Obra (R$)". **Obra sem modelagem** (sem custo na `vw_custo_economico` ou estimativa zerada) com valor 0 mostra "-" no valor e na origem; valor declarado igual a 0 é dado real e aparece como `R$ 0,00`. É só exibição: o `valor_calculado` continua 0 no parquet.
+7. **Duração (metadados da ficha):** `data_inicio` – `data_conclusao` do próprio empreendimento (view de carteiras), o mesmo dado do "Período" da Home; "-" se faltar uma das datas. Não é mais calculada pelas obras.
+8. **Extensão do empreendimento (metadados da ficha):** `extensao_km` do próprio empreendimento (`vw_dadosgerais_plataformaonline`, igual nas 3 carteiras). **Não somar as obras:** obras do mesmo trecho (implantação, manutenção, operação) repetem a extensão; na base de 25/09/2026 a soma inflava 338 de 1.341 empreendimentos (ex.: id 53, 771,30 km somando × 257,10 km reais). A coluna Extensão da tabela de obras continua mostrando a de cada obra.
+9. **Formatação brasileira:** milhar com ponto (`1.682`), decimais com vírgula (`0,4031`), moeda `R$ 289.892.422,00` — sempre pelos helpers de `services/formatters.py`.
+10. **Dados ausentes:** sempre exibidos como hífen `-` (nunca "N/D" ou "N/A").
+11. **Tom institucional:** sem emojis em títulos, botões e tabelas; ícones em SVG simples.
 
 ---
 
@@ -227,7 +229,9 @@ Links internos são relativos (começam com `?`), por isso o app funciona igual 
 
 ## 10. Pendências e limitações conhecidas
 
-- **Revisar a view `vw_dadosgerais_plataformaonline`** para incluir `natureza_empreendimento` e `id_grupo_modelagem`. Hoje eles vêm de um CSV legado e de um dicionário no ETL (seção 4.2, item 6). Depois disso, remover `natureza_empreendimento_legado.csv` e `ID_GRUPO_MODELAGEM`.
+- `id_grupo_modelagem` ainda é deduzido do nome do grupo (seção 4.2, item 6). Se a view passar a trazer o id, remover `ID_GRUPO_MODELAGEM`.
+- `resumo_financeiro` ainda usa a numeração antiga (Otimizado = 7). Ao reexportá-lo com o 8, o app passa a usar o 8 sozinho; depois, `CENARIO_OTIMIZADO_ANTIGO` pode sair de `data_loader.py`.
+- Arquivos que o ETL não lê mais e podem sair de `data/raw/`: `natureza_empreendimento_legado.csv`, `alocacao_total*.csv`, `tbl_alocacaoempreendimento*.csv` (substituídos pela view e pelo `cenario_recomendado_2_alocacao_geral.csv`).
 - `data/processed/empreendimentos_priorizacao.parquet` (tabela antiga) não é mais usado pelo app nem gerado pelo ETL; pode ser apagado.
 - O histórico de conversa do chatbot se perde ao navegar para outra tela.
 - Algumas regras CSS dependem de detalhes internos do Streamlit 1.51 (ver `docs/frontend.md`, seção 8). Atualizar o Streamlit exige revisão visual.

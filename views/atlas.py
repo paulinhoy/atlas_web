@@ -40,7 +40,7 @@ def render_header(empreendimento_id, nome_emp, setor, esfera):
     )
 
 
-def render_metadados(row, df_obras):
+def render_metadados(row):
     """Painel esquerdo com ficha técnica de metadados do empreendimento."""
     origem = row.get("origem_ajustada", "-")
     status = row.get("descr_status_empreendimento", "-")
@@ -53,18 +53,10 @@ def render_metadados(row, df_obras):
     extensao = pd.to_numeric(row.get("extensao_km"), errors="coerce")
     extensao_str = fmt_decimal_br_2(extensao) if pd.notna(extensao) and extensao > 0 else "-"
 
-    # Duração: mín data_inicio_obra — máx data_conclusao_obra
-    duracao_str = "-"
-    if not df_obras.empty:
-        col_ini = "data_inicio_obra"
-        col_fim = "data_conclusao_obra"
-        if col_ini in df_obras.columns and col_fim in df_obras.columns:
-            inicio = df_obras[col_ini].dropna()
-            fim = df_obras[col_fim].dropna()
-            if not inicio.empty and not fim.empty:
-                ano_ini = int(inicio.min())
-                ano_fim = int(fim.max())
-                duracao_str = f"{ano_ini} – {ano_fim}"
+    # Duração: data_inicio e data_conclusao do próprio empreendimento (vw_dadosgerais), como o Período da Home
+    inicio = pd.to_numeric(row.get("data_inicio"), errors="coerce")
+    fim = pd.to_numeric(row.get("data_conclusao"), errors="coerce")
+    duracao_str = f"{int(inicio)} – {int(fim)}" if pd.notna(inicio) and pd.notna(fim) else "-"
 
     campos = [
         ("Origem", origem),
@@ -217,7 +209,7 @@ def render_tabela_priorizacao(row):
 
 
 def render_tabela_financeiros(empreendimento_id):
-    """Tabela 2 — Dados Financeiros consolidados com precedência (Cenário 10 ➔ Cenário 7 ➔ Custo Econômico LP)."""
+    """Tabela 2 — Dados Financeiros consolidados com precedência (Cenário 10 ➔ Cenário 8, ou 7 na numeração antiga ➔ Custo Econômico LP)."""
     fin = data_loader.get_dados_financeiro_resolvido(empreendimento_id)
     if not fin:
         st.warning("Dados financeiros não disponíveis.")
@@ -416,10 +408,10 @@ def render_tabela_alocacao(empreendimento_id, row):
 
     df_emp_aloc = data_loader.filtrar_por_empreendimento(df_fonte, empreendimento_id)
 
-    # 4. Filtro defensivo: inclui cenários 1 a 4, 7 (Otimizado) e 10 (Recomendado)
+    # 4. Filtro defensivo: inclui cenários 1 a 4, 8 (Otimizado) e 10 (Recomendado)
     if "id_cenario" in df_emp_aloc.columns:
         cenario_num = pd.to_numeric(df_emp_aloc["id_cenario"], errors="coerce")
-        df_emp_aloc = df_emp_aloc[cenario_num.isin([1, 2, 3, 4, 7, 10])].sort_values("id_cenario")
+        df_emp_aloc = df_emp_aloc[cenario_num.isin([1, 2, 3, 4, data_loader.CENARIO_OTIMIZADO, data_loader.CENARIO_RECOMENDADO])].sort_values("id_cenario")
 
     if df_emp_aloc.empty:
         st.info("Sem dados de alocação para este empreendimento.")
@@ -440,10 +432,10 @@ def render_tabela_alocacao(empreendimento_id, row):
             if header == "Cenário":
                 if pd.notna(val):
                     v_int = int(val)
-                    if v_int == 7:
-                        val_fmt = "7 (Otimizado)"
-                    elif v_int == 10:
-                        val_fmt = "10 (Recomendado)"
+                    if v_int == data_loader.CENARIO_OTIMIZADO:
+                        val_fmt = f"{v_int} (Otimizado)"
+                    elif v_int == data_loader.CENARIO_RECOMENDADO:
+                        val_fmt = f"{v_int} (Recomendado)"
                     else:
                         val_fmt = str(v_int)
                 else:
@@ -585,7 +577,7 @@ def render(empreendimento_id: int | None):
     col_meta, col_map = st.columns([2, 3])
 
     with col_meta:
-        render_metadados(row, df_obras)
+        render_metadados(row)
 
     with col_map:
         render_map_section(empreendimento_id)
