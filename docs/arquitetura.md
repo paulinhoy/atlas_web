@@ -144,10 +144,11 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
    | 4 | — | — | Tabela não exibida |
    | 5 Aeroviário | — | demanda aero | Demanda de passageiros/ano |
    | 6 Dutoviário | — | demanda duto | **"Tonelada Total"** (`volume_2055`) e TKU Total |
-6. **Obras:** a ficha mostra **todas** as obras do empreendimento (o QGIS limitava a 4), ordenadas pelo `valor_calculado` decrescente, com a coluna "Origem do Valor" (Estimado/Declarado, "-" sem informação; regra na seção 4.2, item 3) antes de "Valor Obra (R$)". **Obra sem modelagem** (sem custo na `vw_custo_economico` ou estimativa zerada) com valor 0 mostra "-" no valor e na origem; valor declarado igual a 0 é dado real e aparece como `R$ 0,00`. É só exibição: o `valor_calculado` continua 0 no parquet. Extensão total = soma de `extensao_km`; duração = menor início – maior conclusão.
-7. **Formatação brasileira:** milhar com ponto (`1.682`), decimais com vírgula (`0,4031`), moeda `R$ 289.892.422,00` — sempre pelos helpers de `services/formatters.py`.
-8. **Dados ausentes:** sempre exibidos como hífen `-` (nunca "N/D" ou "N/A").
-9. **Tom institucional:** sem emojis em títulos, botões e tabelas; ícones em SVG simples.
+6. **Obras:** a ficha mostra **todas** as obras do empreendimento (o QGIS limitava a 4), ordenadas pelo `valor_calculado` decrescente, com a coluna "Origem do Valor" (Estimado/Declarado, "-" sem informação; regra na seção 4.2, item 3) antes de "Valor Obra (R$)". **Obra sem modelagem** (sem custo na `vw_custo_economico` ou estimativa zerada) com valor 0 mostra "-" no valor e na origem; valor declarado igual a 0 é dado real e aparece como `R$ 0,00`. É só exibição: o `valor_calculado` continua 0 no parquet. Duração = menor início – maior conclusão.
+7. **Extensão do empreendimento (metadados da ficha):** `extensao_km` do próprio empreendimento (`vw_dadosgerais_plataformaonline`, igual nas 3 carteiras). **Não somar as obras:** obras do mesmo trecho (implantação, manutenção, operação) repetem a extensão; na base de 25/09/2026 a soma inflava 338 de 1.341 empreendimentos (ex.: id 53, 771,30 km somando × 257,10 km reais). A coluna Extensão da tabela de obras continua mostrando a de cada obra.
+8. **Formatação brasileira:** milhar com ponto (`1.682`), decimais com vírgula (`0,4031`), moeda `R$ 289.892.422,00` — sempre pelos helpers de `services/formatters.py`.
+9. **Dados ausentes:** sempre exibidos como hífen `-` (nunca "N/D" ou "N/A").
+10. **Tom institucional:** sem emojis em títulos, botões e tabelas; ícones em SVG simples.
 
 ---
 

@@ -48,9 +48,10 @@ def render_metadados(row, df_obras):
     grupo_mod = row.get("grupo_modelagem", "-")
     responsavel = row.get("responsavel_gestao_infraestrutura", "-")
 
-    # Extensão total: soma das extensões das obras vinculadas
-    extensao_total = df_obras["extensao_km"].sum() if not df_obras.empty and "extensao_km" in df_obras.columns else 0
-    extensao_str = fmt_decimal_br_2(extensao_total) if extensao_total > 0 else "-"
+    # Extensão do próprio empreendimento (vw_dadosgerais). Não somar as obras: implantação, manutenção e
+    # operação do mesmo trecho repetem a extensão, e a soma conta o trecho várias vezes
+    extensao = pd.to_numeric(row.get("extensao_km"), errors="coerce")
+    extensao_str = fmt_decimal_br_2(extensao) if pd.notna(extensao) and extensao > 0 else "-"
 
     # Duração: mín data_inicio_obra — máx data_conclusao_obra
     duracao_str = "-"
