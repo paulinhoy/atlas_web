@@ -10,9 +10,8 @@
 --   data/raw/cenario_recomendado_1_vw_dadosgerais*.csv  -> Carteira Otimizada
 --   data/raw/priorizacao_peltlp_vw_dadosgerais*.csv     -> Carteira de Análise
 -- Processado para: data/processed/carteiras.parquet
--- PENDENTE: a view não traz natureza_empreendimento nem id_grupo_modelagem (usados na ficha).
---           Hoje vêm de data/raw/natureza_empreendimento_legado.csv e do dicionário ID_GRUPO_MODELAGEM
---           em scripts/process_data.py. Incluir as duas colunas na view e remover os paliativos.
+-- A view traz natureza_empreendimento, grupo_modelagem (nome) e data_inicio/data_conclusao.
+-- O id_grupo_modelagem é deduzido do nome pelo dicionário ID_GRUPO_MODELAGEM em scripts/process_data.py.
 -- (Consulta registrada a partir dos nomes dos arquivos; confirmar com a exportação real.)
 SELECT * FROM cenario_recomendado_2.vw_dadosgerais_plataformaonline;
 SELECT * FROM cenario_recomendado_1.vw_dadosgerais_plataformaonline;
@@ -20,7 +19,8 @@ SELECT * FROM priorizacao_peltlp.vw_dadosgerais_plataformaonline;
 
 
 -- 2. Alocação de Fluxos 2055 (tbl_alocacaoempreendimento)
--- Origem do arquivo bruto: data/raw/alocacao_total*.csv
+-- Origem do arquivo bruto: data/raw/cenario_recomendado_2_alocacao_geral.csv (compilado pelo responsável,
+-- com o Otimizado como cenário 8; a consulta abaixo é a antiga, em que o Otimizado era o 7)
 -- Processado para: data/processed/alocacao_empreendimento.parquet
 SELECT *
 FROM financeiro.tbl_alocacaoempreendimento ta -- Cenarios oficiais (1 a 4)
