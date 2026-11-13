@@ -466,7 +466,7 @@ def render_tabela_alocacao(empreendimento_id, row):
 def render_tabela_obras(df_obras):
     """Tabela 4 — Detalhamento de todas as obras vinculadas ao empreendimento.
     Ordenadas pelo valor da obra em ordem decrescente (do maior para o menor).
-    O valor da intervenção é pré-calculado no pipeline ETL pelo cenário mais caro.
+    O valor da obra é pré-calculado no ETL pelo cenário adotado (10, senão 8, senão o mais caro de 1 a 4).
     """
     if df_obras.empty:
         st.info("Nenhuma obra vinculada a este empreendimento.")

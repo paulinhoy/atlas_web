@@ -7,7 +7,7 @@ lendo os CSVs em UTF-8 (padrão de exportação do banco) e pré-calculando o cu
 - <schema>_vw_financeiro_completo (cenario_recomendado_1 e _2) -> financeiro_completo.parquet
 - carteira_vw_empreendimento_custo_economico_lp -> dados_financeiro.parquet
 - cenario_recomendado_2_alocacao_geral -> alocacao_empreendimento.parquet
-- carteira_vw_obra -> obras_priorizacao.parquet (com 'valor_calculado' e 'origem_valor' pré-calculados)
+- carteira_vw_obra -> obras_priorizacao.parquet (com 'valor_calculado', 'cenario_valor' e 'origem_valor' pré-calculados)
 
 Os CSVs podem estar em data/raw/ ou em subpastas dela (ex.: uma pasta por rodada de atualização).
 """
@@ -52,6 +52,10 @@ TARGET_POR_CENARIO = {
         ("cenario_recomendado_2_vw_financeiro_completo", 10),
     ],
 }
+
+# Cenário adotado para o valor da obra: Recomendado (10) se existir; senão Otimizado (8);
+# senão o mais caro entre os cenários da carteira de análise (1 a 4)
+PRIORIDADE_CENARIO_OBRA = {10: 2, 8: 1}
 
 # Origem do valor da obra (coluna 'origem_valor' de obras_priorizacao) a partir do tipo_custo da vw_custo_economico
 ORIGEM_VALOR_OBRA = {"estimativa": "Estimado", "obra": "Declarado", "empreendimento": "Declarado"}
@@ -217,33 +221,39 @@ def convert_csv_to_parquet():
             processed_dfs[target_name] = df
             processed_count += 1
 
-    # Valor da obra: soma dos custos em cada cenário (1-4, 8 e 10) e adoção do cenário mais caro
+    # Valor da obra: soma dos custos de cada cenário e escolha do cenário por PRIORIDADE_CENARIO_OBRA
     if "obras_priorizacao" in processed_dfs and "custo_obra" in processed_dfs:
         df_obra = processed_dfs["obras_priorizacao"]
         df_custo = processed_dfs["custo_obra"]
 
-        if "valor_adotado" in df_custo.columns and "id_obra" in df_custo.columns and "id_cenario" in df_custo.columns:
-            soma_por_cenario = df_custo.groupby(["id_obra", "id_cenario"])["valor_adotado"].sum().reset_index()
-            max_por_obra = soma_por_cenario.groupby("id_obra")["valor_adotado"].max()
+        if {"valor_adotado", "id_obra", "id_cenario"} <= set(df_custo.columns):
+            soma = df_custo.groupby(["id_obra", "id_cenario"])["valor_adotado"].sum().reset_index()
+            soma["prioridade"] = soma["id_cenario"].map(PRIORIDADE_CENARIO_OBRA).fillna(0)
+            adotado = (soma.sort_values(["prioridade", "valor_adotado"], ascending=False)
+                           .drop_duplicates("id_obra").set_index("id_obra"))
 
-            val_series = df_obra["id_obra"].map(max_por_obra)
+            val_series = df_obra["id_obra"].map(adotado["valor_adotado"])
             if "valor_global" in df_obra.columns:
                 val_series = val_series.combine_first(pd.to_numeric(df_obra["valor_global"], errors="coerce"))
             df_obra["valor_calculado"] = val_series.fillna(0.0)
-            print("[OTIMIZACAO ETL] Coluna 'valor_calculado' pre-calculada com sucesso em obras_priorizacao!")
+            df_obra["cenario_valor"] = df_obra["id_obra"].map(adotado["id_cenario"]).astype("Int64")
+            print(f"[OBRAS] valor por cenario adotado: {df_obra['cenario_valor'].value_counts().sort_index().to_dict()}")
 
-        # Origem do valor da obra, sempre pelo tipo_custo da vw_custo_economico (obra sem custo fica vazia)
-        if "tipo_custo" in df_custo.columns and "id_obra" in df_custo.columns:
-            origem = df_custo["tipo_custo"].str.strip().str.lower().map(ORIGEM_VALOR_OBRA)
-            por_obra = origem.groupby(df_custo["id_obra"]).agg(lambda s: set(s.dropna()))
-            mistas = por_obra[por_obra.map(len) > 1]
-            if not mistas.empty:
-                print(f"[AVISO] {len(mistas)} obra(s) com custo estimado e declarado ao mesmo tempo: marcadas como Estimado")
-            por_obra = por_obra.map(lambda s: "Estimado" if "Estimado" in s else next(iter(s), None))
-            df_obra["origem_valor"] = df_obra["id_obra"].map(por_obra)
-            desconhecidos = set(df_custo["tipo_custo"].dropna().str.strip().str.lower()) - set(ORIGEM_VALOR_OBRA)
-            if desconhecidos:
-                print(f"[AVISO] tipo_custo sem regra de origem do valor: {sorted(desconhecidos)}")
+            # Origem do valor: tipo_custo das linhas do cenário adotado (obra sem custo fica vazia)
+            if "tipo_custo" in df_custo.columns:
+                chave = df_custo["id_obra"].astype(str) + "|" + df_custo["id_cenario"].astype(str)
+                escolhidas = set(adotado.index.astype(str) + "|" + adotado["id_cenario"].astype(str))
+                linhas = df_custo[chave.isin(escolhidas)]
+                origem = linhas["tipo_custo"].str.strip().str.lower().map(ORIGEM_VALOR_OBRA)
+                por_obra = origem.groupby(linhas["id_obra"]).agg(lambda s: set(s.dropna()))
+                mistas = por_obra[por_obra.map(len) > 1]
+                if not mistas.empty:
+                    print(f"[AVISO] {len(mistas)} obra(s) com custo estimado e declarado ao mesmo tempo: marcadas como Estimado")
+                por_obra = por_obra.map(lambda s: "Estimado" if "Estimado" in s else next(iter(s), None))
+                df_obra["origem_valor"] = df_obra["id_obra"].map(por_obra)
+                desconhecidos = set(df_custo["tipo_custo"].dropna().str.strip().str.lower()) - set(ORIGEM_VALOR_OBRA)
+                if desconhecidos:
+                    print(f"[AVISO] tipo_custo sem regra de origem do valor: {sorted(desconhecidos)}")
 
     carteiras = montar_carteiras(processed_dfs)
     if carteiras is not None:
