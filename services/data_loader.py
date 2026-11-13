@@ -24,10 +24,9 @@ PROCESSED_DIR = BASE_DIR / "data" / "processed"
 # Observações da ficha: CSV mantido à mão (não passa pelo ETL), colunas id_empreendimento e observacao
 OBSERVACOES_CSV = BASE_DIR / "data" / "observacoes" / "observacoes_empreendimentos.csv"
 
-# Cenários das tabelas de alocação e resumo financeiro
+# Cenários das tabelas de alocação, custo das obras e financeiro completo
 CENARIO_RECOMENDADO = 10
 CENARIO_OTIMIZADO = 8
-CENARIO_OTIMIZADO_ANTIGO = 7  # numeração antiga do Otimizado; o resumo_financeiro atual ainda usa
 # Mês base dos valores financeiros: fixo para todos os empreendimentos
 MES_BASE = "2024-08-01"
 
@@ -210,15 +209,15 @@ def get_demanda_duto() -> pd.DataFrame:
     return load_parquet("demanda_duto_ano")
 
 
-def get_resumo_financeiro() -> pd.DataFrame:
-    """Retorna os dados do resumo financeiro (cenários 10, 8/7 e outros)."""
-    return load_parquet("resumo_financeiro")
+def get_financeiro_completo() -> pd.DataFrame:
+    """CAPEX, OPEX, receita e TIRM (em %) por empreendimento nos cenários 10 (Recomendado) e 8 (Otimizado)."""
+    return load_parquet("financeiro_completo")
 
 
 def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
     """Retorna os dados financeiros consolidados do empreendimento com a regra de precedência:
-    1. Cenário Recomendado (id_cenario = 10 em resumo_financeiro)
-    2. Cenário Otimizado (id_cenario = 8 em resumo_financeiro; 7 na numeração antiga)
+    1. Cenário Recomendado (id_cenario = 10 em financeiro_completo)
+    2. Cenário Otimizado (id_cenario = 8 em financeiro_completo)
     3. Custo Econômico LP (dados_financeiro / vw_empreendimento_custo_economico_lp)
     
     Retorna um dicionário com:
@@ -231,18 +230,15 @@ def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
         - mes_base: str (sempre MES_BASE)
         - fonte_financeiro: str ("Cenário Recomendado", "Cenário Otimizado" ou "Custo Econômico LP")
     """
-    # 1. Tenta buscar em resumo_financeiro (Cenário 10 ou 7)
-    df_resumo = get_resumo_financeiro()
+    # 1. Tenta buscar no financeiro completo (Cenário 10 ou 8)
     r_sel = None
     fonte_fin = "Custo Econômico LP"
-    
-    rec_resumo = filtrar_por_empreendimento(df_resumo, empreendimento_id)
+
+    rec_resumo = filtrar_por_empreendimento(get_financeiro_completo(), empreendimento_id)
     if not rec_resumo.empty:
         cenarios_num = pd.to_numeric(rec_resumo["id_cenario"], errors="coerce")
         r10 = rec_resumo[cenarios_num == CENARIO_RECOMENDADO]
         r_otimizado = rec_resumo[cenarios_num == CENARIO_OTIMIZADO]
-        if r_otimizado.empty:
-            r_otimizado = rec_resumo[cenarios_num == CENARIO_OTIMIZADO_ANTIGO]
         if not r10.empty:
             r_sel = r10.iloc[0]
             fonte_fin = "Cenário Recomendado"
@@ -261,9 +257,9 @@ def get_dados_financeiro_resolvido(empreendimento_id) -> dict:
     if r_sel is not None:
         capex = r_sel.get("capex")
         opex = r_sel.get("opex")
-        receita = r_sel.get("receita_codemge")
-        tirm_val = r_sel.get("tirm_codemge")
-        # Se tirm_codemge for nulo no resumo, faz fallback para o tirm da priorização
+        receita = r_sel.get("receita")
+        tirm_val = r_sel.get("tirm")  # já em %
+        # Se a TIRM for nula no financeiro completo, faz fallback para o tirm da priorização (fração)
         if pd.isna(tirm_val) and emp_res is not None and pd.notna(emp_res.get("tirm")):
             tirm_val = float(emp_res["tirm"]) * 100
     else:

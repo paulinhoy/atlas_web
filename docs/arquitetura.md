@@ -30,7 +30,7 @@ Documento de entrada do projeto. Leia antes de qualquer alteração. Ele descrev
 PostGIS (banco do estudo)
    │  docs/queries_extracao.sql  (todas as consultas de extração; exportação manual)
    ▼
-data/raw/*.csv, *.json                      ← entrada bruta (fora do Git)
+data/raw/*.csv, *.json (e subpastas)        ← entrada bruta (fora do Git)
    │  scripts/process_data.py  (CSV → Parquet)
    │  scripts/process_geo.py   (JSON de geometrias → Parquet)
    ▼
@@ -85,18 +85,20 @@ atlas_web/
 
 ### 4.1 Arquivos de entrada e saída
 
-> **Estado atual — sujeito a mudança.** A referência oficial do que é extraído do banco é `docs/queries_extracao.sql`, onde ficam **todas** as consultas. Ao adicionar ou alterar uma tabela, atualize o `TARGET_FILES` em `scripts/process_data.py`, a tabela abaixo e, se a regra de exibição mudar, a seção 5.
+> **Estado atual — sujeito a mudança.** A referência oficial do que é extraído do banco é `docs/queries_extracao.sql`, onde ficam **todas** as consultas. Ao adicionar ou alterar uma tabela, atualize o `TARGET_FILES` (ou `TARGET_POR_CENARIO`) em `scripts/process_data.py`, a tabela abaixo e, se a regra de exibição mudar, a seção 5.
 
-O ETL escolhe, para cada destino, o arquivo de `data/raw/` cujo nome começa com o **primeiro prefixo da lista que existir**; se houver vários, usa o **último em ordem alfabética** (os nomes exportados terminam com data/hora, então é o mais recente). Arquivos antigos podem continuar na pasta.
+O ETL procura os CSVs em `data/raw/` **e nas subpastas** (ex.: uma pasta por rodada de atualização, como `data/raw/atualizacao_dados_atlas/`). Para cada destino, vale o **primeiro prefixo da lista que tiver arquivo**; se vários arquivos casarem com o prefixo, vence o **modificado por último** (data do arquivo no disco). Arquivos antigos podem continuar na pasta. O `[LIDO]` do ETL mostra o caminho de cada arquivo usado: confira que é o da rodada nova.
+
+As tabelas marcadas com * juntam **um arquivo por schema** (`TARGET_POR_CENARIO`): o `id_cenario` de cada parte vem do schema — `carteira` mantém o do arquivo (1 a 4), `cenario_recomendado_1` vira **8** (Otimizado) e `cenario_recomendado_2` vira **10** (Recomendado). Isso corrige o arquivo do Otimizado, que chega com `id_cenario = 7` (numeração antiga), e dá cenário ao financeiro completo, que não traz a coluna. Linhas repetidas por inteiro são removidas, com aviso.
 
 | Prefixo(s) em `data/raw/` | Parquet gerado | Chaves | Conteúdo |
 |---|---|---|---|
 | `cenario_recomendado_2_vw_dadosgerais` (Recomendada), `cenario_recomendado_1_vw_dadosgerais` (Otimizada), `priorizacao_peltlp_vw_dadosgerais` (de Análise) | `carteiras` | `id_empreendimento`, `carteira` | Tabela mestra: metadados (inclusive natureza, grupo de modelagem e `data_inicio`/`data_conclusao`), notas, IC, CAPEX/OPEX/TIRM e listas (municípios, regiões, intervenções, tipos de infraestrutura) de cada carteira |
-| `vw_empreendimento_custo_economico_lp` | `dados_financeiro` | `id_empreendimento` | Custo Econômico LP: CAPEX, OPEX, receita |
-| `resumo_financeiro` | `resumo_financeiro` | `id_empreendimento`, `id_cenario` | Resumo financeiro por cenário (o app usa 7 e 10): CAPEX, OPEX, receita e TIRM CODEMGE |
+| `carteira_vw_empreendimento_custo_economico_lp` (antigo: `vw_empreendimento_custo_economico_lp`) | `dados_financeiro` | `id_empreendimento` | Custo Econômico LP: CAPEX, OPEX, receita (reserva do financeiro da ficha) |
+| * `cenario_recomendado_1_vw_financeiro_completo` (→ 8), `cenario_recomendado_2_vw_financeiro_completo` (→ 10) | `financeiro_completo` | `id_empreendimento`, `id_cenario` | CAPEX, OPEX, receita e TIRM (em %) dos cenários Otimizado e Recomendado. Substituiu o `resumo_financeiro` em 13/11/2026 |
 | `cenario_recomendado_2_alocacao_geral` (antigos, de reserva: `alocacao_total`, `tbl_alocacaoempreendimento`) | `alocacao_empreendimento` | `id_empreendimento`, `id_cenario` | Alocação de fluxos 2055 compilada, cenários 1–4, **8 (Otimizado)** e 10 (Recomendado). Nos arquivos antigos o Otimizado era o 7 |
-| `vw_obra` | `obras_priorizacao` | `id_obra`, `id_empreendimento` | Obras de cada empreendimento (+ `valor_calculado` e `origem_valor`) |
-| `vw_custo_economico` | `custo_obra` | `id_obra`, `id_cenario` | Custos de cada obra por cenário |
+| `carteira_vw_obra` (antigo: `vw_obra`) | `obras_priorizacao` | `id_obra`, `id_empreendimento` | Obras de cada empreendimento (+ `valor_calculado` e `origem_valor`) |
+| * `carteira_vw_custo_economico` (1–4), `cenario_recomendado_1_vw_custo_economico` (→ 8), `cenario_recomendado_2_vw_custo_economico` (→ 10) | `custo_obra` | `id_obra`, `id_cenario`, `id_custo_economico` | Custos de cada obra por cenário (1–4, 8 e 10) |
 | `capacidade_satur_aero_cenarios` | `demanda_pax_aero_ano` | `id_empreendimento`, `id_cenario` | Demanda de passageiros — aeroviário |
 | `demanda_duto` | `demanda_duto_ano` | `id_empreendimento` | Volume e TKU — dutoviário |
 | `demanda_ferro_passageiro` | `demanda_pax_ferro_ano` | `id_empreendimento` | Demanda de passageiros — ferroviário |
@@ -107,8 +109,8 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 ### 4.2 Regras do ETL (`scripts/process_data.py`)
 1. **Encoding:** os CSVs exportados são UTF-8 e são lidos como UTF-8 (`utf-8-sig`); Latin-1 só é usado se o arquivo não for UTF-8. **Não existe correção de acentuação em tempo de execução.** Se o ETL imprimir `[AVISO] ... possivel acentuacao corrompida`, o problema está na exportação — corrija na origem, não no texto.
 2. **Tipo do ID:** `id_empreendimento` é gravado como inteiro que aceita vazio (`Int64`) em todas as tabelas. O app compara o ID diretamente, sem conversões.
-3. **Custo das obras:** `valor_calculado` = soma dos custos da obra em cada cenário, adotando o **cenário mais caro**; se não houver custo, usa `valor_global` da obra. **Origem do valor** (`origem_valor`): pelo `tipo_custo` da `vw_custo_economico` (`ORIGEM_VALOR_OBRA` em `process_data.py`): `Estimativa` → "Estimado"; `Obra` ou `Empreendimento` → "Declarado". Vem **sempre** da `vw_custo_economico`: obra sem custo lá fica vazia, mesmo com `valor_global`. Hoje cada obra tem um único `tipo_custo`; se uma obra misturar estimado e declarado, o ETL avisa e marca "Estimado". Um `tipo_custo` novo, sem regra, também gera aviso.
-4. **`resumo_financeiro`:** duplicatas de (`id_empreendimento`, `id_cenario`) são removidas.
+3. **Custo das obras:** `valor_calculado` = soma dos custos da obra em cada cenário (**1 a 4, 8 e 10**), adotando o **cenário mais caro**; se não houver custo, usa `valor_global` da obra. **Origem do valor** (`origem_valor`): pelo `tipo_custo` da `vw_custo_economico` (`ORIGEM_VALOR_OBRA` em `process_data.py`): `Estimativa` → "Estimado"; `Obra` ou `Empreendimento` → "Declarado". Vem **sempre** da `vw_custo_economico`: obra sem custo lá fica vazia, mesmo com `valor_global`. Hoje cada obra tem um único `tipo_custo`; se uma obra misturar estimado e declarado, o ETL avisa e marca "Estimado". Um `tipo_custo` novo, sem regra, também gera aviso.
+4. **Tabelas por schema (`custo_obra`, `financeiro_completo`):** montadas com um arquivo por schema e o `id_cenario` do schema (seção 4.1); linhas repetidas por inteiro são removidas. Na rodada de 13/11/2026, a obra 2100 vinha duplicada no cenário 10 (30 bi de CAPEX contados duas vezes).
 5. **`carteiras`:** os 3 CSVs da view `vw_dadosgerais_plataformaonline` (um por schema) viram uma tabela com a coluna `carteira` (`recomendada`, `otimizada`, `analise`). As colunas em formato de array do PostgreSQL (`{Araporã,Prata}`) viram listas Python: `intervencoes`, `tipos_infraestruturas`, `municipios`, `regioes_intermediarias`.
 6. **Natureza e grupo de modelagem:** `natureza_empreendimento` e `grupo_modelagem` (nome) vêm da própria view (desde 19/10/2026; antes a natureza vinha de um CSV legado, que não é mais lido). O `id_grupo_modelagem`, usado na tabela de Alocação da ficha, é deduzido do nome (`ID_GRUPO_MODELAGEM` em `process_data.py`). O ETL avisa se algum empreendimento ficar sem natureza ou se surgir um grupo desconhecido.
 
@@ -132,7 +134,7 @@ Relações: um empreendimento tem até 3 linhas na tabela mestra (uma por cartei
 
    A carteira escolhida na Home define KPIs, opções dos filtros, tabela, índice (IC) e impacto exibidos. A listagem é ordenada por `ic_3_pond` decrescente.
 2. **Notas da ficha (Resultados da Priorização):** vêm da carteira **Recomendada**; se o empreendimento não estiver nela, da **Otimizada**; senão, da **de Análise** (`get_empreendimento_resolvido`). Dimensões vazias são completadas pela próxima fonte. Um badge mostra a fonte usada.
-3. **Dados financeiros da ficha:** CAPEX, OPEX, receita e TIRM vêm do **cenário 10 (Recomendado)** do `resumo_financeiro`; senão do **cenário 8 (Otimizado)** — ou **7**, a numeração antiga, enquanto o `resumo_financeiro` não for reexportado; senão do **Custo Econômico LP** (`dados_financeiro`) com a TIRM da priorização (`get_dados_financeiro_resolvido`). Valor Total = CAPEX + OPEX. O **mês base é fixo: ago/2024** (`MES_BASE = "2024-08-01"` em `data_loader.py`). Números dos cenários: `CENARIO_RECOMENDADO`/`CENARIO_OTIMIZADO` em `data_loader.py`. Um badge mostra a fonte usada.
+3. **Dados financeiros da ficha:** CAPEX, OPEX, receita e TIRM (já em %) vêm do **cenário 10 (Recomendado)** do `financeiro_completo`; senão do **cenário 8 (Otimizado)**; senão do **Custo Econômico LP** (`dados_financeiro`) com a TIRM da priorização × 100 (`get_dados_financeiro_resolvido`). O `financeiro_completo` cobre todos os empreendimentos das carteiras Recomendada e Otimizada e bate com o `capex`/`opex`/`receita`/`tirm` da view, então a ficha mostra os mesmos valores da Home (exceção: onde a view grava 0, o financeiro deixa vazio e a ficha mostra "-"). Valor Total = CAPEX + OPEX. O **mês base é fixo: ago/2024** (`MES_BASE = "2024-08-01"` em `data_loader.py`). Números dos cenários: `CENARIO_RECOMENDADO`/`CENARIO_OTIMIZADO` em `data_loader.py`. Um badge mostra a fonte usada.
 4. **KPIs da Home** (dependem só da carteira, não dos filtros): Empreendimentos, **Alta Viabilidade** (`viabilidade == "Alta viabilidade"`), **Alto Impacto** e **Investimento Total** = soma do `capex` da própria carteira, em bilhões arredondados (ex.: `R$ 530 Bi`).
 5. **Alocação 2055 (ficha):** mostra os cenários **1 a 4, 8 (Otimizado) e 10 (Recomendado)**. A fonte e as colunas dependem do setor:
    | Setor (`id_setor`) | Condição | Fonte | Colunas |
@@ -217,22 +219,33 @@ Links internos são relativos (começam com `?`), por isso o app funciona igual 
 
 ## 9. Atualização dos dados
 
-1. Exportar do PostGIS os CSVs/JSON usando as consultas de `docs/queries_extracao.sql`, em **UTF-8**.
-2. Copiar os arquivos para `data/raw/` mantendo os prefixos dos nomes (seção 4.1).
-3. Rodar `.venv/Scripts/python.exe scripts/process_data.py` e conferir: todos os arquivos `[LIDO]`/`[SALVO]`, **nenhum `[AVISO]`** de acentuação, contagens de linhas plausíveis.
-4. Se as geometrias mudaram: `.venv/Scripts/python.exe scripts/process_geo.py`.
-5. Conferir o aviso do ETL sobre natureza/grupo de modelagem (seção 4.2, item 6) e atualizar as contagens da tabela da seção 5 deste documento.
-6. Reiniciar o Streamlit e conferir a Home nas 3 carteiras e algumas fichas de setores diferentes.
-7. Observações da ficha: não passam pelo ETL. Edite `data/observacoes/observacoes_empreendimentos.csv` quando quiser (Excel serve) e reinicie o Streamlit; confira se os ids continuam existindo depois de uma nova extração.
+1. Exportar do PostGIS os CSVs/JSON usando as consultas de `docs/queries_extracao.sql`, em **UTF-8**, com separador `;`.
+2. Copiar os arquivos para `data/raw/` ou para uma subpasta nova da rodada (ex.: `data/raw/atualizacao_dados_atlas/`), mantendo os prefixos dos nomes (seção 4.1).
+3. Antes de rodar o ETL, guardar uma cópia de `data/processed/` (ele sobrescreve tudo) para comparar depois.
+4. Rodar `.venv/Scripts/python.exe scripts/process_data.py` e conferir: em cada `[LIDO]`, o caminho é o do arquivo novo; todos os `[SALVO]`; **nenhum `[AVISO]`** de acentuação; contagens de linhas plausíveis; nas tabelas por schema, os cenários impressos (1–4, 8, 10).
+5. Comparar com a cópia: linhas que entraram/saíram e colunas com valores alterados. Registrar a rodada no **histórico de atualizações** (seção 9.1).
+6. Se as geometrias mudaram: `.venv/Scripts/python.exe scripts/process_geo.py`.
+7. Conferir o aviso do ETL sobre natureza/grupo de modelagem (seção 4.2, item 6) e atualizar as contagens da tabela da seção 5 deste documento.
+8. Reiniciar o Streamlit e conferir a Home nas 3 carteiras e algumas fichas de setores diferentes.
+9. Levar para os servidores (e para o projeto QGIS, `docs/especificacao_ficha_qgis.md`) os parquets que mudaram.
+10. Observações da ficha: não passam pelo ETL. Edite `data/observacoes/observacoes_empreendimentos.csv` quando quiser (Excel serve) e reinicie o Streamlit; confira se os ids continuam existindo depois de uma nova extração.
+
+### 9.1 Histórico de atualizações dos dados
+
+| Data | Arquivos (em `data/raw/`) | O que mudou |
+|---|---|---|
+| 13/08 a 10/09/2026 | `vw_obra`, `vw_custo_economico` (só cenários 1–4), `vw_empreendimento_custo_economico_lp`, `resumo_financeiro`, `alocacao_total`, demandas, geometrias | Base inicial |
+| 19/10/2026 | 3 × `*_vw_dadosgerais_plataformaonline`, `cenario_recomendado_2_alocacao_geral` | Natureza passa a vir da view; alocação compilada com Otimizado = 8 (antes 7); CAPEX de 4 empreendimentos da Carteira de Análise |
+| 13/11/2026 | Pasta `atualizacao_dados_atlas/`: 3 × `*_vw_dadosgerais_plataformaonline`, 3 × `*_vw_custo_economico` (carteira 1–4, cenario_recomendado_1 → 8, cenario_recomendado_2 → 10), `carteira_vw_obra`, `carteira_vw_empreendimento_custo_economico_lp`, 2 × `*_vw_financeiro_completo` | Custos das obras ganham os cenários 8 e 10 (o valor de 240 obras sobe para o do cenário 8/10, mais caro; 41 mudam por dado novo nos cenários 1–4); origem do valor: 167 obras passam de vazio a Declarado, 11 a Estimado, 62 de Declarado a Estimado; financeiro da ficha passa a vir do `financeiro_completo` (Home e ficha batem em 100% da Recomendada; ex.: id 108, antes 130 mi de OPEX na ficha, agora 60,1 bi de CAPEX e 333,2 bi de OPEX); datas de início/conclusão em ~215 linhas das carteiras; CAPEX/OPEX em 9 linhas das carteiras; 1 obra removida (10289); 1 linha duplicada removida (obra 2100, cenário 10) |
 
 ---
 
 ## 10. Pendências e limitações conhecidas
 
 - `id_grupo_modelagem` ainda é deduzido do nome do grupo (seção 4.2, item 6). Se a view passar a trazer o id, remover `ID_GRUPO_MODELAGEM`.
-- `resumo_financeiro` ainda usa a numeração antiga (Otimizado = 7). Ao reexportá-lo com o 8, o app passa a usar o 8 sozinho; depois, `CENARIO_OTIMIZADO_ANTIGO` pode sair de `data_loader.py`.
-- Arquivos que o ETL não lê mais e podem sair de `data/raw/`: `natureza_empreendimento_legado.csv`, `alocacao_total*.csv`, `tbl_alocacaoempreendimento*.csv` (substituídos pela view e pelo `cenario_recomendado_2_alocacao_geral.csv`).
-- `data/processed/empreendimentos_priorizacao.parquet` (tabela antiga) não é mais usado pelo app nem gerado pelo ETL; pode ser apagado.
+- O arquivo `cenario_recomendado_1_vw_custo_economico` ainda chega com `id_cenario = 7`; o ETL o grava como 8 (seção 4.1). Se a view passar a trazer 8, nada muda.
+- Arquivos que o ETL não lê mais e podem sair de `data/raw/`: `natureza_empreendimento_legado.csv`, `alocacao_total*.csv`, `tbl_alocacaoempreendimento*.csv`, `resumo_financeiro*.csv`, `vw_custo_economico_*.csv`, `vw_obra_*.csv`, `vw_empreendimento_custo_economico_lp_*.csv` e os `*_vw_dadosgerais_plataformaonline.csv` da raiz (substituídos pelos da pasta `atualizacao_dados_atlas/`).
+- `data/processed/empreendimentos_priorizacao.parquet` e `data/processed/resumo_financeiro.parquet` (tabelas antigas) não são mais usados pelo app nem gerados pelo ETL; podem ser apagados.
 - O histórico de conversa do chatbot se perde ao navegar para outra tela.
 - Algumas regras CSS dependem de detalhes internos do Streamlit 1.51 (ver `docs/frontend.md`, seção 8). Atualizar o Streamlit exige revisão visual.
 - Legenda do mapa e camadas socioambientais adicionais: planejadas, ainda não ativas.

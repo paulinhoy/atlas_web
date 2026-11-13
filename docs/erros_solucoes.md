@@ -453,6 +453,28 @@ Links `<a href>` recarregam a página e abrem uma sessão nova: só a URL sobrev
 
 ---
 
+## Caso 19: Rodada de Dados em Subpasta — ETL Pegaria os Arquivos Antigos; Cenário 7 e Linha Duplicada na Origem
+
+* **Data:** 13/11/2026
+* **Componentes Afetados:** `scripts/process_data.py`
+* **Tecnologia:** pandas 2.x
+
+### 🛑 Contexto e Sintoma
+A atualização de 13/11/2026 chegou numa subpasta (`data/raw/atualizacao_dados_atlas/`), com nomes iguais aos de arquivos antigos da raiz (ex.: `cenario_recomendado_2_vw_dadosgerais_plataformaonline.csv`) e com a `vw_custo_economico` dividida em 3 arquivos (um por schema). Três armadilhas:
+1. O ETL só olhava a raiz de `data/raw/`; e, se olhasse as subpastas, a regra "último em ordem alfabética" escolheria o arquivo **antigo** da raiz (`data/raw/cenario...` vem depois de `data/raw/atualizacao.../cenario...`), sem aviso.
+2. `cenario_recomendado_1_vw_custo_economico.csv` chega com `id_cenario = 7`, mas o Otimizado agora é 8.
+3. A obra 2100 vinha duas vezes no cenário 10 (linha idêntica, 30 bi de CAPEX), o que dobraria o valor dela.
+
+### 🔍 Causa Raiz
+Seleção de arquivo por nome, pensada para nomes com data/hora no fim; exportações novas vêm sem data. O número do cenário e a linha repetida vêm da origem.
+
+### ✅ Solução Adotada
+1. `RAW_DIR.rglob("*.csv")` (inclui subpastas) e, entre os arquivos que casam com o prefixo, vence o **modificado por último** (`escolher_arquivo`). O `[LIDO]` imprime o caminho relativo para conferência.
+2. `TARGET_POR_CENARIO`: tabelas com um arquivo por schema recebem o `id_cenario` do schema (carteira = do arquivo; cenario_recomendado_1 = 8; cenario_recomendado_2 = 10).
+3. Linhas repetidas por inteiro são removidas na junção, com `[AVISO]`.
+
+**Armadilha:** a regra "modificado por último" depende da data do arquivo no disco. Copiar um arquivo antigo para a pasta muda a data dele; confira sempre os caminhos impressos no `[LIDO]`.
+
 ## 📝 Modelo de Registro para Novos Casos
 
 Sempre que documentar um novo erro, utilize o padrão abaixo:

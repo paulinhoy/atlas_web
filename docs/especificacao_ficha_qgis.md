@@ -15,7 +15,7 @@ Abaixo está a especificação completa: de qual arquivo e coluna vem cada dado,
 | Arquivo | Chave | Conteúdo / uso na ficha |
 |---|---|---|
 | `carteiras.parquet` | `id_empreendimento` + `carteira` | Tabela mestra: dados gerais, metadados, notas, IC, viabilidade e TIRM. A coluna `carteira` vale `recomendada`, `otimizada` ou `analise`; o mesmo empreendimento pode aparecer em até 3 linhas (uma por carteira). |
-| `resumo_financeiro.parquet` | `id_empreendimento` + `id_cenario` | Financeiro dos cenários Recomendado e Otimizado |
+| `financeiro_completo.parquet` | `id_empreendimento` + `id_cenario` | Financeiro dos cenários Recomendado (10) e Otimizado (8): CAPEX, OPEX, receita e TIRM |
 | `dados_financeiro.parquet` | `id_empreendimento` | Financeiro de reserva (Custo Econômico LP) |
 | `alocacao_empreendimento.parquet` | `id_empreendimento` + `id_cenario` | Alocação 2055: rodoviário, ferroviário de cargas, hidroviário. Cenários 1, 2, 3, 4, 8 (Otimizado) e 10 (Recomendado) |
 | `demanda_pax_aero_ano.parquet` | `id_empreendimento` + `id_cenario` | Alocação 2055 do aeroportuário |
@@ -82,17 +82,17 @@ Título com um selo à direita: `Fonte: {Carteira Recomendada | Carteira Otimiza
 O mês base é **fixo para todos os empreendimentos: agosto de 2024** (`2024-08-01`), exibido como "ago/24".
 
 **Escolha da fonte, em ordem:**
-1. `resumo_financeiro.parquet` com `id_cenario = 10` → "Cenário Recomendado"
-2. Senão, `resumo_financeiro.parquet` com `id_cenario = 8` → "Cenário Otimizado". **Se não houver cenário 8, use `id_cenario = 7`**, que é a numeração antiga do Otimizado; o arquivo atual ainda usa o 7.
+1. `financeiro_completo.parquet` com `id_cenario = 10` → "Cenário Recomendado"
+2. Senão, `financeiro_completo.parquet` com `id_cenario = 8` → "Cenário Otimizado"
 3. Senão, `dados_financeiro.parquet` → "Custo Econômico LP"
 
-| Coluna | Fontes 1 e 2 (`resumo_financeiro.parquet`) | Fonte 3 (`dados_financeiro.parquet`) |
+| Coluna | Fontes 1 e 2 (`financeiro_completo.parquet`) | Fonte 3 (`dados_financeiro.parquet`) |
 |---|---|---|
 | CAPEX (R$) | `capex` | `capex_empreendimento_atualizado` |
 | OPEX (R$) | `opex` | `opex_empreendimento_atualizado` |
 | Valor Total (R$) | CAPEX + OPEX (só quando os dois existem; senão "-") | idem |
-| Receita Total (R$) | `receita_codemge` | `receita` |
-| TIRM (%) | `tirm_codemge` (**já em %**: 5.44 significa 5,4%). Se nulo, `tirm` do registro base × 100 | `tirm` do registro base × 100 (**`tirm` está em fração**: 0.0527 significa 5,3%) |
+| Receita Total (R$) | `receita` | `receita` |
+| TIRM (%) | `tirm` (**já em %**: 5.44 significa 5,4%). Se nulo, `tirm` do registro base × 100 | `tirm` do registro base × 100 (**`tirm` está em fração**: 0.0527 significa 5,3%) |
 | Viabilidade | `viabilidade` do registro base (Alta / Média / Baixa viabilidade, Não se aplica) | idem |
 
 TIRM com 1 casa decimal e o símbolo "%".
@@ -140,6 +140,7 @@ Os valores são inteiros com separador de milhar, e as casas decimais são **tru
 2. **Ferroviário com natureza "Transporte de Cargas e Pessoas"** é tratado como cargas (regras 3, 4 ou 8).
 3. **Grupo "Caso geral - transporte ferroviário de pessoas" (id 9):** a regra de passageiros olha a **natureza**, não o grupo. Um ferroviário desse grupo cuja natureza não seja "Transporte de Pessoas" cai na regra 8.
 4. **Portuário (id_setor 4)** não tem tabela de alocação; o Hidroviário (3) tem.
-5. **TIRM em duas unidades:** `tirm_codemge` (`resumo_financeiro.parquet`) já está em %; `tirm` (`carteiras.parquet`) está em fração e precisa ser multiplicada por 100.
-6. **Cenário Otimizado:** é o 8 em `alocacao_empreendimento.parquet`; em `resumo_financeiro.parquet` ainda é o 7 (numeração antiga). Por isso a regra financeira aceita 8 e, na falta dele, 7.
+5. **TIRM em duas unidades, com o mesmo nome:** `tirm` de `financeiro_completo.parquet` já está em %; `tirm` de `carteiras.parquet` está em fração e precisa ser multiplicada por 100.
+6. **Cenário Otimizado = 8** em todos os arquivos (`alocacao_empreendimento.parquet` e `financeiro_completo.parquet`).
+7. **Valores iguais aos da lista de empreendimentos:** `financeiro_completo.parquet` bate com `capex`/`opex`/`receita`/`tirm` de `carteiras.parquet` (Recomendada e Otimizada). A única diferença: onde as carteiras gravam 0, o financeiro deixa vazio, e a ficha mostra "-".
 

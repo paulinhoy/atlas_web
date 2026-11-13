@@ -2,11 +2,14 @@
 Script de processamento e conversão de dados: CSV -> Parquet.
 Mapeia os nomes brutos do banco de dados (PostGIS) para nomes padronizados em Parquet
 lendo os CSVs em UTF-8 (padrão de exportação do banco) e pré-calculando o custo máximo de obras:
-- <schema>_vw_dadosgerais_plataformaonline_* (3 carteiras) -> carteiras.parquet
-- vw_empreendimento_custo_economico_* -> dados_financeiro.parquet
-- tbl_alocacaoempreendimento_* -> alocacao_empreendimento.parquet
-- vw_obra_* -> obras_priorizacao.parquet (com 'valor_calculado' e 'origem_valor' pré-calculados)
-- vw_custo_economico_* -> custo_obra.parquet
+- <schema>_vw_dadosgerais_plataformaonline (3 carteiras) -> carteiras.parquet
+- <schema>_vw_custo_economico (carteira, cenario_recomendado_1 e _2) -> custo_obra.parquet
+- <schema>_vw_financeiro_completo (cenario_recomendado_1 e _2) -> financeiro_completo.parquet
+- carteira_vw_empreendimento_custo_economico_lp -> dados_financeiro.parquet
+- cenario_recomendado_2_alocacao_geral -> alocacao_empreendimento.parquet
+- carteira_vw_obra -> obras_priorizacao.parquet (com 'valor_calculado' e 'origem_valor' pré-calculados)
+
+Os CSVs podem estar em data/raw/ ou em subpastas dela (ex.: uma pasta por rodada de atualização).
 """
 
 import csv
@@ -18,7 +21,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
-# Mapeamento de nome do arquivo parquet padronizado -> lista priorizada de prefixos brutos
+# Mapeamento de nome do arquivo parquet padronizado -> lista priorizada de prefixos brutos.
+# Vale o primeiro prefixo que tiver arquivo; se vários arquivos casarem, vence o modificado por último.
 TARGET_FILES = {
     # Carteiras (view vw_dadosgerais_plataformaonline de cada schema); juntadas em carteiras.parquet
     "carteira_recomendada": ["cenario_recomendado_2_vw_dadosgerais"],
@@ -26,14 +30,27 @@ TARGET_FILES = {
     "carteira_analise": ["priorizacao_peltlp_vw_dadosgerais"],
     # Alocação compilada (cenários 1-4, 8 Otimizado e 10 Recomendado); os antigos (cenário 7) ficam de reserva
     "alocacao_empreendimento": ["cenario_recomendado_2_alocacao_geral", "alocacao_total", "tbl_alocacaoempreendimento"],
-    "dados_financeiro": ["vw_empreendimento_custo_economico_lp"],
-    "obras_priorizacao": ["vw_obra"],
-    "custo_obra": ["vw_custo_economico"],
-    # Novas tabelas de alocação/demanda
-    "resumo_financeiro": ["resumo_financeiro"],
+    "dados_financeiro": ["carteira_vw_empreendimento_custo_economico_lp", "vw_empreendimento_custo_economico_lp"],
+    "obras_priorizacao": ["carteira_vw_obra", "vw_obra"],
+    # Tabelas de alocação/demanda
     "demanda_pax_aero_ano": ["capacidade_satur_aero_cenarios"],
     "demanda_duto_ano": ["demanda_duto"],
     "demanda_pax_ferro_ano": ["demanda_ferro_passageiro"],
+}
+
+# Tabelas montadas com um arquivo por schema: (prefixo, id_cenario do schema).
+# None mantém o id_cenario do arquivo (cenários oficiais 1 a 4). O número vem do schema porque o
+# arquivo do Otimizado ainda chega com id_cenario = 7 (numeração antiga) e o financeiro não traz cenário.
+TARGET_POR_CENARIO = {
+    "custo_obra": [
+        ("carteira_vw_custo_economico", None),
+        ("cenario_recomendado_1_vw_custo_economico", 8),   # Otimizado
+        ("cenario_recomendado_2_vw_custo_economico", 10),  # Recomendado
+    ],
+    "financeiro_completo": [
+        ("cenario_recomendado_1_vw_financeiro_completo", 8),
+        ("cenario_recomendado_2_vw_financeiro_completo", 10),
+    ],
 }
 
 # Origem do valor da obra (coluna 'origem_valor' de obras_priorizacao) a partir do tipo_custo da vw_custo_economico
@@ -85,6 +102,47 @@ def array_pg_para_lista(valor) -> list:
     return [i.strip() for i in itens if i.strip()]
 
 
+def escolher_arquivo(csv_files: list, prefixo: str) -> Path | None:
+    """Arquivo cujo nome começa com `prefixo`; havendo vários, o modificado por último."""
+    matches = [f for f in csv_files if f.name.startswith(prefixo)]
+    return max(matches, key=lambda f: (f.stat().st_mtime, f.name)) if matches else None
+
+
+def ler_arquivo(csv_file: Path, target_name: str) -> pd.DataFrame:
+    """Lê o CSV, limpa o cabeçalho, avisa acentuação suspeita e converte o id_empreendimento."""
+    df = read_csv_bruto(csv_file)
+    df.columns = [c.strip().strip('"') for c in df.columns]
+    avisar_acentuacao_suspeita(df, target_name)
+    # Inteiro que aceita vazio: as views comparam o ID direto, sem conversões
+    if "id_empreendimento" in df.columns:
+        df["id_empreendimento"] = pd.to_numeric(df["id_empreendimento"]).astype("Int64")
+    return df
+
+
+def montar_por_cenario(csv_files: list, target_name: str, fontes: list) -> pd.DataFrame | None:
+    """Junta um arquivo por schema numa tabela só, com o id_cenario de cada schema.
+    Linhas repetidas por inteiro (mesma linha exportada duas vezes) são removidas."""
+    partes = []
+    for prefixo, cenario in fontes:
+        csv_file = escolher_arquivo(csv_files, prefixo)
+        if csv_file is None:
+            print(f"[NAO ENCONTRADO] {prefixo} (parte de '{target_name}')")
+            continue
+        df = ler_arquivo(csv_file, target_name)
+        if cenario is not None:
+            df["id_cenario"] = cenario
+        partes.append(df)
+        print(f"[LIDO] {csv_file.relative_to(RAW_DIR)} -> {target_name} ({len(df):,} linhas, cenarios {sorted(df['id_cenario'].unique().tolist())})")
+    if not partes:
+        return None
+    df = pd.concat(partes, ignore_index=True)
+    repetidas = int(df.duplicated().sum())
+    if repetidas:
+        print(f"[AVISO] {target_name}: {repetidas} linha(s) repetida(s) por inteiro removida(s).")
+        df = df.drop_duplicates().reset_index(drop=True)
+    return df
+
+
 def montar_carteiras(processed_dfs: dict) -> pd.DataFrame | None:
     """Junta as 3 carteiras numa tabela só (coluna 'carteira'), converte as colunas-lista e
     deduz o id_grupo_modelagem do nome do grupo (a view não traz o id)."""
@@ -127,8 +185,8 @@ def convert_csv_to_parquet():
     print(f"Origem dos dados brutos: {RAW_DIR}")
     print(f"Destino dos dados processados: {PROCESSED_DIR}\n")
 
-    # Ignora arquivos temporários e de lock (ex: .~lock.*)
-    csv_files = [f for f in RAW_DIR.glob("*.csv") if not f.name.startswith(".~lock") and not f.name.startswith(".")]
+    # data/raw/ e subpastas; ignora arquivos temporários e de lock (ex: .~lock.*)
+    csv_files = [f for f in RAW_DIR.rglob("*.csv") if not f.name.startswith(".")]
 
     if not csv_files:
         print("[AVISO] Nenhum arquivo .csv encontrado em data/raw/.")
@@ -138,40 +196,28 @@ def convert_csv_to_parquet():
     processed_count = 0
 
     for target_name, prefixes in TARGET_FILES.items():
-        csv_file = None
-        for prefix in prefixes:
-            matches = [f for f in csv_files if f.name.startswith(prefix)]
-            if prefix == "vw_custo_economico":
-                matches = [f for f in matches if not f.name.startswith("vw_empreendimento_custo_economico")]
-            if matches:
-                csv_file = sorted(matches)[-1]
-                break
-
+        csv_file = next((f for f in (escolher_arquivo(csv_files, p) for p in prefixes) if f), None)
         if not csv_file:
             print(f"[NAO ENCONTRADO] Arquivo para '{target_name}' (prefixos: {prefixes}) nao localizado.")
             continue
-
         try:
-            df = read_csv_bruto(csv_file)
-            df.columns = [c.strip().strip('"') for c in df.columns]
-            avisar_acentuacao_suspeita(df, target_name)
-
-            # Inteiro que aceita vazio: as views comparam o ID direto, sem conversões
-            if "id_empreendimento" in df.columns:
-                df["id_empreendimento"] = pd.to_numeric(df["id_empreendimento"]).astype("Int64")
-
-            if target_name == "resumo_financeiro" and "id_empreendimento" in df.columns and "id_cenario" in df.columns:
-                df = df.drop_duplicates(subset=["id_empreendimento", "id_cenario"]).reset_index(drop=True)
-
-            processed_dfs[target_name] = df
+            processed_dfs[target_name] = ler_arquivo(csv_file, target_name)
             processed_count += 1
-            print(f"[LIDO] {csv_file.name} -> {target_name} ({len(df):,} linhas)")
-
+            print(f"[LIDO] {csv_file.relative_to(RAW_DIR)} -> {target_name} ({len(processed_dfs[target_name]):,} linhas)")
         except Exception as e:
             print(f"[ERRO] Falha ao processar {csv_file.name}: {e}")
 
-    # Pré-cálculo inteligente de custos de obras (Opção 3 do Diagnóstico)
-    # Calcula a soma por cenário e seleciona o maior custo entre cenários uma única vez no ETL
+    for target_name, fontes in TARGET_POR_CENARIO.items():
+        try:
+            df = montar_por_cenario(csv_files, target_name, fontes)
+        except Exception as e:
+            print(f"[ERRO] Falha ao montar {target_name}: {e}")
+            continue
+        if df is not None:
+            processed_dfs[target_name] = df
+            processed_count += 1
+
+    # Valor da obra: soma dos custos em cada cenário (1-4, 8 e 10) e adoção do cenário mais caro
     if "obras_priorizacao" in processed_dfs and "custo_obra" in processed_dfs:
         df_obra = processed_dfs["obras_priorizacao"]
         df_custo = processed_dfs["custo_obra"]
@@ -209,7 +255,8 @@ def convert_csv_to_parquet():
         df.to_parquet(parquet_file, engine="pyarrow", compression="snappy", index=False)
         print(f"[SALVO] {parquet_file.name} ({len(df):,} linhas)")
 
-    print(f"\n--- Concluido: {processed_count}/{len(TARGET_FILES)} arquivos processados e salvos com sucesso! ---")
+    total = len(TARGET_FILES) + len(TARGET_POR_CENARIO)
+    print(f"\n--- Concluido: {processed_count}/{total} tabelas processadas e salvas com sucesso! ---")
 
 
 if __name__ == "__main__":
