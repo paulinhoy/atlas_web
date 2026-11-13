@@ -209,7 +209,7 @@ def render_tabela_priorizacao(row):
 
 
 def render_tabela_financeiros(empreendimento_id):
-    """Tabela 2 — Dados Financeiros consolidados com precedência (Cenário 10 ➔ Cenário 8, ou 7 na numeração antiga ➔ Custo Econômico LP)."""
+    """Tabela 2 — Dados Financeiros consolidados com precedência (Cenário 10 ➔ Cenário 8 ➔ Custo Econômico LP)."""
     fin = data_loader.get_dados_financeiro_resolvido(empreendimento_id)
     if not fin:
         st.warning("Dados financeiros não disponíveis.")
